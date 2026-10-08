@@ -21,6 +21,12 @@ It downloads the pinned theme, copies our files, enables the banner helper and r
 - To load it, Jellyfin's own `index.html` needs one extra `<script>` line. `deploy/theme/compose.theme.yaml` does this with a one-shot helper container that copies `index.html` out of the **same Jellyfin image** and adds the line every time the stack starts, so it can never go stale after an upgrade.
 - Undo: remove `compose.theme.yaml` from `COMPOSE_FILE` in `.env`, run `docker compose up -d`, and delete the Custom CSS.
 
+## Home page layout (Netflix-style order)
+- **Order** is a per-user Jellyfin setting (User menu → **Home**). Recommended: *Continue Watching → Next Up → My Media (library tiles) → Latest media*. It is stored on the server, so it applies on every device that honours Jellyfin's home settings. Apply it to all accounts at once through the API (`/DisplayPreferences/usersettings?userId=…&client=emby`, keys `homesection0…`, values such as `resume`, `nextup`, `smalllibrarytiles`, `latestmedia`).
+- **My Media** becomes an even, full-width row of picture tiles (2 per row on phones).
+- **Suggested for you / Because you watched … / Top rated** rows come from Jellyfin's own recommendation endpoints and appear once there are at least two items to show. With a small library they overlap a lot; they get better as it grows.
+- The banner and extra rows run in the **web** client (computer, phone and tablet browsers; on a phone use *Add to Home screen* for an app-like icon). The native Android/iOS apps and the TV app have their own screens, so they show Jellyfin's standard home with the section order above and the colours where the app supports server styling.
+
 ## Manual install
 On the server (after the main stack works):
 ```bash

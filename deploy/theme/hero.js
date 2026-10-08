@@ -97,10 +97,83 @@
     }, 200);
   }
 
+
+  /* ---------- extra rows: Suggested for you / Because you watched ... / Top rated ---------- */
+  var rowsState = { loadedAt: 0, loading: false, data: [] };
+  function card(it) {
+    var tag = it.ImageTags && it.ImageTags.Primary;
+    var im = tag ? '<img loading="lazy" alt="" src="' + img(it.Id, "Primary", tag, 400) + '">' : '<div class="jfr-noimg">' + esc(it.Name) + "</div>";
+    return '<a class="jfr-card" href="#/details?id=' + it.Id + (it.ServerId ? "&serverId=" + it.ServerId : "") + '" title="' + esc(it.Name) + '">' +
+      '<span class="jfr-poster">' + im + (it.CommunityRating ? '<b class="jfr-rate">★ ' + it.CommunityRating.toFixed(1) + "</b>" : "") + "</span>" +
+      '<span class="jfr-name">' + esc(it.Name) + "</span>" +
+      '<span class="jfr-year">' + (it.ProductionYear || "") + "</span></a>";
+  }
+  function rowHtml(title, items) {
+    return '<div class="jfr-row"><h2 class="jfr-title">' + esc(title) + '</h2><div class="jfr-scroller">' + items.map(card).join("") + "</div></div>";
+  }
+  function loadRows() {
+    var c = client(), uid = userId();
+    if (!c || !uid || rowsState.loading) return Promise.resolve();
+    rowsState.loading = true;
+    var F = "CommunityRating,ProductionYear,PrimaryImageAspectRatio";
+    var jobs = [
+      c.getJSON(c.getUrl("Items/Suggestions", { userId: uid, mediaType: "Video", type: "Movie,Series", limit: 14, enableTotalRecordCount: false }))
+        .then(function (r) { return [{ title: "Suggested for you", items: r.Items || [] }]; }, function () { return []; }),
+      c.getJSON(c.getUrl("Movies/Recommendations", { userId: uid, categoryLimit: 3, itemLimit: 12, fields: F }))
+        .then(function (list) {
+          return (list || []).map(function (g) {
+            var t = g.BaselineItemName;
+            var title = g.RecommendationType === "SimilarToRecentlyPlayed" ? "Because you watched " + t
+              : g.RecommendationType === "SimilarToLikedItem" ? "Because you liked " + t
+              : g.RecommendationType === "HasDirectorFromRecentlyPlayed" || g.RecommendationType === "HasLikedDirector" ? "From the director of " + t
+              : g.RecommendationType === "HasActorFromRecentlyPlayed" || g.RecommendationType === "HasLikedActor" ? "With the cast of " + t
+              : "Recommended";
+            return { title: title, items: g.Items || [] };
+          });
+        }, function () { return []; }),
+      c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 14, Fields: F, ImageTypeLimit: 1, EnableImageTypes: "Primary" })
+        .then(function (r) { return [{ title: "Top rated", items: r.Items || [] }]; }, function () { return []; })
+    ];
+    return Promise.all(jobs).then(function (parts) {
+      var seenTitles = {}, rows = [];
+      parts.forEach(function (g) { g.forEach(function (row) {
+        if (!row.items || row.items.length < 2 || seenTitles[row.title]) return;   // keep rows with real content only
+        seenTitles[row.title] = 1; rows.push(row);
+      }); });
+      rowsState.data = rows.slice(0, 5); rowsState.loadedAt = Date.now(); rowsState.loading = false;
+    }, function () { rowsState.loading = false; });
+  }
+  function myMediaSection() {
+    var c = container(); if (!c) return null;
+    var first = c.querySelector('.card[data-type="CollectionFolder"]');
+    return first ? first.closest(".verticalSection") : null;
+  }
+  function mountRows() {
+    var tries = 0, t = setInterval(function () {
+      var mm = myMediaSection();
+      if (mm || ++tries > 100) {
+        clearInterval(t); if (!mm) return;
+        mm.classList.add("jf-mymedia");
+        var existing = document.getElementById("jfRows");
+        var fresh = Date.now() - rowsState.loadedAt < REFRESH_MS;
+        if (existing && fresh) return;
+        loadRows().then(function () {
+          var again = myMediaSection(); if (!again) return;
+          var old = document.getElementById("jfRows"); if (old) old.remove();
+          if (!rowsState.data.length) return;
+          var wrap = document.createElement("div"); wrap.id = "jfRows";
+          wrap.innerHTML = rowsState.data.map(function (r) { return rowHtml(r.title, r.items); }).join("");
+          again.parentNode.insertBefore(wrap, again.nextSibling);
+        });
+      }
+    }, 300);
+  }
+
   function container() { return document.querySelector(".homePage .homeSectionsContainer"); }
 
   function mount() {
     var c = container(); if (!c) return;
+    mountRows();
     var existing = document.getElementById("jfHero");
     var fresh = Date.now() - state.loadedAt < REFRESH_MS;
     if (existing && fresh) { start(); return; }

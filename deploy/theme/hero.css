@@ -80,3 +80,41 @@
 .homePage .card .cardBox, .homePage .card .cardScalable { transition: transform .18s ease, box-shadow .18s ease; }
 .homePage .card:hover .cardBox { transform: translateY(-4px) scale(1.025); }
 .homePage .card:hover .cardScalable { box-shadow: 0 1em 2.4em rgba(0,0,0,.55); }
+
+/* ----- My Media: an even, full-width row of picture tiles (like the reference) ----- */
+.homePage .jf-mymedia .itemsContainer {
+  display: grid !important; transform: none !important; white-space: normal !important; overflow: visible !important;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 15vw, 300px), 1fr)); gap: 1.1em;
+  padding-right: var(--sidePadding, 3.3%);
+}
+.homePage .jf-mymedia .card { width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.homePage .jf-mymedia .cardBox { margin: 0 !important; }
+.homePage .jf-mymedia .cardScalable { border-radius: 1em; overflow: hidden; box-shadow: 0 .6em 1.6em rgba(0,0,0,.45); }
+.homePage .jf-mymedia .cardPadder { padding-bottom: 56.25% !important; }
+.homePage .jf-mymedia .cardText { display: none; }
+.homePage .jf-mymedia .emby-scrollbuttons { display: none; }
+
+/* ----- extra rows (Suggested for you, Because you watched, Top rated) ----- */
+#jfRows { margin-top: 1.4em; }
+#jfRows .jfr-row { margin: 0 0 1.8em; padding-left: var(--sidePadding, 3.3%); }
+#jfRows .jfr-title { margin: 0 0 .6em; font-size: 1.45em; font-weight: 700; letter-spacing: -.01em; }
+#jfRows .jfr-scroller { display: flex; gap: 1em; overflow-x: auto; padding: .4em var(--sidePadding, 3.3%) 1em 0; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+#jfRows .jfr-card { flex: none; width: clamp(120px, 11vw, 210px); color: inherit; text-decoration: none; scroll-snap-align: start; }
+#jfRows .jfr-poster { position: relative; display: block; aspect-ratio: 2/3; border-radius: 1em; overflow: hidden; background: #151a47; box-shadow: 0 .6em 1.4em rgba(0,0,0,.45); transition: transform .18s ease, box-shadow .18s ease; }
+#jfRows .jfr-card:hover .jfr-poster, #jfRows .jfr-card:focus-visible .jfr-poster { transform: translateY(-4px) scale(1.03); box-shadow: 0 1em 2.4em rgba(0,0,0,.6); }
+#jfRows .jfr-card:focus-visible { outline: none; }
+#jfRows .jfr-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#jfRows .jfr-noimg { height: 100%; display: grid; place-items: center; padding: .6em; text-align: center; font-weight: 700; }
+#jfRows .jfr-rate { position: absolute; left: .5em; bottom: .5em; font-size: .8em; padding: .15em .5em; border-radius: 99px; background: rgba(9,12,36,.72); color: #fbbf24; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#jfRows .jfr-name { display: block; margin-top: .55em; font-size: .95em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#jfRows .jfr-year { display: block; font-size: .82em; opacity: .65; }
+
+/* ----- phone-sized screens ----- */
+@media (max-width: 600px) {
+  #jfHero { height: clamp(340px, 58vh, 520px); margin-top: -48px; }
+  #jfHero .jfh-inner { bottom: 14%; }
+  #jfHero .jfh-meta { font-size: .95em; }
+  #jfHero .jfh-btn { padding: .65em 1.3em; }
+  .homePage .jf-mymedia .itemsContainer { grid-template-columns: repeat(2, 1fr); }
+  #jfRows .jfr-card { width: 34vw; }
+}
