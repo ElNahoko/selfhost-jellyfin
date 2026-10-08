@@ -72,3 +72,5 @@ html .itemBackdrop { height: 58vh !important; }
 html.layout-desktop .itemDetailPage:has(.detailLogo:not(.hide)) .detailRibbon .itemName.parentNameLast { display: none; }   /* logo already says the title */
 html .itemBackdrop { position: relative; }
 html .itemBackdrop::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+/* wide title logos (e.g. Slow Horses) must not be cut off */
+html.layout-desktop #itemDetailPage .detailLogo { width: 34vw !important; max-width: none !important; height: 11vw !important; background-size: contain !important; background-repeat: no-repeat !important; background-position: left bottom !important; }
