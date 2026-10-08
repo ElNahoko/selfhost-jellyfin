@@ -1,0 +1,9 @@
+# Optional speed-up for small servers: run ffmpeg at the lowest CPU priority so a transcode cannot starve the web UI.
+# Enable: add :compose.perf.yaml to COMPOSE_FILE in .env and run `docker compose up -d`.
+# (The wrapper scripts live in ./ffwrap; JELLYFIN_FFMPEG overrides the path set in the dashboard.)
+services:
+  jellyfin:
+    environment:
+      JELLYFIN_FFMPEG: /ffwrap/ffmpeg
+    volumes:
+      - ./ffwrap:/ffwrap:ro

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec nice -n 19 /usr/lib/jellyfin-ffmpeg/ffprobe "$@"

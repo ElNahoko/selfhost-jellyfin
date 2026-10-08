@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs Jellyfin's ffmpeg at the lowest CPU priority so a transcode cannot starve the web interface on a small server.
+exec nice -n 19 /usr/lib/jellyfin-ffmpeg/ffmpeg "$@"

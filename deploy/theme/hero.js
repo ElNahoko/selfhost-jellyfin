@@ -43,12 +43,12 @@
       if (it.CommunityRating) meta.push('<span class="jfh-star">★ ' + it.CommunityRating.toFixed(1) + "</span>");
       if (it.OfficialRating) meta.push('<span class="jfh-badge">' + esc(it.OfficialRating) + "</span>");
       var title = it.ImageTags && it.ImageTags.Logo
-        ? '<img class="jfh-logo" alt="' + esc(it.Name) + '" src="' + img(it.Id, "Logo", it.ImageTags.Logo, 700) + '">'
+        ? '<img class="jfh-logo" alt="' + esc(it.Name) + '" data-src="' + img(it.Id, "Logo", it.ImageTags.Logo, 600) + '">'
         : '<h2 class="jfh-title">' + esc(it.Name) + "</h2>";
       var poster = it.ImageTags && it.ImageTags.Primary
-        ? '<img class="jfh-poster" alt="" src="' + img(it.Id, "Primary", it.ImageTags.Primary, 500) + '">' : "";
+        ? '<img class="jfh-poster" alt="" data-src="' + img(it.Id, "Primary", it.ImageTags.Primary, 400) + '">' : "";
       return '<div class="jfh-slide' + (n === 0 ? " on" : "") + '" data-id="' + it.Id + '" data-server="' + it.ServerId + '" role="group" aria-label="' + (n + 1) + " of " + state.items.length + '">' +
-        '<div class="jfh-bg" style="background-image:url(\'' + img(it.Id, "Backdrop", it.BackdropImageTags[0], 1920) + '\')"></div>' +
+        '<div class="jfh-bg" data-bg="' + img(it.Id, "Backdrop", it.BackdropImageTags[0], 1600) + '"></div>' +
         '<div class="jfh-inner">' + poster +
         '<div class="jfh-info">' + title +
         '<div class="jfh-meta">' + meta.join('<i></i>') + "</div>" +
@@ -67,11 +67,18 @@
     root.addEventListener("mouseenter", stop); root.addEventListener("mouseleave", start);
     return root;
   }
+  function wake(slide) {          // fetch a slide's images the first time it is needed
+    if (!slide || slide.dataset.ready) return; slide.dataset.ready = "1";
+    var bg = slide.querySelector(".jfh-bg"); if (bg && bg.dataset.bg) bg.style.backgroundImage = "url('" + bg.dataset.bg + "')";
+    [].forEach.call(slide.querySelectorAll("img[data-src]"), function (i) { i.src = i.dataset.src; });
+  }
 
   function show(n) {
     var r = state.root; if (!r) return;
     var count = state.items.length; state.idx = (n + count) % count;
-    [].forEach.call(r.querySelectorAll(".jfh-slide"), function (s, i) { s.classList.toggle("on", i === state.idx); });
+    var slides = r.querySelectorAll(".jfh-slide");
+    wake(slides[state.idx]); wake(slides[(state.idx + 1) % count]);
+    [].forEach.call(slides, function (s, i) { s.classList.toggle("on", i === state.idx); });
     [].forEach.call(r.querySelectorAll(".jfh-dot"), function (d, i) { d.classList.toggle("on", i === state.idx); });
   }
   function start() { stop(); if (state.items.length > 1) state.timer = setInterval(function () { show(state.idx + 1); }, INTERVAL); }
@@ -114,6 +121,10 @@
   function loadRows() {
     var c = client(), uid = userId();
     if (!c || !uid || rowsState.loading) return Promise.resolve();
+    try {                                                    // reuse rows fetched in the last 10 minutes (same tab)
+      var cached = JSON.parse(sessionStorage.getItem("jfRows:" + uid) || "null");
+      if (cached && Date.now() - cached.t < REFRESH_MS) { rowsState.data = cached.rows; rowsState.loadedAt = cached.t; return Promise.resolve(); }
+    } catch (x) {}
     rowsState.loading = true;
     var F = "CommunityRating,ProductionYear,PrimaryImageAspectRatio";
     var jobs = [
@@ -131,17 +142,16 @@
             return { title: title, items: g.Items || [] };
           });
         }, function () { return []; }),
-      c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 14, Fields: F, ImageTypeLimit: 1, EnableImageTypes: "Primary" })
-        .then(function (r) { return [{ title: "Top rated", items: r.Items || [] }]; }, function () { return []; }),
-      // one row per genre that has at least 3 titles (Netflix-style categories)
-      c.getJSON(c.getUrl("Genres", { userId: uid, IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "SortName" }))
-        .then(function (g) {
-          return Promise.all((g.Items || []).slice(0, 10).map(function (ge) {
-            return c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, Genres: ge.Name, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 14, Fields: F, ImageTypeLimit: 1, EnableImageTypes: "Primary" })
-              .then(function (r) { return { title: ge.Name, items: r.Items || [], genre: true }; }, function () { return null; });
-          }));
+      // Top rated + one row per genre with at least 3 titles (Netflix-style categories): ONE request, grouped here
+      c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 300, Fields: F + ",Genres", ImageTypeLimit: 1, EnableImageTypes: "Primary" })
+        .then(function (r) {
+          var all = r.Items || [], by = {}, rows = [{ title: "Top rated", items: all.slice(0, 14) }];
+          all.forEach(function (it) { (it.Genres || []).forEach(function (g) { (by[g] = by[g] || []).push(it); }); });
+          Object.keys(by).filter(function (g) { return by[g].length >= 3; })
+            .sort(function (x, y) { return by[y].length - by[x].length || (x < y ? -1 : 1); })
+            .slice(0, 6).forEach(function (g) { rows.push({ title: g, items: by[g].slice(0, 14) }); });
+          return rows;
         }, function () { return []; })
-        .then(function (rows) { return rows.filter(function (r) { return r && r.items.length >= 3; }); })
     ];
     return Promise.all(jobs).then(function (parts) {
       var seenTitles = {}, seenSets = {}, rows = [];
@@ -152,6 +162,7 @@
         seenTitles[row.title] = 1; seenSets[sig] = 1; rows.push(row);
       }); });
       rowsState.data = rows.slice(0, 8); rowsState.loadedAt = Date.now(); rowsState.loading = false;
+      try { sessionStorage.setItem("jfRows:" + uid, JSON.stringify({ t: rowsState.loadedAt, rows: rowsState.data })); } catch (x) {}
     }, function () { rowsState.loading = false; });
   }
   function myMediaSection() {
@@ -194,6 +205,7 @@
       var old = document.getElementById("jfHero"); if (old) old.remove();
       state.root = build();
       c2.insertBefore(state.root, c2.firstChild);
+      show(0);
       start();
     });
   }

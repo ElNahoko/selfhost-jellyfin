@@ -8,6 +8,11 @@
 		-Server
 	}
 
+	# The web client's files carry a content hash in their name (44184.df71....chunk.js), so they can be cached
+	# for a year: the browser stops re-checking dozens of them on every start. A new Jellyfin version = new names.
+	@hashed path_regexp ^/web/[A-Za-z0-9_.-]+\.[0-9a-f]{16,24}\.(chunk\.js|css|woff2?|ttf|svg|png|jpg|webp)$
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
 	# Caddy forwards X-Forwarded-For / -Proto / -Host automatically and handles websockets.
 	# Optional self-hosted theme files (see docs/12-theme.md). Harmless if the folder is empty.
 	handle /theme/* {
