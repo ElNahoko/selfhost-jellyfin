@@ -16,11 +16,27 @@
   --selectorBackgroundColorAlpha: hsla(236, 38%, 22%, 0.55);
 }
 
-body,
-.skinBody,
-.backgroundContainer {
+/* Page glow lives on <html>, so Jellyfin's own backdrop layer (z-index -1, each movie's artwork) stays visible. */
+html {
   background:
     radial-gradient(1100px 560px at 82% -8%, rgba(139, 92, 246, 0.38), transparent 62%),
     radial-gradient(900px 520px at -6% 104%, rgba(59, 130, 246, 0.28), transparent 60%),
     #090c24 !important;
 }
+body,
+.skinBody {
+  background: transparent !important;
+}
+
+/* ---- Header buttons: one consistent look for hover, click and keyboard focus ---- */
+.MuiAppBar-root .MuiButton-root {
+  border-radius: 999px !important; padding: 6px 14px !important;
+  transition: background-color .15s ease, transform .1s ease !important; box-shadow: none !important;
+}
+.MuiAppBar-root .MuiButton-root:hover { background-color: rgba(139, 92, 246, 0.22) !important; }
+.MuiAppBar-root .MuiButton-root:active { background-color: rgba(139, 92, 246, 0.38) !important; transform: scale(.97); }
+.MuiAppBar-root .MuiIconButton-root { transition: background-color .15s ease, transform .1s ease !important; }
+.MuiAppBar-root .MuiIconButton-root:hover { background-color: rgba(139, 92, 246, 0.22) !important; }
+.MuiAppBar-root .MuiIconButton-root:active { background-color: rgba(139, 92, 246, 0.38) !important; transform: scale(.94); }
+.MuiAppBar-root .MuiButtonBase-root:focus-visible { outline: 2px solid hsl(262, 83%, 72%) !important; outline-offset: 2px; }
+.MuiAppBar-root .MuiTouchRipple-root { display: none !important; }   /* no white click flash */

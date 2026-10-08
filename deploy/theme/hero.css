@@ -8,9 +8,13 @@
   margin-bottom: 1.2em;
   overflow: hidden; isolation: isolate;
   color: #fff;
+  /* fade the bottom edge into whatever the page background is */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 74%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 74%, transparent 100%);
 }
-#jfHero .jfh-slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .9s ease, visibility .9s; }
-#jfHero .jfh-slide.on { opacity: 1; visibility: visible; }
+/* Crossfade without a blank gap: the new slide fades in on top, the old one is hidden only after that finishes. */
+#jfHero .jfh-slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; z-index: 0; transition: opacity 0s linear .95s, visibility 0s linear .95s; }
+#jfHero .jfh-slide.on { opacity: 1; visibility: visible; z-index: 1; transition: opacity .9s ease; }
 #jfHero .jfh-bg {
   position: absolute; inset: 0; background-size: cover; background-position: center 22%;
   transform: scale(1.04); transition: transform 9s ease-out;
@@ -20,7 +24,7 @@
   content: ""; position: absolute; inset: 0; z-index: 1;
   background:
     linear-gradient(90deg, rgba(9,12,36,.94) 0%, rgba(9,12,36,.62) 36%, rgba(9,12,36,.12) 72%, rgba(9,12,36,0) 100%),
-    linear-gradient(0deg, var(--jfh-bg) 0%, rgba(9,12,36,.55) 18%, rgba(9,12,36,0) 46%),
+    linear-gradient(0deg, rgba(9,12,36,.55) 0%, rgba(9,12,36,0) 40%),
     linear-gradient(180deg, rgba(9,12,36,.7) 0%, rgba(9,12,36,0) 22%);
 }
 #jfHero .jfh-inner {
@@ -81,18 +85,7 @@
 .homePage .card:hover .cardBox { transform: translateY(-4px) scale(1.025); }
 .homePage .card:hover .cardScalable { box-shadow: 0 1em 2.4em rgba(0,0,0,.55); }
 
-/* ----- My Media: an even, full-width row of picture tiles (like the reference) ----- */
-.homePage .jf-mymedia .itemsContainer {
-  display: grid !important; transform: none !important; white-space: normal !important; overflow: visible !important;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 15vw, 300px), 1fr)); gap: 1.1em;
-  padding-right: var(--sidePadding, 3.3%);
-}
-.homePage .jf-mymedia .card { width: auto !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
-.homePage .jf-mymedia .cardBox { margin: 0 !important; }
-.homePage .jf-mymedia .cardScalable { border-radius: 1em; overflow: hidden; box-shadow: 0 .6em 1.6em rgba(0,0,0,.45); }
-.homePage .jf-mymedia .cardPadder { padding-bottom: 56.25% !important; }
-.homePage .jf-mymedia .cardText { display: none; }
-.homePage .jf-mymedia .emby-scrollbuttons { display: none; }
+/* My Media keeps Jellyfin's normal card size so it matches every other row. */
 
 /* ----- extra rows (Suggested for you, Because you watched, Top rated) ----- */
 #jfRows { margin-top: 1.4em; }
@@ -115,6 +108,5 @@
   #jfHero .jfh-inner { bottom: 14%; }
   #jfHero .jfh-meta { font-size: .95em; }
   #jfHero .jfh-btn { padding: .65em 1.3em; }
-  .homePage .jf-mymedia .itemsContainer { grid-template-columns: repeat(2, 1fr); }
   #jfRows .jfr-card { width: 34vw; }
 }
