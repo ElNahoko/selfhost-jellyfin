@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" role="img" aria-labelledby="t d" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+  <title id="t">How a stream is delivered</title>
+  <desc id="d">If the client supports the video codec and container, Jellyfin Direct Plays with almost no CPU. If only the container is unsupported it remuxes cheaply. If the video codec is unsupported, or image subtitles must be burned in, it transcodes, which a small server cannot do for four streams.</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5b6670"/></marker></defs>
+  <rect x="1" y="1" width="958" height="428" rx="16" fill="#ffffff" stroke="#dde2e8"/>
+  <text x="24" y="34" font-size="18" font-weight="700" fill="#1b1f24">How a stream is delivered, and what it costs the server</text>
+  <text x="24" y="62" font-size="12" fill="#5b6670">Audio the client cannot decode (e.g. DTS/TrueHD in a browser) is converted on its own: cheap and allowed.</text>
+  <text x="24" y="80" font-size="12" fill="#5b6670">Prepare the library once: H.264/HEVC video + AAC/AC3/EAC3 audio + SRT subtitles in MP4/MKV.</text>
+
+  <g font-size="13" fill="#1b1f24" text-anchor="middle">
+    <rect x="24" y="124" width="130" height="56" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/>
+    <text x="89" y="148">Client asks to</text><text x="89" y="166">play a file</text>
+    <path d="M154 152 L186 152" stroke="#5b6670" stroke-width="1.6" marker-end="url(#a)"/>
+
+    <polygon points="290,104 392,152 290,200 188,152" fill="#fff7e6" stroke="#9a6700"/>
+    <text x="290" y="148">Video codec</text><text x="290" y="166">supported?</text>
+    <path d="M392 152 L428 152" stroke="#5b6670" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="410" y="142" font-size="11" fill="#1a7f4b">yes</text>
+
+    <polygon points="530,104 632,152 530,200 428,152" fill="#fff7e6" stroke="#9a6700"/>
+    <text x="530" y="148">Container</text><text x="530" y="166">supported?</text>
+    <path d="M632 152 L690 152" stroke="#5b6670" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="661" y="142" font-size="11" fill="#1a7f4b">yes</text>
+
+    <rect x="692" y="116" width="244" height="72" rx="12" fill="#e9f6ef" stroke="#1a7f4b"/>
+    <text x="814" y="142" font-weight="700" fill="#1a7f4b">DIRECT PLAY</text>
+    <text x="814" y="161" font-size="12" fill="#5b6670">file is sent as-is · CPU ≈ 0</text>
+    <text x="814" y="177" font-size="12" fill="#5b6670">this is the goal</text>
+
+    <path d="M530 200 L530 262" stroke="#5b6670" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="544" y="236" font-size="11" fill="#9a6700" text-anchor="start">no (container only)</text>
+    <rect x="410" y="264" width="240" height="72" rx="12" fill="#fff7e6" stroke="#9a6700"/>
+    <text x="530" y="290" font-weight="700" fill="#9a6700">DIRECT STREAM (remux)</text>
+    <text x="530" y="309" font-size="12" fill="#5b6670">repackaged, not re-encoded</text>
+    <text x="530" y="325" font-size="12" fill="#5b6670">CPU low · fine on a small server</text>
+
+    <path d="M290 200 L290 340" stroke="#5b6670" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="304" y="262" font-size="11" fill="#c0392b" text-anchor="start">no</text>
+    <rect x="24" y="342" width="380" height="64" rx="12" fill="#fdecea" stroke="#c0392b"/>
+    <text x="214" y="368" font-weight="700" fill="#c0392b">VIDEO TRANSCODE</text>
+    <text x="214" y="387" font-size="12" fill="#5b6670">CPU very high · 1–2 vCPUs cannot do four of these</text>
+  </g>
+  <g font-size="12" fill="#5b6670">
+    <text x="426" y="364">Also forced by image subtitles (PGS) that must be burned in.</text>
+    <text x="426" y="382" fill="#c0392b" font-weight="700">Disabled for family accounts.</text>
+    <text x="426" y="400">Fix the file or the client, not the server.</text>
+  </g>
+</svg>

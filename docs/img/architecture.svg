@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" role="img" aria-labelledby="t d" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+  <title id="t">Architecture</title>
+  <desc id="d">Family devices reach Caddy over HTTPS through a firewall. Caddy proxies to Jellyfin, which is not exposed. Jellyfin reads media from a data disk and keeps its database on the system disk. The admin connects by SSH key.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6a4fd8"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5b6670"/></marker>
+  </defs>
+  <rect x="1" y="1" width="958" height="428" rx="16" fill="#ffffff" stroke="#dde2e8"/>
+  <text x="24" y="34" font-size="18" font-weight="700" fill="#1b1f24">Architecture</text>
+
+  <!-- devices -->
+  <g font-size="14" fill="#1b1f24">
+    <rect x="30" y="64" width="170" height="52" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/><text x="115" y="95" text-anchor="middle">LG webOS TV</text>
+    <rect x="30" y="134" width="170" height="52" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/><text x="115" y="165" text-anchor="middle">Phone (Android / iOS)</text>
+    <rect x="30" y="204" width="170" height="52" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/><text x="115" y="235" text-anchor="middle">Browser (Windows)</text>
+  </g>
+  <text x="115" y="282" text-anchor="middle" font-size="12" fill="#5b6670">Family: France · Morocco · Spain</text>
+
+  <!-- internet -->
+  <ellipse cx="300" cy="160" rx="50" ry="32" fill="#f3f1fd" stroke="#6a4fd8"/>
+  <text x="300" y="165" text-anchor="middle" font-size="14" fill="#1b1f24">Internet</text>
+  <g stroke="#6a4fd8" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M200 90 L252 148"/><path d="M200 160 L248 160"/><path d="M200 230 L254 176"/>
+    <path d="M350 160 L420 160"/>
+  </g>
+  <text x="385" y="150" text-anchor="middle" font-size="12" fill="#6a4fd8">HTTPS</text>
+
+  <!-- VPS -->
+  <rect x="420" y="56" width="510" height="360" rx="14" fill="#fbfbfe" stroke="#6a4fd8" stroke-width="1.5"/>
+  <text x="438" y="80" font-size="14" font-weight="700" fill="#6a4fd8">Your VPS · Ubuntu 24.04 · KVM</text>
+  <rect x="438" y="92" width="474" height="34" rx="8" fill="#e9f6ef" stroke="#1a7f4b"/>
+  <text x="675" y="114" text-anchor="middle" font-size="13" fill="#1a7f4b">Firewall: only 22 (SSH keys) · 80 · 443 are open. 8096 is closed.</text>
+
+  <rect x="438" y="140" width="474" height="122" rx="10" fill="none" stroke="#9aa7b4" stroke-dasharray="5 4"/>
+  <text x="450" y="157" font-size="11" fill="#5b6670">Docker network (private)</text>
+  <rect x="456" y="170" width="170" height="70" rx="10" fill="#f3f1fd" stroke="#6a4fd8"/>
+  <text x="541" y="199" text-anchor="middle" font-size="15" font-weight="700" fill="#1b1f24">Caddy</text>
+  <text x="541" y="220" text-anchor="middle" font-size="12" fill="#5b6670">auto HTTPS (80/443)</text>
+  <rect x="724" y="170" width="170" height="70" rx="10" fill="#f3f1fd" stroke="#6a4fd8"/>
+  <text x="809" y="199" text-anchor="middle" font-size="15" font-weight="700" fill="#1b1f24">Jellyfin</text>
+  <text x="809" y="220" text-anchor="middle" font-size="12" fill="#5b6670">8096 · internal only</text>
+  <path d="M626 205 L722 205" stroke="#6a4fd8" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- storage -->
+  <rect x="438" y="296" width="226" height="104" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/>
+  <text x="551" y="318" text-anchor="middle" font-size="13" font-weight="700" fill="#1b1f24">System disk (NVMe / SSD)</text>
+  <text x="551" y="340" text-anchor="middle" font-size="12" fill="#5b6670">/opt/jellyfin/config</text>
+  <text x="551" y="358" text-anchor="middle" font-size="12" fill="#5b6670">cache · backups · Docker</text>
+  <text x="551" y="382" text-anchor="middle" font-size="11" fill="#5b6670">database lives here (fast)</text>
+  <rect x="686" y="296" width="226" height="104" rx="10" fill="#f6f7f9" stroke="#c9d0d8"/>
+  <text x="799" y="318" text-anchor="middle" font-size="13" font-weight="700" fill="#1b1f24">Data disk (large HDD, ~2 TB)</text>
+  <text x="799" y="340" text-anchor="middle" font-size="12" fill="#5b6670">/srv/media</text>
+  <text x="799" y="358" text-anchor="middle" font-size="12" fill="#5b6670">movies · shows · music · audiobooks</text>
+  <text x="799" y="382" text-anchor="middle" font-size="11" fill="#5b6670">mounted read-only in Jellyfin</text>
+  <path d="M790 240 L790 294" stroke="#5b6670" stroke-width="1.5" marker-end="url(#g)"/>
+  <path d="M760 240 L580 294" stroke="#5b6670" stroke-width="1.5" marker-end="url(#g)"/>
+
+  <!-- admin -->
+  <rect x="30" y="334" width="170" height="56" rx="10" fill="#fff7e6" stroke="#9a6700"/>
+  <text x="115" y="359" text-anchor="middle" font-size="14" fill="#1b1f24">You (admin)</text>
+  <text x="115" y="378" text-anchor="middle" font-size="12" fill="#5b6670">SSH key only</text>
+  <path d="M200 362 L418 362" stroke="#9a6700" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#g)"/>
+  <text x="318" y="354" text-anchor="middle" font-size="12" fill="#9a6700">port 22</text>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-labelledby="t d" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">
+  <title id="t">Install flow</title>
+  <desc id="d">Seven stages: order and prepare, secure the server, storage, Docker and Jellyfin, HTTPS, configure and test, operate.</desc>
+  <rect x="1" y="1" width="958" height="248" rx="16" fill="#ffffff" stroke="#dde2e8"/>
+  <text x="24" y="34" font-size="18" font-weight="700" fill="#1b1f24">Install flow</text>
+  <g font-size="13" text-anchor="middle" fill="#1b1f24">
+    <g>
+      <rect x="20" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="79" cy="86" r="14" fill="#6a4fd8"/><text x="79" y="91" fill="#fff" font-weight="700">1</text>
+      <text x="79" y="122" font-weight="700">Prepare</text><text x="79" y="141" font-size="11" fill="#5b6670">Pick &amp; order VPS</text><text x="79" y="157" font-size="11" fill="#5b6670">SSH key, hostname</text>
+    </g>
+    <g>
+      <rect x="150" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="209" cy="86" r="14" fill="#6a4fd8"/><text x="209" y="91" fill="#fff" font-weight="700">2</text>
+      <text x="209" y="122" font-weight="700">Secure</text><text x="209" y="141" font-size="11" fill="#5b6670">Admin user, keys</text><text x="209" y="157" font-size="11" fill="#5b6670">Firewall, updates</text>
+    </g>
+    <g>
+      <rect x="280" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="339" cy="86" r="14" fill="#6a4fd8"/><text x="339" y="91" fill="#fff" font-weight="700">3</text>
+      <text x="339" y="122" font-weight="700">Storage</text><text x="339" y="141" font-size="11" fill="#5b6670">Identify the disk</text><text x="339" y="157" font-size="11" fill="#5b6670">Mount safely</text>
+    </g>
+    <g>
+      <rect x="410" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="469" cy="86" r="14" fill="#6a4fd8"/><text x="469" y="91" fill="#fff" font-weight="700">4</text>
+      <text x="469" y="122" font-weight="700">Docker</text><text x="469" y="141" font-size="11" fill="#5b6670">Install Engine</text><text x="469" y="157" font-size="11" fill="#5b6670">Jellyfin wizard</text>
+    </g>
+    <g>
+      <rect x="540" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="599" cy="86" r="14" fill="#6a4fd8"/><text x="599" y="91" fill="#fff" font-weight="700">5</text>
+      <text x="599" y="122" font-weight="700">HTTPS</text><text x="599" y="141" font-size="11" fill="#5b6670">DNS name</text><text x="599" y="157" font-size="11" fill="#5b6670">Caddy certificate</text>
+    </g>
+    <g>
+      <rect x="670" y="64" width="118" height="110" rx="12" fill="#f3f1fd" stroke="#6a4fd8"/>
+      <circle cx="729" cy="86" r="14" fill="#6a4fd8"/><text x="729" y="91" fill="#fff" font-weight="700">6</text>
+      <text x="729" y="122" font-weight="700">Configure</text><text x="729" y="141" font-size="11" fill="#5b6670">Libraries, users</text><text x="729" y="157" font-size="11" fill="#5b6670">Sample media test</text>
+    </g>
+    <g>
+      <rect x="800" y="64" width="140" height="110" rx="12" fill="#e9f6ef" stroke="#1a7f4b"/>
+      <circle cx="870" cy="86" r="14" fill="#1a7f4b"/><text x="870" y="91" fill="#fff" font-weight="700">7</text>
+      <text x="870" y="122" font-weight="700">Operate</text><text x="870" y="141" font-size="11" fill="#5b6670">Backups, alerts</text><text x="870" y="157" font-size="11" fill="#5b6670">Updates, devices</text>
+    </g>
+  </g>
+  <g stroke="#6a4fd8" stroke-width="2" fill="none"><path d="M138 119h10M268 119h10M398 119h10M528 119h10M658 119h10M788 119h10"/></g>
+  <text x="24" y="212" font-size="12" fill="#5b6670">Every step has a verification before moving on. Never skip "test SSH key login" before disabling passwords.</text>
+  <text x="24" y="232" font-size="12" fill="#5b6670">The local wizard (wizard/index.html) walks through all seven stages and tracks your progress.</text>
+</svg>
