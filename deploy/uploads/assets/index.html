@@ -94,7 +94,7 @@ button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color
 
     <p class="tip">Naming helps Jellyfin find artwork: <code>Movies/Title (Year)/Title (Year).mkv</code>,
       <code>Shows/Show Name (Year)/Season 01/Show S01E01.mkv</code>, <code>Music/Artist/Album/01 Track.mp3</code>.
-      New items show up in Jellyfin within a minute or two. Large uploads can be closed and resumed: pick the same file again.</p>
+      &ldquo;Done&rdquo; means the file is stored on the server; Jellyfin adds it to the library by itself about a minute later. Large uploads can be closed and resumed: pick the same file again.</p>
   </section>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -256,7 +256,7 @@ async function pump(){
     var j=queue.shift();
     try{await uploadOne(j);}catch(e){j.fail(String(e.message||e));}
   }
-  running=false;window.onbeforeunload=null;listDir();toast("Uploads finished");
+  running=false;window.onbeforeunload=null;listDir();toast("Uploads finished. Jellyfin adds new files to the library in about a minute.");
 }
 function enqueue(items){   // items: [{file, rel}] rel relative to cwd
   items.forEach(function(it){addJob(it.file,(cwd+"/"+it.rel).replace(/\/+/g,"/"));});pump();

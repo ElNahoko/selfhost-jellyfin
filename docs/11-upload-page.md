@@ -21,7 +21,7 @@ A small web page where you drag and drop movies, shows, music and audiobooks str
 3. Open `https://files.example.com`, sign in, choose a library and drop files.
 
 ## Good to know
-- New files appear in Jellyfin within a minute or two (real-time monitoring). If not: Dashboard → Libraries → Scan.
+- "Done" on the page means the file is **stored**. Jellyfin adds it to the library about a minute later **if the auto-scan service is installed** (`sudo JELLYFIN_API_KEY=<key> bash scripts/07-enable-autoscan.sh`, key from Dashboard → API Keys). Without it, Jellyfin's own watcher only covers library folders that already had files when it started, so uploads into a previously empty library can wait up to 12 hours: Dashboard → Libraries → Scan All Libraries fixes that by hand.
 - Use clean names (`Movie Title (2020)/Movie Title (2020).mkv`), see [Add media](08-first-media-and-testing.md).
 - The login uses HTTP Basic authentication over HTTPS. Use the long random password the script generates and do not share it. To rotate it, delete `/opt/jellyfin/uploads.env` and run the script again.
 - Prefer the command line? `rsync -avP --partial ./movies/ media@SERVER:/srv/media/movies/` works too.

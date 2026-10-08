@@ -5,6 +5,7 @@
 | Caddy can't get a certificate | DNS doesn't point at the server, or port 80 blocked | `dig +short host`, `sudo ufw status`, `docker compose logs caddy` |
 | Browser shows 502 | Jellyfin not healthy yet or crashed | `docker compose ps`, `docker compose logs jellyfin` |
 | Jellyfin keeps restarting, "permission denied" in logs | `PUID/PGID` don't own `config/` or `cache/` | `sudo chown -R media:media /opt/jellyfin` and match `.env` |
+| Uploaded a file but it is not in Jellyfin | Jellyfin's own real-time watcher does not start for a library folder that was **empty** when Jellyfin started or last scanned (typical for a new TV Shows or Music library). Nothing scans until the 12-hourly task | Install the auto-scan service: `scripts/07-enable-autoscan.sh` (new files are then scanned about 30 s after the last change). Quick manual fix: Dashboard → Libraries → Scan All Libraries. Check with `journalctl -t jellyfin-autoscan` |
 | Library empty | Wrong path (use `/media/...`), or files unreadable | Check `ls -l /srv/media`, ownership/permissions; rescan |
 | Media vanished after reboot | Data disk not mounted | `findmnt /srv/media`, `lsblk -f`, check `/etc/fstab` UUID; services started before the mount, so `docker compose restart` |
 | Everything transcodes / buffers | Codec/container/subtitle mismatch | See [Configure Jellyfin](06-configure-jellyfin.md); look at the playback reason in the player info |
