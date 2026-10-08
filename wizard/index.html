@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jellyfin VPS Wizard</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1b1f24; --muted:#5b6670; --line:#dde2e8;
+  --accent:#6a4fd8; --accent-ink:#ffffff; --ok:#1a7f4b; --bad:#c0392b; --warn:#9a6700;
+  --code-bg:#0f1720; --code-ink:#e6edf3; --chip:#eceff3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116; --card:#161b22; --ink:#e6edf3; --muted:#9aa7b4; --line:#2a313a;
+    --accent:#8b74f0; --accent-ink:#0e1116; --ok:#3fb27f; --bad:#ff7b6b; --warn:#e0a93b;
+    --code-bg:#0a0d12; --code-ink:#e6edf3; --chip:#222a33;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --card:#161b22; --ink:#e6edf3; --muted:#9aa7b4; --line:#2a313a;
+  --accent:#8b74f0; --accent-ink:#0e1116; --ok:#3fb27f; --bad:#ff7b6b; --warn:#e0a93b;
+  --code-bg:#0a0d12; --code-ink:#e6edf3; --chip:#222a33;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px 80px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 0}
+header .wrap{padding-bottom:0}
+header .row{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:1.15rem;margin:0}
+.bar{height:8px;background:var(--chip);border-radius:99px;overflow:hidden;margin-top:10px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.meta{color:var(--muted);font-size:.85rem}
+button,.btn{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.small{padding:3px 9px;font-size:.8rem}
+section.panel,.step{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:16px 0}
+.panel{padding:16px}
+.panel h2{margin:0 0 4px;font-size:1rem}
+.panel p{margin:0 0 12px;color:var(--muted);font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:3px}
+input,select,textarea{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+input.invalid{border-color:var(--bad)}
+.hint{font-size:.78rem;color:var(--muted);margin-top:2px}
+.hint.err{color:var(--bad)}
+.step.done{opacity:.8}
+.step.current{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.step>button.head{all:unset;box-sizing:border-box;display:flex;gap:12px;align-items:center;width:100%;padding:14px 16px;cursor:pointer}
+.step>button.head:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+.num{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--chip);font-weight:600;font-size:.85rem}
+.step.done .num{background:var(--ok);color:#fff}
+.step.current .num{background:var(--accent);color:var(--accent-ink)}
+.title{flex:1;font-weight:600}
+.where{font-size:.72rem;padding:2px 8px;border-radius:99px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.body{padding:0 16px 16px;display:none}
+.step.open .body{display:block}
+.body p{margin:8px 0}
+.cmd{margin:10px 0}
+.cmd .top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.78rem;color:var(--muted);margin-bottom:4px}
+pre{margin:0;background:var(--code-bg);color:var(--code-ink);padding:12px;border-radius:8px;overflow:auto;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre}
+.note{border-left:3px solid var(--warn);padding:6px 12px;margin:10px 0;background:var(--bg);border-radius:0 8px 8px 0;font-size:.92rem}
+.note.info{border-color:var(--accent)}
+ul.todo{padding-left:20px;margin:8px 0}
+.donerow{display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.donerow input{width:auto}
+.res{margin-top:8px;font-size:.9rem}
+.res .ok{color:var(--ok)} .res .bad{color:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+footer{color:var(--muted);font-size:.8rem;margin-top:24px}
+code.inline{background:var(--chip);padding:1px 5px;border-radius:5px;font-size:.88em}
+@media (max-width:520px){ .where{display:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row">
+      <h1>Jellyfin VPS Wizard</h1>
+      <div class="meta"><span id="count">0 / 0 steps</span>
+        <button class="small" id="theme" type="button" aria-label="Toggle theme">Theme</button></div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bar"><i></i></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel" aria-labelledby="cfg-h">
+    <h2 id="cfg-h">1. Your settings</h2>
+    <p>Everything stays in this page and your browser. Commands below are built from these values. <strong>Never enter passwords here.</strong></p>
+    <div class="grid">
+      <div><label for="f-ip">Server IPv4</label><input id="f-ip" data-k="ip" placeholder="203.0.113.10" inputmode="decimal"><div class="hint" data-h="ip"></div></div>
+      <div><label for="f-user">Admin username (new)</label><input id="f-user" data-k="user" placeholder="media"><div class="hint" data-h="user"></div></div>
+      <div><label for="f-domain">Hostname for Jellyfin</label><input id="f-domain" data-k="domain" placeholder="media.example.com"><div class="hint" data-h="domain"></div></div>
+      <div><label for="f-device">Data disk device</label><input id="f-device" data-k="device" placeholder="/dev/vdb"><div class="hint" data-h="device">Check with <code class="inline">lsblk -f</code> first.</div></div>
+      <div><label for="f-tz">Time zone</label><input id="f-tz" data-k="tz" placeholder="Europe/Paris"><div class="hint" data-h="tz"></div></div>
+      <div><label for="f-jf">Jellyfin version tag</label><input id="f-jf" data-k="jf"><div class="hint" data-h="jf">Use the latest stable release.</div></div>
+      <div><label for="f-caddy">Caddy version tag</label><input id="f-caddy" data-k="caddy"><div class="hint" data-h="caddy"></div></div>
+      <div><label for="f-repo">Guide repository URL</label><input id="f-repo" data-k="repo"><div class="hint" data-h="repo"></div></div>
+    </div>
+    <div style="margin-top:12px"><label for="f-pubkey">Your SSH <em>public</em> key (one line, starts with ssh-ed25519)</label>
+      <textarea id="f-pubkey" data-k="pubkey" rows="2" placeholder="ssh-ed25519 AAAA... you@laptop"></textarea><div class="hint" data-h="pubkey"></div></div>
+    <div class="actions">
+      <button type="button" id="open-all">Expand all</button>
+      <button type="button" id="close-all">Collapse all</button>
+      <button type="button" id="reset" class="small">Reset progress</button>
+    </div>
+  </section>
+
+  <h2 style="margin:24px 0 0;font-size:1rem">2. Install, step by step</h2>
+  <div id="steps"></div>
+
+  <footer>Single local file. No data is sent anywhere. Progress is saved in this browser only (localStorage).
+    Read <code class="inline">docs/</code> in the repo for the reasoning behind each step.</footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- state ---------- */
+var KEY="jvg-wizard-v1";
+var DEFAULTS={ip:"",user:"media",domain:"",device:"/dev/vdb",tz:"Europe/Paris",jf:"10.10.7",caddy:"2.10",
+  repo:"https://github.com/ElNahoko/jellyfin-vps-guide.git",pubkey:""};
+var state={cfg:Object.assign({},DEFAULTS),done:{},open:{}};
+function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&s.cfg){state.cfg=Object.assign({},DEFAULTS,s.cfg);state.done=s.done||{};state.open=s.open||{};}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+/* ---------- validation ---------- */
+var V={
+  ip:function(v){return v===""||/^(\d{1,3}\.){3}\d{1,3}$/.test(v)&&v.split(".").every(function(n){return +n<=255;});},
+  user:function(v){return /^[a-z_][a-z0-9_-]{0,31}$/.test(v)&&v!=="root";},
+  domain:function(v){return v===""||/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(v);},
+  device:function(v){return /^\/dev\/[a-zA-Z0-9_\/-]+$/.test(v);},
+  tz:function(v){return /^[A-Za-z0-9_+\-\/]+$/.test(v);},
+  jf:function(v){return /^[A-Za-z0-9._-]+$/.test(v)&&v!=="latest";},
+  caddy:function(v){return /^[A-Za-z0-9._-]+$/.test(v)&&v!=="latest";},
+  repo:function(v){return /^https:\/\/[A-Za-z0-9._\/-]+(\.git)?$/.test(v);},
+  pubkey:function(v){return v===""||/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp\d+) [A-Za-z0-9+\/=]+( [^\n\r']*)?$/.test(v.trim());}
+};
+var MSG={ip:"Enter a valid IPv4 address.",user:"Lowercase letters, digits, - or _. Not root.",domain:"Enter a full hostname like media.example.com.",
+  device:"Looks like /dev/vdb.",tz:"Example: Europe/Paris",jf:"Pin a real tag, not latest.",caddy:"Pin a real tag, not latest.",
+  repo:"https:// URL.",pubkey:"Paste the single-line PUBLIC key (.pub file). Not the private key."};
+function ok(k){return V[k](state.cfg[k]);}
+function val(k,ph){return ok(k)&&state.cfg[k]!==""?state.cfg[k]:ph;}   /* safe value or placeholder */
+
+/* ---------- command builders ---------- */
+function steps(){
+  var u=val("user","media"), ip=val("ip","SERVER_IP"), dom=val("domain","media.example.com"),
+      dev=val("device","/dev/vdb"), tz=val("tz","Europe/Paris"), jf=val("jf","10.10.7"), cd=val("caddy","2.10"),
+      repo=val("repo","https://github.com/ElNahoko/jellyfin-vps-guide.git"),
+      key=(state.cfg.pubkey&&ok("pubkey"))?state.cfg.pubkey.trim():"ssh-ed25519 AAAA...PASTE_YOUR_PUBLIC_KEY";
+  var R="~/jellyfin-vps-guide";
+  return [
+  {id:"prep",title:"Before you start",where:"Your computer",b:[
+    {t:"p",x:"You need: a fresh <b>Ubuntu 24.04</b> VPS (KVM, with a separate data disk of the size you want), its public IP, root access, and a hostname pointing at it."},
+    {t:"list",x:["Provider's <b>recovery / VNC console</b> opens (your safety net if SSH breaks).","Hostname's <b>A record</b> points to the server IP (you can do this now).","Final price, renewal price and refund window written down."]},
+    {t:"cmd",w:"local",l:"Create an SSH key (skip if you have one)",c:"ssh-keygen -t ed25519 -C \"jellyfin-server\"\n# the PUBLIC key is the file ending in .pub:\ncat ~/.ssh/id_ed25519.pub"},
+    {t:"p",x:"Paste the <b>public</b> key into the box above. Never share the private key (the file without .pub)."}
+  ]},
+  {id:"login",title:"First login and look around",where:"Server (root)",b:[
+    {t:"cmd",w:"local",l:"Connect as root with the password/key your provider gave you",c:"ssh root@"+ip},
+    {t:"cmd",w:"server",l:"Check the machine. Write down the system disk vs the data disk",c:"lsb_release -d\nsystemd-detect-virt\nnproc; free -h\nlsblk -f\nip -4 addr"},
+    {t:"p",x:"Expected: <code class='inline'>Ubuntu 24.04</code>, virtualization <code class='inline'>kvm</code> (not openvz/lxc), and a second disk with an empty FSTYPE column. <b>Do not format anything yet.</b>"}
+  ]},
+  {id:"clone",title:"Get the guide onto the server",where:"Server (root)",b:[
+    {t:"cmd",w:"server",l:"Install git and download this repo",c:"apt-get update && apt-get install -y git\ngit clone "+repo+" "+R},
+    {t:"cmd",w:"server",l:"Save your public key on the server",c:"cat > /root/mykey.pub <<'EOF'\n"+key+"\nEOF"}
+  ]},
+  {id:"boot",title:"Create admin user, firewall, updates",where:"Server (root)",b:[
+    {t:"cmd",w:"server",l:"Run phase 1 (does NOT disable password login)",c:"cd "+R+"\nADMIN_USER="+u+" PUBKEY_FILE=/root/mykey.pub bash scripts/01-bootstrap.sh"},
+    {t:"note",x:"Keep this root session open until the next step succeeds."}
+  ]},
+  {id:"keytest",title:"Prove key login works",where:"Your computer",b:[
+    {t:"cmd",w:"local",l:"In a NEW terminal",c:"ssh "+u+"@"+ip+"\nsudo -n true && echo \"sudo works\""},
+    {t:"p",x:"Continue only if you got a shell and saw <code class='inline'>sudo works</code>."}
+  ]},
+  {id:"lock",title:"Lock down SSH",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"In the "+u+" session",c:"cd ~/jellyfin-vps-guide 2>/dev/null || { git clone "+repo+" ~/jellyfin-vps-guide && cd ~/jellyfin-vps-guide; }\nsudo ADMIN_USER="+u+" bash scripts/02-lock-ssh.sh"},
+    {t:"cmd",w:"local",l:"Third terminal: confirm you can still log in",c:"ssh "+u+"@"+ip},
+    {t:"note",x:"If it fails, use the provider console: delete <code class='inline'>/etc/ssh/sshd_config.d/00-hardening.conf</code> and run <code class='inline'>systemctl reload ssh</code>."}
+  ]},
+  {id:"docker",title:"Install Docker",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"Official Docker repo + log rotation + hello-world",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/03-install-docker.sh"},
+    {t:"p",x:"Expected: Docker and Compose versions, then a <i>Hello from Docker!</i> message."}
+  ]},
+  {id:"disk",title:"Mount the media disk",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"Look first (read-only)",c:"lsblk -f"},
+    {t:"note",x:"Check that <code class='inline'>"+dev+"</code> is really your data disk. A disk with an empty FSTYPE and no mountpoint is unformatted. If it already has a filesystem, <b>do not format</b>."},
+    {t:"cmd",w:"server",l:"Disk already has a filesystem: just mount it",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/04-mount-media.sh "+dev},
+    {t:"cmd",w:"server",l:"EMPTY disk only: create ext4 (erases the disk, asks you to retype the device)",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/04-mount-media.sh "+dev+" --format"},
+    {t:"cmd",w:"server",l:"Ownership and check",c:"sudo chown -R "+u+":"+u+" /srv/media\ndf -h /srv/media\nls /srv/media"}
+  ]},
+  {id:"deploy",title:"Install the Jellyfin stack files",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"Copy files and write your .env",c:"sudo mkdir -p /opt/jellyfin/{config,cache,backups,scripts}\ncd ~/jellyfin-vps-guide\nsudo cp deploy/compose.yaml deploy/compose.setup.yaml deploy/Caddyfile /opt/jellyfin/\nsudo cp scripts/*.sh /opt/jellyfin/scripts/\nsudo tee /opt/jellyfin/.env >/dev/null <<'EOF'\nJELLYFIN_VERSION="+jf+"\nCADDY_VERSION="+cd+"\nJELLYFIN_DOMAIN="+dom+"\nPUID=1000\nPGID=1000\nTZ="+tz+"\nEOF\nsudo sed -i \"s/^PUID=.*/PUID=$(id -u)/; s/^PGID=.*/PGID=$(id -g)/\" /opt/jellyfin/.env\nsudo chown -R "+u+":"+u+" /opt/jellyfin\ncat /opt/jellyfin/.env"},
+    {t:"note",x:"Check the Jellyfin tag against the <a href='https://github.com/jellyfin/jellyfin/releases' target='_blank' rel='noopener'>official releases</a>."}
+  ]},
+  {id:"wizard",title:"First-run setup, privately",where:"Server + your computer",b:[
+    {t:"p",x:"Jellyfin's setup page lets whoever opens it create the admin account, so do it through an SSH tunnel <b>before</b> exposing the server."},
+    {t:"cmd",w:"server",l:"Start Jellyfin on the server's loopback only",c:"cd /opt/jellyfin\nsudo docker compose -f compose.yaml -f compose.setup.yaml up -d jellyfin\nsudo docker compose ps"},
+    {t:"cmd",w:"local",l:"On your computer: open the tunnel (leave it running)",c:"ssh -L 8096:localhost:8096 "+u+"@"+ip},
+    {t:"p",x:"Open <code class='inline'>http://localhost:8096</code>. Create the <b>administrator</b> account with a long unique password (password manager). Allow remote connections. Library paths later are <code class='inline'>/media/movies</code>, <code class='inline'>/media/shows</code>, <code class='inline'>/media/music</code>, <code class='inline'>/media/audiobooks</code>."}
+  ]},
+  {id:"dns",title:"Check DNS, then go live with HTTPS",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"Must print the server's IP before you continue",c:"dig +short "+dom},
+    {t:"cmd",w:"server",l:"Stop setup mode, start the real stack",c:"cd /opt/jellyfin\nsudo docker compose down\nsudo docker compose up -d\nsleep 20\nsudo docker compose ps\nsudo docker compose logs --tail 30 caddy"},
+    {t:"cmd",w:"local",l:"From your computer",c:"curl -I https://"+dom+"/health"},
+    {t:"p",x:"Expected: <code class='inline'>HTTP/2 200</code> and a valid certificate. If Caddy reports a challenge error, DNS or port 80 is wrong; see <code class='inline'>docs/10-troubleshooting.md</code>."}
+  ]},
+  {id:"jf",title:"Configure Jellyfin in the browser",where:"Browser",b:[
+    {t:"p",x:"Open <b>https://"+esc(dom)+"</b> as the admin and work through this list (details: <code class='inline'>docs/06-configure-jellyfin.md</code>)."},
+    {t:"list",x:["Dashboard → Networking → <b>Known proxies</b>: add the Docker network subnet (command below). UPnP off.",
+      "Dashboard → Libraries: <b>Movies</b>, <b>TV Shows</b>, <b>Music</b>, <b>Audiobooks</b> → paths under /media/…",
+      "Dashboard → Playback → Transcoding: no hardware accel, limit simultaneous transcodes to 1.",
+      "Dashboard → Users: one normal account per person, no admin rights, set passwords privately.",
+      "Each user → Playback: <b>video transcoding off</b>, bitrate limit 12–15 Mbit/s, max 2 active sessions."]},
+    {t:"cmd",w:"server",l:"Subnet for \"Known proxies\"",c:"sudo docker network inspect jellyfin_web --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'"}
+  ]},
+  {id:"media",title:"First media and playback test",where:"Server + browser",b:[
+    {t:"p",x:"Pick one small item with a clear open licence (public-domain audiobook or Creative Commons track). Verify the licence on the official page first."},
+    {t:"cmd",w:"server",l:"Download straight onto the server (edit URL and paths)",c:"curl -I \"https://example.org/path/file.mp3\"   # check size/type first\nmkdir -p \"/srv/media/music/Sample Artist/Sample Album\"\ncurl -L --fail -o \"/srv/media/music/Sample Artist/Sample Album/01 Sample Track.mp3\" \"https://example.org/path/file.mp3\""},
+    {t:"list",x:["Dashboard → Libraries → Scan All Libraries; item appears with title/artist/artwork.","Play it on https://"+esc(dom)+" as a <b>normal user</b>: audio is heard, seeking works, Dashboard says Direct Play.","<code class='inline'>sudo docker compose restart jellyfin</code> then play again; later also <code class='inline'>sudo reboot</code>."]}
+  ]},
+  {id:"verify",title:"Automated checks",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"Run the checks and copy the whole output",c:"sudo bash /opt/jellyfin/scripts/verify.sh "+dom},
+    {t:"verify"}
+  ]},
+  {id:"backup",title:"Backups and monitoring",where:"Server (as "+u+")",b:[
+    {t:"cmd",w:"server",l:"First backup (stops Jellyfin for a few seconds)",c:"sudo /opt/jellyfin/scripts/backup.sh"},
+    {t:"cmd",w:"server",l:"Weekly backup + hourly disk alert",c:"echo '0 4 * * 0 root /opt/jellyfin/scripts/backup.sh >> /var/log/jellyfin-backup.log 2>&1' | sudo tee /etc/cron.d/jellyfin-backup\necho '0 * * * * root THRESHOLD=85 /opt/jellyfin/scripts/disk-alert.sh' | sudo tee /etc/cron.d/disk-alert"},
+    {t:"cmd",w:"local",l:"Pull backups to your own computer (the server's disk is not a backup)",c:"rsync -avP "+u+"@"+ip+":/opt/jellyfin/backups/ ./jellyfin-backups/"},
+    {t:"p",x:"Also add a free external uptime monitor on <code class='inline'>https://"+esc(dom)+"/health</code>."}
+  ]},
+  {id:"stream",title:"Four-stream test (optional)",where:"Another network",b:[
+    {t:"p",x:"From a computer <b>outside</b> the server, ideally a relative's network. Create a temporary API key (Dashboard → API Keys), find the item id in the item's URL, run, then delete the key."},
+    {t:"cmd",w:"local",l:"Bounded 30-second test",c:"BASE_URL=https://"+dom+" ITEM_ID=<item-id> API_KEY=<temporary-key> STREAMS=4 DURATION=30 bash scripts/stream-test.sh"},
+    {t:"p",x:"Each stream should sustain more than the file's bitrate (typically 8–15 Mbit/s)."}
+  ]},
+  {id:"clients",title:"Connect the devices",where:"TV / phone / browser",b:[
+    {t:"list",x:["<b>LG TV</b>: LG Content Store → Jellyfin → Add server <code class='inline'>https://"+esc(dom)+"</code> → sign in.","<b>Phone</b>: Jellyfin app → same URL → sign in.","<b>Browser</b>: open the URL.","On each, play one title and confirm Dashboard → Activity shows <b>Direct Play</b>."]},
+    {t:"note",x:"If a title always transcodes, fix the file (H.264/HEVC + AAC/AC3/EAC3, SRT subtitles), not the server. See <code class='inline'>docs/06-configure-jellyfin.md</code>."}
+  ]}
+  ];
+}
+
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];});}
+function ce(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+
+/* ---------- rendering ---------- */
+var elSteps=document.getElementById("steps");
+function copy(text,btn){
+  function fin(){var o=btn.textContent;btn.textContent="Copied";setTimeout(function(){btn.textContent=o;},1200);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(fin,fallback);}else fallback();
+  function fallback(){var t=document.createElement("textarea");t.value=text;document.body.appendChild(t);t.select();try{document.execCommand("copy");fin();}catch(e){btn.textContent="Select + copy";}document.body.removeChild(t);}
+}
+function whereLabel(w){return w==="local"?"On your computer":"On the server";}
+
+function render(){
+  var S=steps(), firstOpen=-1;
+  for(var i=0;i<S.length;i++){if(!state.done[S[i].id]){firstOpen=i;break;}}
+  elSteps.innerHTML="";
+  S.forEach(function(s,idx){
+    var isDone=!!state.done[s.id], isCur=idx===firstOpen;
+    var open=state.open[s.id]!==undefined?state.open[s.id]:isCur;
+    var card=ce("div","step"+(isDone?" done":"")+(isCur?" current":"")+(open?" open":""));
+    card.id="step-"+s.id;
+    var head=ce("button","head");head.type="button";head.setAttribute("aria-expanded",open?"true":"false");
+    head.innerHTML='<span class="num">'+(isDone?"✓":(idx+1))+'</span><span class="title">'+esc(s.title)+'</span><span class="where">'+esc(s.where)+'</span>';
+    head.onclick=function(){state.open[s.id]=!open;save();render();};
+    card.appendChild(head);
+    var body=ce("div","body");
+    s.b.forEach(function(b){
+      if(b.t==="p")body.appendChild(ce("p",null,b.x));
+      else if(b.t==="note")body.appendChild(ce("div","note",b.x));
+      else if(b.t==="list"){var ul=ce("ul","todo");b.x.forEach(function(x){ul.appendChild(ce("li",null,x));});body.appendChild(ul);}
+      else if(b.t==="cmd"){
+        var w=ce("div","cmd"),top=ce("div","top");
+        top.appendChild(ce("span",null,esc(b.l)+" · <i>"+whereLabel(b.w)+"</i>"));
+        var cb=ce("button","small","Copy");cb.type="button";cb.onclick=function(){copy(b.c,cb);};top.appendChild(cb);
+        var pre=ce("pre");pre.textContent=b.c;w.appendChild(top);w.appendChild(pre);body.appendChild(w);
+      } else if(b.t==="verify"){body.appendChild(verifyBox());}
+    });
+    var row=ce("div","donerow");
+    var cbx=document.createElement("input");cbx.type="checkbox";cbx.id="d-"+s.id;cbx.checked=isDone;
+    cbx.onchange=function(){state.done[s.id]=cbx.checked;if(cbx.checked)state.open[s.id]=false;save();render();if(cbx.checked)scrollCur();};
+    var lb=ce("label",null,"Mark this step done");lb.setAttribute("for",cbx.id);lb.style.margin="0";lb.style.color="var(--ink)";
+    row.appendChild(cbx);row.appendChild(lb);body.appendChild(row);
+    card.appendChild(body);elSteps.appendChild(card);
+  });
+  var n=S.filter(function(s){return state.done[s.id];}).length;
+  document.getElementById("count").textContent=n+" / "+S.length+" steps";
+  var pct=Math.round(n*100/S.length),bar=document.getElementById("bar");
+  bar.setAttribute("aria-valuenow",pct);bar.firstElementChild.style.width=pct+"%";
+}
+function scrollCur(){var c=document.querySelector(".step.current");if(c)c.scrollIntoView({block:"start",behavior:"smooth"});}
+
+var vtext="";
+function verifyBox(){
+  var w=ce("div","cmd");
+  w.appendChild(ce("div","top","<span>Paste the output here to read it for you</span>"));
+  var ta=document.createElement("textarea");ta.rows=6;ta.placeholder="[ OK ] jellyfin: running/healthy ...";ta.setAttribute("aria-label","verify.sh output");
+  var res=ce("div","res");
+  function parse(){
+    var lines=ta.value.split(/\r?\n/),okc=0,bad=[];
+    lines.forEach(function(l){if(/\[\s*OK\s*\]/.test(l))okc++;else if(/\[\s*FAIL\s*\]/.test(l))bad.push(l.trim());});
+    if(!okc&&!bad.length){res.innerHTML="";return;}
+    res.innerHTML='<span class="ok">'+okc+' checks passed</span>'+(bad.length?' · <span class="bad">'+bad.length+' failed</span><ul class="todo">'+bad.map(function(b){return "<li>"+esc(b)+"</li>";}).join("")+"</ul>":' · <span class="ok">nothing failed</span>');
+  }
+  ta.value=vtext;ta.oninput=function(){vtext=ta.value;parse();};parse();
+  w.appendChild(ta);w.appendChild(res);return w;
+}
+
+/* ---------- config form ---------- */
+function bindForm(){
+  document.querySelectorAll("[data-k]").forEach(function(inp){
+    var k=inp.getAttribute("data-k");inp.value=state.cfg[k]||"";
+    var hint=document.querySelector('[data-h="'+k+'"]'),base=hint?hint.textContent:"";
+    function check(){
+      var good=V[k](inp.value.trim());
+      inp.classList.toggle("invalid",!good);
+      if(hint){hint.textContent=good?base:MSG[k];hint.classList.toggle("err",!good);}
+    }
+    check();
+    inp.addEventListener("input",function(){state.cfg[k]=inp.value.trim();save();check();render();});
+  });
+}
+
+/* ---------- misc ---------- */
+document.getElementById("open-all").onclick=function(){steps().forEach(function(s){state.open[s.id]=true;});save();render();};
+document.getElementById("close-all").onclick=function(){steps().forEach(function(s){state.open[s.id]=false;});save();render();};
+document.getElementById("reset").onclick=function(){if(confirm("Clear all progress and settings stored in this browser?")){state.done={};state.open={};state.cfg=Object.assign({},DEFAULTS);save();bindForm();render();}};
+document.getElementById("theme").onclick=function(){
+  var r=document.documentElement,cur=r.getAttribute("data-theme");
+  var dark=cur?cur==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;
+  r.setAttribute("data-theme",dark?"light":"dark");
+  try{localStorage.setItem(KEY+"-theme",dark?"light":"dark");}catch(e){}
+};
+try{var th=localStorage.getItem(KEY+"-theme");if(th)document.documentElement.setAttribute("data-theme",th);}catch(e){}
+
+load();bindForm();render();
+})();
+</script>
+</body>
+</html>

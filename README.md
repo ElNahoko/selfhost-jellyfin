@@ -24,6 +24,12 @@ Internet ──443──▶ Caddy (HTTPS, auto certificates) ──▶ Jellyfin 
 - SSH keys only, no root login, UFW firewall, fail2ban, unattended security updates
 - Scripts for hardening, Docker install, safe disk mounting, backups, disk alerts, verification and a bounded stream test
 
+## Local install wizard
+
+Prefer clicking to reading? Open [`wizard/index.html`](wizard/index.html) in any browser (double-click it, no server or internet needed).
+Enter your IP, hostname and SSH **public** key once; it builds every command for you with copy buttons, tracks your progress
+step by step (saved in your browser only), and can read the output of `verify.sh`. It never asks for passwords and sends nothing anywhere.
+
 ## Steps
 
 | # | Guide | What |
