@@ -30,6 +30,6 @@ UUID="$(blkid -o value -s UUID "$DEV")"
 mkdir -p "$MNT"
 grep -q "$UUID" /etc/fstab || echo "UUID=$UUID $MNT ext4 defaults,noatime,nofail 0 2" >> /etc/fstab
 mount "$MNT"
-mkdir -p "$MNT"/{movies,shows,music,audiobooks,books,manga}
+mkdir -p "$MNT"/{movies,shows,music,audiobooks}
 df -h "$MNT"
 echo "Mounted. Set ownership for your admin user, e.g.: sudo chown -R media:media $MNT"

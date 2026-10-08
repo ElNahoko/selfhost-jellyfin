@@ -86,6 +86,7 @@ Read [`docs/`](docs) in order. Each page explains *why* before *how*:
 | 9 | [Connect devices](docs/09-clients.md) | LG TV, phones, browsers, inviting family |
 | 10 | [Troubleshooting](docs/10-troubleshooting.md) | Symptom → cause → fix |
 | 11 | [Upload page](docs/11-upload-page.md) | Optional: drag-and-drop uploads from a browser |
+| 12 | [Theme](docs/12-theme.md) | Optional: nicer look, colourful library tiles |
 
 ## Install flow
 

@@ -9,7 +9,15 @@
 	}
 
 	# Caddy forwards X-Forwarded-For / -Proto / -Host automatically and handles websockets.
-	reverse_proxy jellyfin:8096
+	# Optional self-hosted theme files (see docs/12-theme.md). Harmless if the folder is empty.
+	handle /theme/* {
+		root * /srv
+		header Cache-Control "public, max-age=300"
+		file_server
+	}
+	handle {
+		reverse_proxy jellyfin:8096
+	}
 }
 
 # Optional extra sites (for example the upload page). Does nothing if the folder is empty.

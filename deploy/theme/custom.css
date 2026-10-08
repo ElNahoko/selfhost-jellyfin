@@ -1,0 +1,26 @@
+/* Local tuning on top of ElegantFin: deeper navy, violet accent, soft glow like a cinema screen. */
+:root {
+  --darkerGradientPoint: #090c24;
+  --darkerGradientPointAlpha: rgba(9, 12, 36, 0.88);
+  --lighterGradientPoint: #151a47;
+  --lighterGradientPointAlpha: rgba(21, 26, 71, 0.88);
+  --gradientPointAlpha: rgba(21, 26, 71, 0.35);
+  --headerColor: rgba(14, 18, 52, 0.78);
+  --drawerColor: rgba(12, 16, 46, 0.92);
+  --accentColor: hsl(262, 83%, 66%);
+  --accentHoverColor: hsl(262, 83%, 74%);
+  --btnSubmitColor: #5b3fd0;
+  --btnSubmitBorderColor: #8b6cf0;
+  --checkboxCheckedBgColor: #6d4ff0;
+  --selectorBackgroundColor: hsl(236, 38%, 22%);
+  --selectorBackgroundColorAlpha: hsla(236, 38%, 22%, 0.55);
+}
+
+body,
+.skinBody,
+.backgroundContainer {
+  background:
+    radial-gradient(1100px 560px at 82% -8%, rgba(139, 92, 246, 0.38), transparent 62%),
+    radial-gradient(900px 520px at -6% 104%, rgba(59, 130, 246, 0.28), transparent 60%),
+    #090c24 !important;
+}
