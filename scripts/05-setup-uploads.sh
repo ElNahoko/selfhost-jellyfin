@@ -48,7 +48,14 @@ else
   echo "Keeping the existing upload account ($BASE/uploads.env)."
 fi
 
+# Make plain "docker compose up -d" include every optional file (COMPOSE_FILE is read from .env).
+CUR="$(grep -E '^COMPOSE_FILE=' "$BASE/.env" | cut -d= -f2- || true)"
+CUR="${CUR:-compose.yaml}"
+case ":$CUR:" in *":compose.uploads.yaml:"*) ;; *) CUR="$CUR:compose.uploads.yaml" ;; esac
+grep -vE '^COMPOSE_FILE=' "$BASE/.env" > "$BASE/.env.new" || true
+echo "COMPOSE_FILE=$CUR" >> "$BASE/.env.new" && mv "$BASE/.env.new" "$BASE/.env"
+
 cd "$BASE"
-docker compose -f compose.yaml -f compose.uploads.yaml up -d
+docker compose up -d
 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || docker compose restart caddy
 echo "Open https://$FILES_DOMAIN"

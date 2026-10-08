@@ -7,7 +7,21 @@ Make Jellyfin look nicer: a dark navy/violet skin, rounded cards and colourful l
 - `deploy/theme/custom.css`: our small tuning (colours and background) on top of it.
 - The files are served from **your own server** by Caddy at `/theme/`, so your viewers' devices do not depend on a public CDN for the theme.
 
-## Install
+## Easy install
+```bash
+cd ~/selfhost-jellyfin
+sudo bash scripts/06-enable-theme.sh
+```
+It downloads the pinned theme, copies our files, enables the banner helper and restarts the stack. Then paste the three `@import` lines it prints into **Dashboard → General → Custom CSS** and hard-reload (Ctrl+Shift+R).
+
+## The featured banner (our own code)
+`deploy/theme/hero.js` + `hero.css` add a full-width **featured banner** at the top of the home page: backdrop, poster, title logo, year, runtime, rating, genres, description, **Play** and **More info** buttons, arrows, dots and auto-rotation.
+- It reads items through the **logged-in user's own session**, so every person only sees what their account may see.
+- It makes **no requests to other sites** and is about 200 lines you can read.
+- To load it, Jellyfin's own `index.html` needs one extra `<script>` line. `deploy/theme/compose.theme.yaml` does this with a one-shot helper container that copies `index.html` out of the **same Jellyfin image** and adds the line every time the stack starts, so it can never go stale after an upgrade.
+- Undo: remove `compose.theme.yaml` from `COMPOSE_FILE` in `.env`, run `docker compose up -d`, and delete the Custom CSS.
+
+## Manual install
 On the server (after the main stack works):
 ```bash
 cd /opt/jellyfin
@@ -30,5 +44,6 @@ Save and hard-reload the browser (Ctrl+Shift+R).
 - The theme loads two fonts from Google Fonts (Inter and an icon font). If you do not want that, self-host those fonts or remove the `@import` lines for fonts from your copy of the theme file.
 - **Jellyfin 12 ships a new interface.** ElegantFin documents full support for the *Legacy* interface; in each client open **User menu → Display → Display mode** and choose **Desktop (Legacy)** if something looks off.
 - Library tiles: set a 16:9 picture per library (Dashboard → Libraries → library → Images), for example a coloured gradient with the library name.
-- A big "featured" banner on the home page is **not** part of Jellyfin. Add-ons for it work by editing Jellyfin's web files and loading scripts from public CDNs: weigh that before using one on a server your family relies on.
+- A featured banner is not built into Jellyfin. The one here is our own small script (above); third-party banner add-ons usually load unpinned scripts from public CDNs, so review anything like that before using it on a server your family relies on.
+- Give the server a nice name (Dashboard → General → Server name) or the top-left shows the container ID.
 - Undo: empty the Custom CSS box.

@@ -1,0 +1,27 @@
+# OPTIONAL home-page banner. Enable with scripts/06-enable-theme.sh (adds this file to COMPOSE_FILE in .env).
+#
+# A one-shot helper copies Jellyfin's own web page out of the SAME image/version and adds ONE line that loads
+# /theme/hero.js (our self-hosted banner). Because it is regenerated from the image every time the stack starts,
+# it can never go stale after a Jellyfin upgrade. Remove this file from COMPOSE_FILE to undo.
+services:
+  webpatch:
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION:?set JELLYFIN_VERSION in .env}
+    container_name: jellyfin-webpatch
+    user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command: ["sed 's#</body>#<script defer src=\"/theme/hero.js\"></script></body>#' /jellyfin/jellyfin-web/index.html > /out/index.html"]
+    volumes:
+      - ./web:/out
+    network_mode: none
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  jellyfin:
+    depends_on:
+      webpatch:
+        condition: service_completed_successfully
+    volumes:
+      - ./web/index.html:/jellyfin/jellyfin-web/index.html:ro
