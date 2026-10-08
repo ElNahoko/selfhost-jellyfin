@@ -10,6 +10,8 @@ Behaviour (all concrete, nothing fancy):
     multi-GB upload produces ONE scan, not one per file or per chunk.
   * Uploads in progress: while a "*.uploading" temp file (the upload page's resumable uploads) was written to
     recently, no scan starts, even if the connection is slow.
+  * Subtitles: Subs/<video>/2_English.srt style files are copied next to the video as <video>.eng.srt so Jellyfin
+    sees them (see "subtitle importer" below; originals stay untouched).
   * Per library: changes are mapped to the library that owns the folder; only those libraries are refreshed.
   * No overlap: waits while Jellyfin's own "Scan Media Library" task is running; at least COOLDOWN seconds
     between scans of the same library.
@@ -109,6 +111,115 @@ def upload_in_progress():
     return False
 
 
+# ---- subtitle importer -------------------------------------------------------------------------------------------
+# Jellyfin only finds external subtitles that sit next to the video and start with its file name. Many releases ship
+# them as  Subs/<video name>/2_English.srt  instead, so Jellyfin shows no subtitle button. Before each scan, COPY
+# such files next to the video as  <video name>.<lang>.srt  (originals are never touched or removed).
+VIDEO_EXT = (".mkv", ".mp4", ".m4v", ".avi", ".mov", ".webm", ".ts", ".wmv")
+SUB_EXT = (".srt", ".ass", ".ssa", ".vtt")
+SUB_DIRS = ("subs", "subtitles", "subtitle", "sub")
+FLAGS = {"forced", "default", "sdh", "cc", "hi"}
+# names/aliases -> codes Jellyfin recognises (ISO 639-2/T)
+LANG = {}
+for _code, _names in {
+    "eng": "english en", "fra": "french fre fr", "spa": "spanish es", "ara": "arabic ar", "deu": "german ger de",
+    "ita": "italian it", "por": "portuguese pt brazilian", "nld": "dutch dut nl", "pol": "polish pl",
+    "rus": "russian ru", "tur": "turkish tr", "jpn": "japanese ja", "kor": "korean ko", "zho": "chinese chi zh",
+    "vie": "vietnamese vi", "ind": "indonesian id", "tha": "thai th", "hin": "hindi hi", "heb": "hebrew he",
+    "ell": "greek gre el", "swe": "swedish sv", "nor": "norwegian no nob", "dan": "danish da", "fin": "finnish fi",
+    "ces": "czech cze cs", "hun": "hungarian hu", "ron": "romanian rum ro", "bul": "bulgarian bg",
+    "hrv": "croatian hr", "srp": "serbian sr", "slv": "slovenian slv sl", "slk": "slovak slo sk",
+    "ukr": "ukrainian uk", "fas": "persian farsi per fa", "msa": "malay may ms", "ben": "bengali bn",
+    "tam": "tamil ta", "tel": "telugu te", "isl": "icelandic ice is", "lit": "lithuanian lt", "lav": "latvian lv",
+    "est": "estonian et", "sqi": "albanian alb sq", "mkd": "macedonian mac mk", "cat": "catalan ca",
+    "eus": "basque baq eu", "glg": "galician gl", "urd": "urdu ur", "fil": "filipino tagalog tl",
+}.items():
+    LANG[_code] = _code
+    for _n in _names.split():
+        LANG[_n] = _code
+
+
+def parse_sub_name(fname, stem):
+    """'2_English.forced.srt' -> ('eng', ['forced']); None if it is not a subtitle file."""
+    base, ext = os.path.splitext(fname)
+    if ext.lower() not in SUB_EXT:
+        return None
+    if base.lower().startswith(stem.lower()):
+        base = base[len(stem):]
+    base = base.lstrip("0123456789").lstrip("_-. ") if base.lstrip("0123456789")[:1] in "_-. " else base.lstrip("_-. ")
+    lang, flags, extra = None, [], []
+    for tok in [t for t in base.replace("_", ".").replace("-", ".").replace(" ", ".").split(".") if t]:
+        t = tok.lower()
+        if t in FLAGS:
+            flags.append(t)
+        elif lang is None and t in LANG:
+            lang = LANG[t]
+        else:
+            extra.append(tok)
+    if lang is None:
+        lang = "und"
+    return lang, flags, extra, ext.lower()
+
+
+def sync_subtitles(hosts, made):
+    """Copy Subs/... files next to their video. Returns how many files were created."""
+    created = 0
+    for host in hosts:
+        for root, dirs, files in os.walk(host):
+            dirs[:] = [d for d in dirs if d.lower() not in SUB_DIRS]    # videos live outside the Subs folders
+            videos = [f for f in files if f.lower().endswith(VIDEO_EXT)]
+            for v in videos:
+                stem = os.path.splitext(v)[0]
+                vpath = os.path.join(root, v)
+                for sd in os.listdir(root):
+                    if sd.lower() not in SUB_DIRS or not os.path.isdir(os.path.join(root, sd)):
+                        continue
+                    sdir = os.path.join(root, sd)
+                    cands = []                                         # (directory, require_name_prefix)
+                    own = [d for d in os.listdir(sdir) if d.lower() == stem.lower() and os.path.isdir(os.path.join(sdir, d))]
+                    for d in own:
+                        cands.append((os.path.join(sdir, d), False))
+                    cands.append((sdir, len(videos) > 1))             # files directly in Subs/: need the name match if several videos
+                    for cdir, need_prefix in cands:
+                        try:
+                            names = sorted(os.listdir(cdir), key=lambda n: (int(n.split("_")[0]) if n.split("_")[0].isdigit() else 0, n))
+                        except OSError:
+                            continue
+                        seen = {}
+                        for n in names:
+                            fp = os.path.join(cdir, n)
+                            if not os.path.isfile(fp) or (need_prefix and not n.lower().startswith(stem.lower())):
+                                continue
+                            p = parse_sub_name(n, stem)
+                            if p is None:
+                                continue
+                            lang, flags, extra, ext = p
+                            key = (lang, tuple(flags))
+                            seen[key] = seen.get(key, 0) + 1
+                            tokens = [lang] + flags + ([str(seen[key])] if seen[key] > 1 else []) + extra
+                            target = os.path.join(root, stem + "." + ".".join(tokens) + ext)
+                            if os.path.exists(target):
+                                continue
+                            tmp = target + TEMP_SUFFIX
+                            try:
+                                with open(fp, "rb") as src, open(tmp, "wb") as dst:
+                                    dst.write(src.read())
+                                st = os.stat(vpath)
+                                os.chown(tmp, st.st_uid, st.st_gid)
+                                os.chmod(tmp, 0o644)
+                                made[target] = time.time()
+                                made[tmp] = time.time()
+                                os.replace(tmp, target)
+                                created += 1
+                            except OSError as e:
+                                log("subtitle copy failed for %s: %s" % (n, e))
+                                try:
+                                    os.remove(tmp)
+                                except OSError:
+                                    pass
+    return created
+
+
 def marker(lid):
     return os.path.join(STATE, lid + ".marker")
 
@@ -160,6 +271,7 @@ def main():
     libs = None
     libs_at = 0.0
     caught_up = False
+    made = {}                  # files this service created itself -> time; their events must not trigger scans
 
     def refresh_libs(max_age):
         nonlocal libs, libs_at
@@ -176,6 +288,8 @@ def main():
             path = None
 
         if path is not None:                                         # a filesystem event
+            if time.time() - made.get(path, 0) < 120:
+                continue                                             # our own subtitle copy
             last_event = time.time()
             if "/lost+found" in path or path.endswith(TEMP_SUFFIX):
                 continue                                             # temp files only keep the debounce running
@@ -192,6 +306,11 @@ def main():
                 continue                                             # Jellyfin not up yet; try again on the next tick
             caught_up = True
             for lid, name, hosts in libs:
+                n = sync_subtitles(hosts, made)
+                if n:
+                    log("subtitles: copied %d file(s) next to their videos in %s" % (n, name))
+                    pending.add(lid)
+                    last_event = 0.0
                 if changed_since_marker(hosts, lid):
                     log("catch-up: %s changed while the service or Jellyfin was down" % name)
                     pending.add(lid)
@@ -205,7 +324,10 @@ def main():
             continue                                                 # slow upload still running / Jellyfin busy
 
         targets = [l for l in libs if l[0] in pending and time.time() - last_scan.get(l[0], 0) >= COOLDOWN]
-        for lid, name, _h in targets:
+        for lid, name, hosts in targets:
+            n = sync_subtitles(hosts, made)
+            if n:
+                log("subtitles: copied %d file(s) next to their videos in %s" % (n, name))
             started = time.time()
             ok = api("POST", "/Items/%s/Refresh?Recursive=true&ImageRefreshMode=Default&MetadataRefreshMode=Default"
                              "&ReplaceAllImages=false&ReplaceAllMetadata=false" % lid) is not None

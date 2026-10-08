@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Installs the "scan after media changes" service (see scripts/jellyfin-autoscan.py for why and how).
+# Installs the "scan after media changes" service (see scripts/jellyfin-autoscan.py for why and how). It also copies
+# Subs/<video>/2_English.srt style subtitle files next to their video so Jellyfin shows the subtitle button.
 #
 # 1. In Jellyfin: Dashboard -> API Keys -> add a key named "autoscan" and copy it.
 # 2. On the server:   sudo JELLYFIN_API_KEY=<the key> bash scripts/07-enable-autoscan.sh
