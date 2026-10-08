@@ -18,6 +18,42 @@
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
 
+  /* ---------- silent video previews (like the trailer on a streaming app's billboard) ----------
+     Plays ~20 s of the real file, muted, straight from the server (no transcoding, no playback session). Only used when
+     this browser can decode the file as it is (H.264 8-bit); everything else keeps the still picture. */
+  var previewCache = {}, reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function resolvePreview(it) {
+    if (previewCache[it.Id] !== undefined) return Promise.resolve(previewCache[it.Id]);
+    var c = client(), uid = userId();
+    var get = it.Type === "Series"
+      ? c.getItems(uid, { ParentId: it.Id, Recursive: true, IncludeItemTypes: "Episode", SortBy: "ParentIndexNumber,IndexNumber", Limit: 1, Fields: "MediaSources" }).then(function (r) { return r.Items && r.Items[0]; })
+      : c.getItem(uid, it.Id);
+    return get.then(function (item) {
+      var ms = item && item.MediaSources && item.MediaSources[0];
+      var v = ms && (ms.MediaStreams || []).filter(function (x) { return x.Type === "Video"; })[0];
+      if (!v) return null;
+      var codec = String(v.Codec || "").toLowerCase();
+      var mime = codec === "h264" ? 'video/mp4; codecs="avc1.640029"' : codec === "vp9" ? 'video/webm; codecs="vp9"' : "";
+      if (!mime || (v.BitDepth || 8) > 8 || !document.createElement("video").canPlayType(mime)) return null;
+      if (!/^(mp4|m4v|mov|mkv|matroska|webm)/i.test(String(ms.Container || ""))) return null;
+      var dur = (item.RunTimeTicks || ms.RunTimeTicks || 0) / 1e7;
+      return { url: c.getUrl("Videos/" + item.Id + "/stream", { static: true, MediaSourceId: ms.Id, api_key: c.accessToken() }), start: dur > 240 ? Math.floor(dur * 0.18) : Math.floor(dur * 0.25) };
+    }).catch(function () { return null; }).then(function (r) { previewCache[it.Id] = r; return r; });
+  }
+  // attach a muted looping preview to `host`; returns a stop() function
+  function attachPreview(host, info, maxMs, cls, onState) {
+    var v = document.createElement("video");
+    v.className = cls; v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = "auto"; v.disablePictureInPicture = true; v.setAttribute("aria-hidden", "true");
+    var stopped = false, timer = null;
+    function stop() { if (stopped) return; stopped = true; clearTimeout(timer); v.classList.remove("on"); if (onState) onState(false); setTimeout(function () { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} if (v.parentNode) v.parentNode.removeChild(v); }, 400); }
+    v.addEventListener("loadedmetadata", function () { try { if (info.start) v.currentTime = info.start; } catch (e) {} });
+    v.addEventListener("playing", function () { if (stopped) return; v.classList.add("on"); if (onState) onState(true); timer = setTimeout(stop, maxMs); });
+    v.addEventListener("error", stop); v.addEventListener("ended", stop);
+    v.src = info.url; host.appendChild(v);
+    var pr = v.play(); if (pr && pr.catch) pr.catch(stop);
+    return stop;
+  }
+
   /* ---------- billboard ---------- */
   function load() {
     var c = client(), uid = userId();
@@ -59,13 +95,25 @@
     var dots = state.items.map(function (_, n) { return '<button type="button" class="jfh-dot' + (n === 0 ? " on" : "") + '" data-go="' + n + '" aria-label="Show item ' + (n + 1) + '"></button>'; }).join("");
     root.innerHTML = slides + '<div class="jfh-dots">' + dots + "</div>";
     root.addEventListener("click", onClick);
-    root.addEventListener("mouseenter", stop); root.addEventListener("mouseleave", start);
+    root.addEventListener("mouseenter", function () { if (state.timer) { clearInterval(state.timer); state.timer = null; } });
+    root.addEventListener("mouseleave", start);
     return root;
   }
   function wake(slide) {          // fetch a slide's images the first time it is needed
     if (!slide || slide.dataset.ready) return; slide.dataset.ready = "1";
     var bg = slide.querySelector(".jfh-bg"); if (bg && bg.dataset.bg) bg.style.backgroundImage = "url('" + bg.dataset.bg + "')";
     [].forEach.call(slide.querySelectorAll("img[data-src]"), function (i) { i.src = i.dataset.src; });
+  }
+  var heroStop = null, heroTimer = null;
+  function heroPreview(slideEl, it) {
+    if (heroStop) { heroStop(); heroStop = null; } clearTimeout(heroTimer); state.previewing = false;
+    if (reduceMotion || !it || document.hidden) return;
+    heroTimer = setTimeout(function () {
+      resolvePreview(it).then(function (info) {
+        if (!info || !slideEl.classList.contains("on") || document.hidden) return;
+        heroStop = attachPreview(slideEl.querySelector(".jfh-bg"), info, 30000, "jfh-vid", function (on) { state.previewing = on; });
+      });
+    }, 2500);
   }
   function show(n) {
     var r = state.root; if (!r) return;
@@ -74,9 +122,10 @@
     wake(slides[state.idx]); wake(slides[(state.idx + 1) % count]);
     [].forEach.call(slides, function (s, i) { s.classList.toggle("on", i === state.idx); });
     [].forEach.call(r.querySelectorAll(".jfh-dot"), function (d, i) { d.classList.toggle("on", i === state.idx); });
+    heroPreview(slides[state.idx], state.items[state.idx]);
   }
-  function start() { stop(); if (state.items.length > 1) state.timer = setInterval(function () { show(state.idx + 1); }, INTERVAL); }
-  function stop() { if (state.timer) { clearInterval(state.timer); state.timer = null; } }
+  function start() { stop(); if (state.items.length > 1) state.timer = setInterval(function () { if (!state.previewing) show(state.idx + 1); }, INTERVAL); }
+  function stop() { if (state.timer) { clearInterval(state.timer); state.timer = null; } if (heroStop) { heroStop(); heroStop = null; } clearTimeout(heroTimer); state.previewing = false; }
 
   function details(id, server) { window.location.hash = "#/details?id=" + id + (server ? "&serverId=" + server : ""); }
   function play(id, server) { try { sessionStorage.setItem("jfHeroPlay", id); } catch (x) {} details(id, server); }
@@ -230,11 +279,29 @@
           var wrap = document.createElement("div"); wrap.id = "jfRows";
           wrap.innerHTML = rowsState.data.map(rowHtml).join("");
           wrap.addEventListener("click", onRowsClick);
+          if (!(window.matchMedia && window.matchMedia("(hover: none)").matches) && !reduceMotion) wireCardPreviews(wrap);
           var hero = document.getElementById("jfHero");
           if (hero && hero.parentNode === c2) c2.insertBefore(wrap, hero.nextSibling); else c2.insertBefore(wrap, c2.firstChild);
         });
       }
     }, 300);
+  }
+  function wireCardPreviews(wrap) {
+    var byId = {}; rowsState.data.forEach(function (r) { r.items.forEach(function (it) { byId[it.Id] = it; }); });
+    [].forEach.call(wrap.querySelectorAll(".jfr-card:not(.jfr-top)"), function (card) {
+      var t = null, stop = null;
+      card.addEventListener("mouseenter", function () {
+        var it = byId[card.dataset.id]; if (!it) return;
+        t = setTimeout(function () {
+          resolvePreview(it).then(function (info) {
+            if (!info || !card.matches(":hover")) return;
+            if (stop) stop();
+            stop = attachPreview(card.querySelector(".jfr-thumb"), info, 20000, "jfr-vid");
+          });
+        }, 650);
+      });
+      card.addEventListener("mouseleave", function () { clearTimeout(t); if (stop) { stop(); stop = null; } });
+    });
   }
   function onRowsClick(e) {
     var a = e.target.closest(".jfr-arrow");
