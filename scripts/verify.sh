@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quick post-deployment checks. Run on the server:  sudo bash verify.sh media.example.com
-set -uo pipefail
+set -u   # no pipefail: "grep -q" exits early and would make passing checks look failed
 DOMAIN="${1:-}"
 ok(){ printf '  [ OK ] %s\n' "$1"; }
 bad(){ printf '  [FAIL] %s\n' "$1"; FAILED=1; }
