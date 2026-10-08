@@ -71,3 +71,18 @@ ffmpeg -i input.mkv -map 0:s:0 subs.srt      # works for text subtitle tracks on
 
 ## Check how a stream is delivered
 During playback: Dashboard → **Activity** / **Dashboard home** shows *Direct Play*, *Direct Stream* (remux, cheap) or *Transcoding* (expensive). For one title, the player's *Playback Info* overlay shows the reason (container, codec, subtitle, bitrate).
+
+## Plugins worth installing (official catalogue only)
+Dashboard → Plugins → Catalogue, then restart Jellyfin once. Plugins run code inside your server, so stick to the official catalogue and skip anything that needs a third-party repository unless you have read its source.
+
+| Plugin | What it adds | Needs an account? |
+|---|---|---|
+| **Fanart** | More posters, backdrops and title logos | No |
+| **TMDb Box Sets** | Movie franchises become collections automatically | No (uses the TMDb plugin) |
+| **Subtitle Extract** | Extracts embedded subtitles ahead of time, so switching subtitles is instant on a small CPU | No |
+| **Chapter Segments Provider** | Turns named chapters (Intro, Credits) into skip buttons | No |
+| **Playback Reporting** | Who watched what, per user | No |
+| **Open Subtitles** | Downloads subtitles for files that have none | Yes, your own account |
+| **Trakt / Simkl** | Syncs your history to a third-party site, nothing new inside Jellyfin | Yes |
+
+Home-screen plugins that replace the whole home page (Home Screen Sections and similar) come from third-party repositories and replace the layout, so they clash with a custom theme. This guide's theme adds the genre and recommendation rows itself instead.

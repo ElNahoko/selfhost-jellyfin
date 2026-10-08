@@ -132,7 +132,16 @@
           });
         }, function () { return []; }),
       c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 14, Fields: F, ImageTypeLimit: 1, EnableImageTypes: "Primary" })
-        .then(function (r) { return [{ title: "Top rated", items: r.Items || [] }]; }, function () { return []; })
+        .then(function (r) { return [{ title: "Top rated", items: r.Items || [] }]; }, function () { return []; }),
+      // one row per genre that has at least 3 titles (Netflix-style categories)
+      c.getJSON(c.getUrl("Genres", { userId: uid, IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "SortName" }))
+        .then(function (g) {
+          return Promise.all((g.Items || []).slice(0, 10).map(function (ge) {
+            return c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, Genres: ge.Name, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 14, Fields: F, ImageTypeLimit: 1, EnableImageTypes: "Primary" })
+              .then(function (r) { return { title: ge.Name, items: r.Items || [], genre: true }; }, function () { return null; });
+          }));
+        }, function () { return []; })
+        .then(function (rows) { return rows.filter(function (r) { return r && r.items.length >= 3; }); })
     ];
     return Promise.all(jobs).then(function (parts) {
       var seenTitles = {}, seenSets = {}, rows = [];
@@ -142,7 +151,7 @@
         if (seenSets[sig]) return;
         seenTitles[row.title] = 1; seenSets[sig] = 1; rows.push(row);
       }); });
-      rowsState.data = rows.slice(0, 5); rowsState.loadedAt = Date.now(); rowsState.loading = false;
+      rowsState.data = rows.slice(0, 8); rowsState.loadedAt = Date.now(); rowsState.loading = false;
     }, function () { rowsState.loading = false; });
   }
   function myMediaSection() {

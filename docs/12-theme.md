@@ -24,7 +24,7 @@ It downloads the pinned theme, copies our files, enables the banner helper and r
 ## Home page layout (Netflix-style order)
 - **Order** is a per-user Jellyfin setting (User menu → **Home**). Recommended: *Continue Watching → Next Up → My Media (library tiles) → Latest media*. It is stored on the server, so it applies on every device that honours Jellyfin's home settings. Apply it to all accounts at once through the API (`/DisplayPreferences/usersettings?userId=…&client=emby`, keys `homesection0…`, values such as `resume`, `nextup`, `smalllibrarytiles`, `latestmedia`).
 - **My Media** becomes an even, full-width row of picture tiles (2 per row on phones).
-- **Suggested for you / Because you watched … / Top rated** rows come from Jellyfin's own recommendation endpoints and appear once there are at least two items to show. With a small library they overlap a lot; they get better as it grows.
+- **Suggested for you / Because you watched … / Top rated** rows come from Jellyfin's own recommendation endpoints and appear once there are at least two items to show. With a small library they overlap a lot; they get better as it grows. Below them come **one row per genre** that has at least three titles (best rated first), so the home page reads like Netflix categories.
 - The banner and extra rows run in the **web** client (computer, phone and tablet browsers; on a phone use *Add to Home screen* for an app-like icon). The native Android/iOS apps and the TV app have their own screens, so they show Jellyfin's standard home with the section order above and the colours where the app supports server styling.
 
 ## Manual install
