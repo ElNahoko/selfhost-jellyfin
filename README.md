@@ -85,6 +85,7 @@ Read [`docs/`](docs) in order. Each page explains *why* before *how*:
 | 8 | [Add media and test](docs/08-first-media-and-testing.md) | Legal sample media, playback checks, four-stream test |
 | 9 | [Connect devices](docs/09-clients.md) | LG TV, phones, browsers, inviting family |
 | 10 | [Troubleshooting](docs/10-troubleshooting.md) | Symptom → cause → fix |
+| 11 | [Upload page](docs/11-upload-page.md) | Optional: drag-and-drop uploads from a browser |
 
 ## Install flow
 
@@ -152,6 +153,12 @@ use the whole allowance.
 
 `scripts/stream-test.sh` measures your real path with a bounded, read-only multi-stream test (see [guide 8](docs/08-first-media-and-testing.md)).
 
+## Add media from a browser (optional)
+
+![Upload page: drag and drop into Movies, TV Shows, Music or Audiobooks](docs/img/uploads.jpg)
+
+A simple drag-and-drop page with progress bars, folders and resumable uploads, on its own HTTPS hostname with its own login. See [Upload page](docs/11-upload-page.md). Prefer the terminal? `rsync -avP --partial` works too.
+
 ## Direct Play: the one idea that matters
 
 ![Decision flow: Direct Play, Direct Stream or Transcode](docs/img/direct-play.svg)
@@ -218,6 +225,7 @@ selfhost-jellyfin/
 ├── deploy/
 │   ├── compose.yaml          # Jellyfin + Caddy
 │   ├── compose.setup.yaml    # temporary override for the private first-run wizard
+│   ├── uploads/              # optional upload page (compose override, Caddy site, front-end)
 │   ├── Caddyfile             # HTTPS reverse proxy
 │   └── .env.example          # versions, hostname, user ids
 ├── scripts/
@@ -225,11 +233,12 @@ selfhost-jellyfin/
 │   ├── 02-lock-ssh.sh        # disable root + password logins (after you tested the key)
 │   ├── 03-install-docker.sh  # Docker Engine + Compose from the official repo
 │   ├── 04-mount-media.sh     # safe data-disk mounting
+│   ├── 05-setup-uploads.sh   # optional drag-and-drop upload page
 │   ├── backup.sh             # config + database backup, keeps newest 7
 │   ├── disk-alert.sh         # warns when a filesystem is nearly full
 │   ├── verify.sh             # post-install health and exposure checks
 │   └── stream-test.sh        # bounded multi-stream throughput test
-└── docs/                     # ten step-by-step guides + illustrations (docs/img)
+└── docs/                     # step-by-step guides + illustrations (docs/img)
 ```
 
 ## Scripts
@@ -240,6 +249,7 @@ selfhost-jellyfin/
 | `02-lock-ssh.sh` | root | Writes `/etc/ssh/sshd_config.d/00-hardening.conf`, reloads SSH | Yes |
 | `03-install-docker.sh` | root | Adds Docker repo, installs Docker, log rotation | Yes |
 | `04-mount-media.sh` | root | Mounts a disk at `/srv/media`, adds an `fstab` entry | Yes (never formats without `--format`) |
+| `05-setup-uploads.sh` | root | Optional: starts the upload page container, adds its HTTPS site and one login | Yes (keeps the existing login) |
 | `backup.sh` | root | Stops Jellyfin briefly, writes a tarball, prunes old ones | Yes |
 | `disk-alert.sh` | root | Logs (and optionally pushes) when a disk is ≥ 85 % full | Yes |
 | `verify.sh` | root | Read-only checks | Yes |

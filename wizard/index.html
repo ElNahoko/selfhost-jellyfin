@@ -155,6 +155,7 @@ function steps(){
       repo=val("repo","https://github.com/ElNahoko/selfhost-jellyfin.git"),
       key=(state.cfg.pubkey&&ok("pubkey"))?state.cfg.pubkey.trim():"ssh-ed25519 AAAA...PASTE_YOUR_PUBLIC_KEY";
   var R="~/selfhost-jellyfin";
+  var filesBase=dom.split(".").length>2?dom.split(".").slice(1).join("."):dom;
   return [
   {id:"prep",title:"Before you start",where:"Your computer",b:[
     {t:"p",x:"You need: a fresh <b>Ubuntu 24.04</b> VPS (KVM, with a separate data disk of the size you want), its public IP, root access, and a hostname pointing at it."},
@@ -224,6 +225,11 @@ function steps(){
     {t:"p",x:"Pick one small item with a clear open licence (public-domain audiobook or Creative Commons track). Verify the licence on the official page first."},
     {t:"cmd",w:"server",l:"Download straight onto the server (edit URL and paths)",c:"curl -I \"https://example.org/path/file.mp3\"   # check size/type first\nmkdir -p \"/srv/media/music/Sample Artist/Sample Album\"\ncurl -L --fail -o \"/srv/media/music/Sample Artist/Sample Album/01 Sample Track.mp3\" \"https://example.org/path/file.mp3\""},
     {t:"list",x:["Dashboard → Libraries → Scan All Libraries; item appears with title/artist/artwork.","Play it on https://"+esc(dom)+" as a <b>normal user</b>: audio is heard, seeking works, Dashboard says Direct Play.","<code class='inline'>sudo docker compose restart jellyfin</code> then play again; later also <code class='inline'>sudo reboot</code>."]}
+  ]},
+  {id:"uploads",title:"Upload page (optional)",where:"Server (as "+u+")",b:[
+    {t:"p",x:"A drag-and-drop page to add media from any browser. It needs its own hostname (for example <code class='inline'>files."+esc(filesBase)+"</code>) pointing to the same IP as Jellyfin."},
+    {t:"cmd",w:"server",l:"Set it up (prints the login once: save it in a password manager)",c:"cd ~/selfhost-jellyfin\nsudo bash scripts/05-setup-uploads.sh files."+filesBase},
+    {t:"p",x:"Open the page, sign in, choose Movies / TV Shows / Music / Audiobooks and drop files. See <code class='inline'>docs/11-upload-page.md</code>."}
   ]},
   {id:"verify",title:"Automated checks",where:"Server (as "+u+")",b:[
     {t:"cmd",w:"server",l:"Run the checks and copy the whole output",c:"sudo bash /opt/jellyfin/scripts/verify.sh "+dom},

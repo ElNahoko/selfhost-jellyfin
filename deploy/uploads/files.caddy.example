@@ -1,17 +1,17 @@
 # Copied to /opt/jellyfin/sites/files.caddy by scripts/05-setup-uploads.sh (FILES_DOMAIN replaced).
 # Needs its own DNS name pointing at the server, e.g. files.example.com.
-{$FILES_DOMAIN} {
+FILES_DOMAIN_PLACEHOLDER {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
 		-Server
 	}
-	# Large uploads: no request body limit, generous timeouts for slow connections.
-	reverse_proxy filebrowser:8080 {
+	# Big files: no body limit and long timeouts for slow connections (uploads are sent in 16 MB chunks).
+	reverse_proxy uploads:5000 {
 		transport http {
-			read_timeout 0
-			write_timeout 0
+			read_timeout 10m
+			write_timeout 10m
 		}
 	}
 }

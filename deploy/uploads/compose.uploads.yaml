@@ -1,22 +1,31 @@
-# OPTIONAL upload page: a small web file manager so you can add media from a browser (drag & drop).
-# Add it on top of the main stack:
-#   docker compose -f compose.yaml -f uploads/compose.uploads.yaml up -d
-# Set it up first with scripts/05-setup-uploads.sh.
+# OPTIONAL upload page: drag & drop your media from a browser into the library folders.
+# Set it up with scripts/05-setup-uploads.sh, which copies this file to /opt/jellyfin and starts it:
+#   docker compose -f compose.yaml -f compose.uploads.yaml up -d
 #
+# Dufs (a small, maintained file server) with a custom front-end page (uploads/assets/index.html).
 # This is the ONLY service that can write to /srv/media. Jellyfin keeps its read-only view.
 services:
-  filebrowser:
-    image: filebrowser/filebrowser:${FILEBROWSER_VERSION:?set FILEBROWSER_VERSION in .env}
-    container_name: filebrowser
+  uploads:
+    image: sigoden/dufs:${DUFS_VERSION:?set DUFS_VERSION in .env}
+    container_name: uploads
     user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
     restart: unless-stopped
     networks: [web]
-    command: ["--database", "/database/filebrowser.db"]
+    command:
+      - /data
+      - --port=5000
+      - --allow-upload
+      - --allow-delete
+      - --allow-search
+      - --hidden=lost+found
+      - --assets=/assets
+    env_file:
+      - ./uploads.env              # DUFS_AUTH=user:$6$hash@/:rw  (created by the setup script, mode 600)
     volumes:
-      - /srv/media:/srv                     # your library folders (movies, shows, music, audiobooks)
-      - ./filebrowser/database:/database    # accounts + settings (small, back it up)
-      - ./filebrowser/branding:/branding:ro # name, colours, custom CSS
-    mem_limit: 192m
+      - /srv/media:/data
+      - ./uploads/assets:/assets:ro
+    mem_limit: 128m
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
