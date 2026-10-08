@@ -55,11 +55,15 @@ html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child { color
 html.jf-scrolled header.MuiAppBar-root { background: #141414 !important; transition: background-color .25s; }
 
 /* ---------------- Movie / show page, Netflix-style: big picture, logo and info on the left, no poster column ---------------- */
-html.layout-desktop .detailImageContainer { display: none !important; }
-html.layout-desktop #itemDetailPage .detailLogo { margin-left: 4% !important; left: 0 !important; margin-top: -11vh; margin-bottom: 7vh; position: relative; z-index: 2; max-width: 34vw; }
+/* poster stays: a smaller card overlapping the bottom of the picture, with the info to its right */
+html.layout-desktop .detailPagePrimaryContainer { position: relative; }
+html.layout-desktop .detailImageContainer { display: block !important; position: absolute !important; left: 4% !important; top: -8vw !important; width: 13vw !important; z-index: 3; }
+html.layout-desktop .detailImageContainer .card, html.layout-desktop .detailImageContainer .cardBox, html.layout-desktop .detailImageContainer .cardScalable { width: 100% !important; position: relative !important; left: 0 !important; top: 0 !important; margin: 0 !important; }
+html.layout-desktop .detailImageContainer .cardImageContainer, html.layout-desktop .detailImageContainer .cardPadder { width: 100% !important; max-width: 100% !important; border-radius: 6px; box-shadow: 0 1em 3em rgba(0, 0, 0, .75); }
+html.layout-desktop #itemDetailPage .detailLogo { margin-left: 23% !important; left: 0 !important; margin-top: -11vh; margin-bottom: 7vh; position: relative; z-index: 2; max-width: 34vw; }
 html.layout-desktop .detailPagePrimaryContainer { padding-left: 4% !important; margin-left: 0 !important; }
 html.layout-desktop .detailRibbon,
-html.layout-desktop .detailPagePrimaryContent { padding-left: 0 !important; margin-left: 0 !important; }
+html.layout-desktop .detailPagePrimaryContent { padding-left: 19% !important; margin-left: 0 !important; }
 html.layout-desktop .detailPagePrimaryContent .detailSection { max-width: 62em; }
 html.layout-desktop .infoWrapper { margin-left: 0 !important; }
 html.layout-desktop .detailRibbon { margin-top: 0; }

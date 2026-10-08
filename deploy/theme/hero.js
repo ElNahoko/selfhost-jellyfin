@@ -47,7 +47,13 @@
     var stopped = false, timer = null;
     function stop() { if (stopped) return; stopped = true; clearTimeout(timer); v.classList.remove("on"); if (onState) onState(false); setTimeout(function () { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} if (v.parentNode) v.parentNode.removeChild(v); }, 400); }
     v.addEventListener("loadedmetadata", function () { try { if (info.start) v.currentTime = info.start; } catch (e) {} });
-    v.addEventListener("playing", function () { if (stopped) return; v.classList.add("on"); if (onState) onState(true); timer = setTimeout(stop, maxMs); });
+    v.addEventListener("playing", function () {
+      if (stopped) return; timer = setTimeout(stop, maxMs);
+      var shown = false;
+      function reveal() { if (shown || stopped || !v.videoWidth) return; shown = true; v.classList.add("on"); if (onState) onState(true); }
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(function () { reveal(); });
+      else v.addEventListener("timeupdate", function () { if (v.currentTime > (info.start || 0) + 0.3) reveal(); });
+    });
     v.addEventListener("error", stop); v.addEventListener("ended", stop);
     v.src = info.url; host.appendChild(v);
     var pr = v.play(); if (pr && pr.catch) pr.catch(stop);
