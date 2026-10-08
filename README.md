@@ -250,7 +250,7 @@ selfhost-jellyfin/
 | `02-lock-ssh.sh` | root | Writes `/etc/ssh/sshd_config.d/00-hardening.conf`, reloads SSH | Yes |
 | `03-install-docker.sh` | root | Adds Docker repo, installs Docker, log rotation | Yes |
 | `04-mount-media.sh` | root | Mounts a disk at `/srv/media`, adds an `fstab` entry | Yes (never formats without `--format`) |
-| `07-enable-autoscan.sh` | root | Installs a service that asks Jellyfin to scan ~30 s after media changes (fixes uploads into empty libraries not appearing) | Yes |
+| `07-enable-autoscan.sh` | root | Installs a service that asks Jellyfin to scan the affected library about a minute after media changes (one scan per upload batch) (fixes uploads into empty libraries not appearing) | Yes |
 | `05-setup-uploads.sh` | root | Optional: starts the upload page container, adds its HTTPS site and one login | Yes (keeps the existing login) |
 | `backup.sh` | root | Stops Jellyfin briefly, writes a tarball, prunes old ones | Yes |
 | `disk-alert.sh` | root | Logs (and optionally pushes) when a disk is ≥ 85 % full | Yes |
