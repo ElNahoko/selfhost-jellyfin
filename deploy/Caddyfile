@@ -11,3 +11,6 @@
 	# Caddy forwards X-Forwarded-For / -Proto / -Host automatically and handles websockets.
 	reverse_proxy jellyfin:8096
 }
+
+# Optional extra sites (for example the upload page). Does nothing if the folder is empty.
+import /etc/caddy/sites/*.caddy

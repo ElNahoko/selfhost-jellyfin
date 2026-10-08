@@ -1,0 +1,28 @@
+# OPTIONAL upload page: a small web file manager so you can add media from a browser (drag & drop).
+# Add it on top of the main stack:
+#   docker compose -f compose.yaml -f uploads/compose.uploads.yaml up -d
+# Set it up first with scripts/05-setup-uploads.sh.
+#
+# This is the ONLY service that can write to /srv/media. Jellyfin keeps its read-only view.
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:${FILEBROWSER_VERSION:?set FILEBROWSER_VERSION in .env}
+    container_name: filebrowser
+    user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
+    restart: unless-stopped
+    networks: [web]
+    command: ["--database", "/database/filebrowser.db"]
+    volumes:
+      - /srv/media:/srv                     # your library folders (movies, shows, music, audiobooks)
+      - ./filebrowser/database:/database    # accounts + settings (small, back it up)
+      - ./filebrowser/branding:/branding:ro # name, colours, custom CSS
+    mem_limit: 192m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -46,6 +46,7 @@ services:
       JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro   # optional extra sites (e.g. the upload page); may be empty
       - caddy_data:/data          # certificates live here: keep this volume
       - caddy_config:/config
     depends_on:

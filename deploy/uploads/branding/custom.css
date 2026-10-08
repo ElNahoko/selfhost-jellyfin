@@ -1,0 +1,23 @@
+/* Light touch of styling for the upload page. Edit freely. */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* softer, rounder cards and buttons */
+.card,
+.button,
+button,
+input,
+.file {
+  border-radius: 10px !important;
+}
+
+#login {
+  background: linear-gradient(160deg, #f3f1fd 0%, #ffffff 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  #login {
+    background: linear-gradient(160deg, #1a1630 0%, #0e1116 60%);
+  }
+}
