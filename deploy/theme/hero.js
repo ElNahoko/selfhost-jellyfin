@@ -139,7 +139,7 @@
     var b = e.target.closest("button"); if (!b) return;
     if (b.dataset.go) return show(parseInt(b.dataset.go, 10));
     var s = b.closest(".jfh-slide"); if (!s) return;
-    if (b.dataset.act === "play") play(s.dataset.id, s.dataset.server); else details(s.dataset.id, s.dataset.server);
+    if (b.dataset.act === "play") play(s.dataset.id, s.dataset.server); else openModal(s.dataset.id);
   }
 
   // After "Play" the details page opens; press its own Play button for the user.
@@ -194,7 +194,7 @@
   }
   function topCard(it, n) {
     var t = it.ImageTags && it.ImageTags.Primary;
-    return '<a class="jfr-card jfr-top" href="' + href(it) + '" title="' + esc(it.Name) + '"><span class="jfr-num">' + n + "</span>" +
+    return '<a class="jfr-card jfr-top" data-id="' + it.Id + '" data-server="' + (it.ServerId || "") + '" href="' + href(it) + '" title="' + esc(it.Name) + '"><span class="jfr-num">' + n + "</span>" +
       '<span class="jfr-poster">' + (t ? '<img loading="lazy" decoding="async" alt="" src="' + img(it.Id, "Primary", t, 360) + '">' : "") + "</span></a>";
   }
   function rowHtml(row) {
@@ -319,9 +319,151 @@
     var b = e.target.closest("button[data-act]");
     if (b) {
       e.preventDefault(); var card = b.closest(".jfr-card");
-      if (b.dataset.act === "play") play(card.dataset.id, card.dataset.server); else details(card.dataset.id, card.dataset.server);
+      if (b.dataset.act === "play") play(card.dataset.id, card.dataset.server); else openModal(card.dataset.id);
+      return;
     }
+    var k = e.target.closest(".jfr-card");
+    if (k && k.dataset.id) { e.preventDefault(); openModal(k.dataset.id); }   // an episode id opens its series with the episode highlighted
   }
+
+
+  /* ---------- detail pop-up: click a title and get a panel instead of a page change ---------- */
+  var modal = { el: null, stopPreview: null, token: 0 };
+  var DETAIL_F = "Overview,Genres,Studios,People,Taglines,CommunityRating,OfficialRating,RunTimeTicks,ProductionYear,MediaSources,ProviderIds";
+  function fmtMin(ticks) { return runtime(ticks); }
+  function closeModal() {
+    if (!modal.el) return;
+    if (modal.stopPreview) { modal.stopPreview(); modal.stopPreview = null; }
+    modal.token++; document.documentElement.classList.remove("jfm-open");
+    var el = modal.el; modal.el = null; el.classList.remove("on"); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 220);
+    document.removeEventListener("keydown", onModalKey, true);
+  }
+  window.addEventListener("hashchange", function () { closeModal(); });                 // leaving the page closes the panel
+  function onModalKey(e) { if (e.key === "Escape") { e.stopPropagation(); closeModal(); } }
+  function playFirst(item) {          // series: next unwatched episode, else the first one; anything else: itself
+    if (item.Type !== "Series") return play(item.Id, item.ServerId);
+    var c = client(), uid = userId();
+    c.getJSON(c.getUrl("Shows/NextUp", { userId: uid, SeriesId: item.Id, Limit: 1 })).then(function (r) {
+      var e = r.Items && r.Items[0];
+      if (e) return play(e.Id, e.ServerId);
+      return c.getItems(uid, { ParentId: item.Id, Recursive: true, IncludeItemTypes: "Episode", SortBy: "ParentIndexNumber,IndexNumber", Limit: 1 }).then(function (x) { if (x.Items[0]) play(x.Items[0].Id, x.Items[0].ServerId); else details(item.Id, item.ServerId); });
+    }, function () { details(item.Id, item.ServerId); });
+  }
+  function openModal(id) {
+    var c = client(), uid = userId(); if (!c || !uid) return details(id);
+    closeModal();
+    var token = ++modal.token;
+    var back = document.createElement("div"); back.className = "jfm-back"; back.setAttribute("role", "dialog"); back.setAttribute("aria-modal", "true");
+    back.innerHTML = '<div class="jfm-panel"><button type="button" class="jfm-close" aria-label="Close">✕</button><div class="jfm-loading">Loading…</div></div>';
+    document.body.appendChild(back); modal.el = back; document.documentElement.classList.add("jfm-open");
+    requestAnimationFrame(function () { back.classList.add("on"); });
+    back.addEventListener("mousedown", function (e) { if (e.target === back) closeModal(); });
+    back.querySelector(".jfm-close").addEventListener("click", closeModal);
+    document.addEventListener("keydown", onModalKey, true);
+    c.getItem(uid, id).then(function (item) {
+      if (token !== modal.token) return;
+      if (item.Type === "Episode" && item.SeriesId) return c.getItem(uid, item.SeriesId).then(function (s2) { if (token === modal.token) renderModal(back, s2, item.Id); });
+      renderModal(back, item, null);
+    }, function () { closeModal(); details(id); });
+  }
+  function renderModal(back, item, focusEp) {
+    var c = client(), uid = userId(), token = modal.token;
+    var tags = item.ImageTags || {}, bd = item.BackdropImageTags || [];
+    var bgUrl = bd.length ? img(item.Id, "Backdrop", bd[0], 1280) : tags.Primary ? img(item.Id, "Primary", tags.Primary, 800) : "";
+    var head = tags.Logo ? '<img class="jfm-logo" alt="' + esc(item.Name) + '" src="' + img(item.Id, "Logo", tags.Logo, 600) + '">' : '<h2 class="jfm-title">' + esc(item.Name) + "</h2>";
+    var ud = item.UserData || {}, resume = ud.PlaybackPositionTicks > 0 || (ud.UnplayedItemCount != null && ud.UnplayedItemCount < (item.RecursiveItemCount || 1e9) && item.Type === "Series");
+    var meta = [];
+    if (item.CommunityRating) meta.push('<b class="jfm-rate">★ ' + item.CommunityRating.toFixed(1) + "</b>");
+    if (item.ProductionYear) meta.push("<span>" + item.ProductionYear + (item.Type === "Series" ? (item.EndDate ? " – " + new Date(item.EndDate).getFullYear() : " – now") : "") + "</span>");
+    var rt = fmtMin(item.RunTimeTicks); if (rt && item.Type !== "Series") meta.push("<span>" + rt + "</span>");
+    if (item.OfficialRating) meta.push('<span class="jfm-age">' + esc(item.OfficialRating) + "</span>");
+    var cast = (item.People || []).filter(function (p) { return p.Type === "Actor"; }).slice(0, 6).map(function (p) { return esc(p.Name); }).join(", ");
+    var dir = (item.People || []).filter(function (p) { return p.Type === "Director"; }).slice(0, 2).map(function (p) { return esc(p.Name); }).join(", ");
+    var side = "";
+    if (cast) side += '<p><i>Cast:</i> ' + cast + "</p>";
+    if (dir) side += '<p><i>Director:</i> ' + dir + "</p>";
+    if (item.Genres && item.Genres.length) side += '<p><i>Genres:</i> ' + item.Genres.map(esc).join(", ") + "</p>";
+    if (item.Studios && item.Studios.length) side += '<p><i>Studio:</i> ' + item.Studios.slice(0, 2).map(function (x) { return esc(x.Name); }).join(", ") + "</p>";
+    var fav = ud.IsFavorite;
+    back.querySelector(".jfm-panel").innerHTML =
+      '<button type="button" class="jfm-close" aria-label="Close">✕</button>' +
+      '<div class="jfm-hero"><div class="jfm-bg"' + (bgUrl ? ' style="background-image:url(\'' + bgUrl + '\')"' : "") + '></div><div class="jfm-grad"></div>' +
+      '<div class="jfm-head">' + head + '<div class="jfm-actions"><button type="button" class="jfm-play"><b>▶</b>' + (resume ? "Resume" : "Play") + '</button>' +
+      '<button type="button" class="jfm-round jfm-fav' + (fav ? " on" : "") + '" aria-label="My list" title="My list">' + (fav ? "✓" : "＋") + '</button>' +
+      '<a class="jfm-round jfm-open-page" href="#/details?id=' + item.Id + '" title="Open the full page" aria-label="Open the full page">⤢</a></div></div></div>' +
+      '<div class="jfm-body"><div class="jfm-main"><div class="jfm-meta">' + meta.join("") + "</div>" +
+      (item.Taglines && item.Taglines[0] ? '<p class="jfm-tag">' + esc(item.Taglines[0]) + "</p>" : "") +
+      '<p class="jfm-over">' + esc(item.Overview || "No description yet.") + '</p></div><div class="jfm-side">' + side + "</div></div>" +
+      (item.Type === "Series" ? '<div class="jfm-eps"><div class="jfm-eps-head"><h3>Episodes</h3><select class="jfm-season" aria-label="Season"></select></div><div class="jfm-eplist"><div class="jfm-loading">Loading…</div></div></div>' : "") +
+      '<div class="jfm-more" hidden><h3>More like this</h3><div class="jfm-grid"></div></div>';
+    var panel = back.querySelector(".jfm-panel");
+    panel.querySelector(".jfm-close").addEventListener("click", closeModal);
+    panel.querySelector(".jfm-play").addEventListener("click", function () { closeModal(); playFirst(item); });
+    panel.querySelector(".jfm-open-page").addEventListener("click", function () { closeModal(); });
+    panel.querySelector(".jfm-fav").addEventListener("click", function (e) {
+      var b = e.currentTarget, on = !b.classList.contains("on");
+      c.updateFavouriteStatus(uid, item.Id, on).then(function () { b.classList.toggle("on", on); b.textContent = on ? "✓" : "＋"; try { sessionStorage.removeItem("jfRows3:" + uid); } catch (x) {} });
+    });
+    // silent preview behind the top picture
+    if (!reduceMotion) setTimeout(function () {
+      if (token !== modal.token) return;
+      resolvePreview(item).then(function (info) { if (info && token === modal.token) modal.stopPreview = attachPreview(panel.querySelector(".jfm-bg"), info, 30000, "jfm-vid"); });
+    }, 900);
+    // similar titles
+    c.getJSON(c.getUrl("Items/" + item.Id + "/Similar", { userId: uid, limit: 8, Fields: "ProductionYear,CommunityRating", EnableImageTypes: "Primary,Thumb,Backdrop", ImageTypeLimit: 1 })).then(function (r) {
+      if (token !== modal.token) return;
+      var list = (r.Items || []).filter(function (x) { return x.ImageTags && x.ImageTags.Primary; }).slice(0, 6);
+      if (!list.length) return;
+      var more = panel.querySelector(".jfm-more"); more.hidden = false;
+      more.querySelector(".jfm-grid").innerHTML = list.map(function (x) {
+        return '<a class="jfm-sim" data-id="' + x.Id + '" href="' + href(x) + '"><img loading="lazy" alt="" src="' + img(x.Id, "Primary", x.ImageTags.Primary, 300) + '"><span>' + esc(x.Name) + "</span></a>";
+      }).join("");
+      [].forEach.call(more.querySelectorAll(".jfm-sim"), function (a) { a.addEventListener("click", function (e) { e.preventDefault(); openModal(a.dataset.id); }); });
+    }, function () {});
+    if (item.Type === "Series") loadEpisodes(panel, item, focusEp);
+  }
+  function loadEpisodes(panel, series, focusEp) {
+    var c = client(), uid = userId(), token = modal.token;
+    var sel = panel.querySelector(".jfm-season"), list = panel.querySelector(".jfm-eplist");
+    c.getJSON(c.getUrl("Shows/" + series.Id + "/Seasons", { userId: uid })).then(function (r) {
+      if (token !== modal.token) return;
+      var seasons = r.Items || [];
+      if (!seasons.length) { list.innerHTML = '<div class="jfm-loading">No episodes yet.</div>'; return; }
+      sel.innerHTML = seasons.map(function (s) { return '<option value="' + s.Id + '">' + esc(s.Name) + "</option>"; }).join("");
+      if (seasons.length < 2) sel.style.display = "none";
+      function show(seasonId) {
+        list.innerHTML = '<div class="jfm-loading">Loading…</div>';
+        c.getJSON(c.getUrl("Shows/" + series.Id + "/Episodes", { userId: uid, seasonId: seasonId, Fields: "Overview,RunTimeTicks", EnableImageTypes: "Primary", ImageTypeLimit: 1 })).then(function (x) {
+          if (token !== modal.token) return;
+          list.innerHTML = (x.Items || []).map(function (e) {
+            var pct = e.UserData && e.UserData.PlayedPercentage, t = e.ImageTags && e.ImageTags.Primary;
+            return '<div class="jfm-ep' + (e.Id === focusEp ? " focus" : "") + '" data-id="' + e.Id + '" tabindex="0"><span class="jfm-epn">' + (e.IndexNumber || "") + '</span>' +
+              '<span class="jfm-epimg">' + (t ? '<img loading="lazy" alt="" src="' + img(e.Id, "Primary", t, 360) + '">' : "") + (pct ? '<i class="jfm-epprog"><b style="width:' + Math.round(pct) + '%"></b></i>' : "") + "</span>" +
+              '<span class="jfm-ept"><b>' + esc(e.Name) + "</b><em>" + (fmtMin(e.RunTimeTicks) || "") + (e.UserData && e.UserData.Played ? " · ✓ watched" : "") + "</em><small>" + esc(e.Overview || "") + "</small></span></div>";
+          }).join("") || '<div class="jfm-loading">No episodes in this season.</div>';
+          [].forEach.call(list.querySelectorAll(".jfm-ep"), function (row) {
+            function go() { closeModal(); play(row.dataset.id, series.ServerId); }
+            row.addEventListener("click", go); row.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+          });
+          var f = list.querySelector(".jfm-ep.focus"); if (f) f.scrollIntoView({ block: "nearest" });
+        }, function () { list.innerHTML = '<div class="jfm-loading">Could not load episodes.</div>'; });
+      }
+      var start = seasons[0].Id;
+      if (focusEp) { c.getItem(uid, focusEp).then(function (e) { if (e.SeasonId) { sel.value = e.SeasonId; show(e.SeasonId); } else show(start); }, function () { show(start); }); }
+      else { var p = seasons.filter(function (s) { return s.IndexNumber > 0; })[0]; show((p || seasons[0]).Id); }
+      sel.addEventListener("change", function () { show(sel.value); });
+    }, function () { list.innerHTML = '<div class="jfm-loading">Could not load episodes.</div>'; });
+  }
+  // library grids (Movies / TV Shows lists) open the same panel
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (document.getElementById("jfRows") && e.target.closest("#jfRows, #jfHero")) return;
+    var card = e.target.closest(".card[data-id]"); if (!card) return;
+    if (e.target.closest("button, .cardOverlayButton, .cardOverlayFab-primary, .cardIndicators, input, select")) return;
+    var type = card.getAttribute("data-type"); if (type !== "Movie" && type !== "Series") return;
+    if (!e.target.closest('[data-action="link"], .cardImageContainer, .cardText, a')) return;
+    e.preventDefault(); e.stopPropagation(); openModal(card.getAttribute("data-id"));
+  }, true);
 
   function container() { return document.querySelector(".homePage .homeSectionsContainer"); }
 
@@ -345,6 +487,14 @@
   // Netflix header: transparent on top of the picture, solid once the page is scrolled
   function onScroll() { document.documentElement.classList.toggle("jf-scrolled", (window.scrollY || document.documentElement.scrollTop) > 40); }
   window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+  // own brand icon in the browser tab
+  (function () {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2a36"/><stop offset="1" stop-color="#b10812"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#g)"/><path d="M32 11 54 28v22a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V28z" fill="#fff"/><path d="M26 29.5 41 38 26 46.5z" fill="#e50914"/></svg>';
+    var url = "data:image/svg+xml," + encodeURIComponent(svg);
+    function set() { [].forEach.call(document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]'), function (l) { l.parentNode.removeChild(l); }); var l = document.createElement("link"); l.rel = "icon"; l.type = "image/svg+xml"; l.href = url; document.head.appendChild(l); }
+    set(); setTimeout(set, 3000);
+  })();
 
   function onRoute() {
     if (/^#\/home/.test(location.hash) || location.hash === "" || location.hash === "#/") { setTimeout(mount, 50); }
