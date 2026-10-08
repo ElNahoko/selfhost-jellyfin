@@ -125,7 +125,7 @@ code.inline{background:var(--chip);padding:1px 5px;border-radius:5px;font-size:.
 /* ---------- state ---------- */
 var KEY="jvg-wizard-v1";
 var DEFAULTS={ip:"",user:"media",domain:"",device:"/dev/vdb",tz:"Europe/Paris",jf:"10.10.7",caddy:"2.10",
-  repo:"https://github.com/ElNahoko/jellyfin-vps-guide.git",pubkey:""};
+  repo:"https://github.com/ElNahoko/selfhost-jellyfin.git",pubkey:""};
 var state={cfg:Object.assign({},DEFAULTS),done:{},open:{}};
 function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&s.cfg){state.cfg=Object.assign({},DEFAULTS,s.cfg);state.done=s.done||{};state.open=s.open||{};}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
@@ -152,9 +152,9 @@ function val(k,ph){return ok(k)&&state.cfg[k]!==""?state.cfg[k]:ph;}   /* safe v
 function steps(){
   var u=val("user","media"), ip=val("ip","SERVER_IP"), dom=val("domain","media.example.com"),
       dev=val("device","/dev/vdb"), tz=val("tz","Europe/Paris"), jf=val("jf","10.10.7"), cd=val("caddy","2.10"),
-      repo=val("repo","https://github.com/ElNahoko/jellyfin-vps-guide.git"),
+      repo=val("repo","https://github.com/ElNahoko/selfhost-jellyfin.git"),
       key=(state.cfg.pubkey&&ok("pubkey"))?state.cfg.pubkey.trim():"ssh-ed25519 AAAA...PASTE_YOUR_PUBLIC_KEY";
-  var R="~/jellyfin-vps-guide";
+  var R="~/selfhost-jellyfin";
   return [
   {id:"prep",title:"Before you start",where:"Your computer",b:[
     {t:"p",x:"You need: a fresh <b>Ubuntu 24.04</b> VPS (KVM, with a separate data disk of the size you want), its public IP, root access, and a hostname pointing at it."},
@@ -180,23 +180,23 @@ function steps(){
     {t:"p",x:"Continue only if you got a shell and saw <code class='inline'>sudo works</code>."}
   ]},
   {id:"lock",title:"Lock down SSH",where:"Server (as "+u+")",b:[
-    {t:"cmd",w:"server",l:"In the "+u+" session",c:"cd ~/jellyfin-vps-guide 2>/dev/null || { git clone "+repo+" ~/jellyfin-vps-guide && cd ~/jellyfin-vps-guide; }\nsudo ADMIN_USER="+u+" bash scripts/02-lock-ssh.sh"},
+    {t:"cmd",w:"server",l:"In the "+u+" session",c:"cd ~/selfhost-jellyfin 2>/dev/null || { git clone "+repo+" ~/selfhost-jellyfin && cd ~/selfhost-jellyfin; }\nsudo ADMIN_USER="+u+" bash scripts/02-lock-ssh.sh"},
     {t:"cmd",w:"local",l:"Third terminal: confirm you can still log in",c:"ssh "+u+"@"+ip},
     {t:"note",x:"If it fails, use the provider console: delete <code class='inline'>/etc/ssh/sshd_config.d/00-hardening.conf</code> and run <code class='inline'>systemctl reload ssh</code>."}
   ]},
   {id:"docker",title:"Install Docker",where:"Server (as "+u+")",b:[
-    {t:"cmd",w:"server",l:"Official Docker repo + log rotation + hello-world",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/03-install-docker.sh"},
+    {t:"cmd",w:"server",l:"Official Docker repo + log rotation + hello-world",c:"cd ~/selfhost-jellyfin\nsudo bash scripts/03-install-docker.sh"},
     {t:"p",x:"Expected: Docker and Compose versions, then a <i>Hello from Docker!</i> message."}
   ]},
   {id:"disk",title:"Mount the media disk",where:"Server (as "+u+")",b:[
     {t:"cmd",w:"server",l:"Look first (read-only)",c:"lsblk -f"},
     {t:"note",x:"Check that <code class='inline'>"+dev+"</code> is really your data disk. A disk with an empty FSTYPE and no mountpoint is unformatted. If it already has a filesystem, <b>do not format</b>."},
-    {t:"cmd",w:"server",l:"Disk already has a filesystem: just mount it",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/04-mount-media.sh "+dev},
-    {t:"cmd",w:"server",l:"EMPTY disk only: create ext4 (erases the disk, asks you to retype the device)",c:"cd ~/jellyfin-vps-guide\nsudo bash scripts/04-mount-media.sh "+dev+" --format"},
+    {t:"cmd",w:"server",l:"Disk already has a filesystem: just mount it",c:"cd ~/selfhost-jellyfin\nsudo bash scripts/04-mount-media.sh "+dev},
+    {t:"cmd",w:"server",l:"EMPTY disk only: create ext4 (erases the disk, asks you to retype the device)",c:"cd ~/selfhost-jellyfin\nsudo bash scripts/04-mount-media.sh "+dev+" --format"},
     {t:"cmd",w:"server",l:"Ownership and check",c:"sudo chown -R "+u+":"+u+" /srv/media\ndf -h /srv/media\nls /srv/media"}
   ]},
   {id:"deploy",title:"Install the Jellyfin stack files",where:"Server (as "+u+")",b:[
-    {t:"cmd",w:"server",l:"Copy files and write your .env",c:"sudo mkdir -p /opt/jellyfin/{config,cache,backups,scripts}\ncd ~/jellyfin-vps-guide\nsudo cp deploy/compose.yaml deploy/compose.setup.yaml deploy/Caddyfile /opt/jellyfin/\nsudo cp scripts/*.sh /opt/jellyfin/scripts/\nsudo tee /opt/jellyfin/.env >/dev/null <<'EOF'\nJELLYFIN_VERSION="+jf+"\nCADDY_VERSION="+cd+"\nJELLYFIN_DOMAIN="+dom+"\nPUID=1000\nPGID=1000\nTZ="+tz+"\nEOF\nsudo sed -i \"s/^PUID=.*/PUID=$(id -u)/; s/^PGID=.*/PGID=$(id -g)/\" /opt/jellyfin/.env\nsudo chown -R "+u+":"+u+" /opt/jellyfin\ncat /opt/jellyfin/.env"},
+    {t:"cmd",w:"server",l:"Copy files and write your .env",c:"sudo mkdir -p /opt/jellyfin/{config,cache,backups,scripts}\ncd ~/selfhost-jellyfin\nsudo cp deploy/compose.yaml deploy/compose.setup.yaml deploy/Caddyfile /opt/jellyfin/\nsudo cp scripts/*.sh /opt/jellyfin/scripts/\nsudo tee /opt/jellyfin/.env >/dev/null <<'EOF'\nJELLYFIN_VERSION="+jf+"\nCADDY_VERSION="+cd+"\nJELLYFIN_DOMAIN="+dom+"\nPUID=1000\nPGID=1000\nTZ="+tz+"\nEOF\nsudo sed -i \"s/^PUID=.*/PUID=$(id -u)/; s/^PGID=.*/PGID=$(id -g)/\" /opt/jellyfin/.env\nsudo chown -R "+u+":"+u+" /opt/jellyfin\ncat /opt/jellyfin/.env"},
     {t:"note",x:"Check the Jellyfin tag against the <a href='https://github.com/jellyfin/jellyfin/releases' target='_blank' rel='noopener'>official releases</a>."}
   ]},
   {id:"wizard",title:"First-run setup, privately",where:"Server + your computer",b:[

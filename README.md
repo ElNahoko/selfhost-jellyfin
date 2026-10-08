@@ -112,7 +112,7 @@ Prefer the terminal? On a fresh Ubuntu 24.04 server:
 ```bash
 # 1) as root: get the guide, create an admin user, firewall, updates (does NOT disable passwords yet)
 apt-get update && apt-get install -y git
-git clone https://github.com/ElNahoko/jellyfin-vps-guide.git && cd jellyfin-vps-guide
+git clone https://github.com/ElNahoko/selfhost-jellyfin.git && cd selfhost-jellyfin
 ADMIN_USER=media PUBKEY_FILE=/root/mykey.pub bash scripts/01-bootstrap.sh
 
 # 2) in ANOTHER terminal: prove key login works
@@ -211,7 +211,7 @@ Found a security problem in these scripts or configs? Open an issue describing t
 ## Repository layout
 
 ```
-jellyfin-vps-guide/
+selfhost-jellyfin/
 ├── README.md
 ├── wizard/
 │   └── index.html            # offline step-by-step wizard (open in a browser)
