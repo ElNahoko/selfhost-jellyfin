@@ -1,6 +1,36 @@
-/* Local tuning on top of the Abyss theme (MIT, github.com/AumGupta/abyss-jellyfin): violet accent, slightly rounder corners. */
+/* Local tuning on top of the Abyss theme (MIT, github.com/AumGupta/abyss-jellyfin).
+   Palette: near-black with a red accent (streaming-app look). Change the two accent lines to recolour everything. */
 :root {
-  --abyss-accent: 139, 92, 246;
-  --abyss-accent-channel: 139 92 246;
-  --abyss-radius: 14px;
+  --abyss-accent: 229, 9, 20;
+  --abyss-accent-channel: 229 9 20;
+  --abyss-radius: 8px;
+  --abyss-glass-tint: 18, 18, 20;
+  --abyss-backdrop-blur: 0px;
+}
+
+/* Artwork behind every page: crisp and visible, only dimmed enough to keep text readable (Abyss blurs it to mud). */
+html .backdropImage {
+  -webkit-filter: saturate(115%) brightness(58%) !important;
+  filter: saturate(115%) brightness(58%) !important;
+}
+
+/* Movie / show page: a tall picture at the top that fades into the page, like a streaming app. */
+html.layout-desktop .itemBackdrop,
+html.layout-tv .itemBackdrop {
+  height: 52vh !important;
+}
+html .itemBackdrop::after {
+  background: linear-gradient(180deg, rgba(10, 10, 12, .45) 0%, rgba(10, 10, 12, 0) 30%, rgba(10, 10, 12, .8) 82%, #0a0a0c 100%) !important;
+}
+html.layout-desktop .detailRibbon,
+html.layout-tv .detailRibbon {
+  background: transparent !important;
+}
+
+/* Header: calm light-grey labels and icons, the red is kept for the active tab (instead of red text everywhere). */
+html .MuiAppBar-root .MuiButton-root,
+html .MuiAppBar-root .MuiIconButton-root,
+html .MuiAppBar-root .MuiButton-root .MuiSvgIcon-root,
+html .MuiAppBar-root .MuiIconButton-root .MuiSvgIcon-root {
+  color: rgba(255, 255, 255, .86) !important;
 }

@@ -1,5 +1,5 @@
 /* Featured banner + home page polish. Part of selfhost-jellyfin (MIT). */
-:root { --jfh-bg: #0a0a0c; --jfh-accent: hsl(262, 83%, 66%); }
+:root { --jfh-bg: #0a0a0c; --jfh-accent: #e50914; }
 
 #jfHero {
   position: relative; width: 100%;
@@ -55,7 +55,7 @@
 }
 #jfHero .jfh-btn:hover, #jfHero .jfh-btn:focus-visible { transform: translateY(-2px); background: rgba(255,255,255,.24); outline: none; }
 #jfHero .jfh-play { background: var(--jfh-accent); border-color: transparent; }
-#jfHero .jfh-play:hover, #jfHero .jfh-play:focus-visible { background: hsl(262, 83%, 72%); }
+#jfHero .jfh-play:hover, #jfHero .jfh-play:focus-visible { background: #f6121d; }
 #jfHero .jfh-nav {
   position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 2.8em; height: 2.8em; border-radius: 50%;
   font-size: 1.4em; line-height: 1; cursor: pointer; color: #fff; border: .06em solid rgba(255,255,255,.25); background: rgba(10,10,12,.45);

@@ -1,10 +1,10 @@
 # 12. Theme (optional)
 
-Make Jellyfin look like a modern streaming app: a near-black skin with frosted glass, a floating pill header, a short featured banner and a few clean rows.
+Make Jellyfin look like a modern streaming app: a near-black skin with a red accent, a floating pill header, a short featured banner and a few clean rows.
 
 ## What this uses
 - **Abyss**, a community CSS theme (MIT, by AumGupta, github.com/AumGupta/abyss-jellyfin), tested by its author on Jellyfin 12.1. It is **styling only** (no scripts). This repo does not copy it: the installer downloads it, pinned to an exact commit.
-- `deploy/theme/custom.css`: our tuning on top of it (violet accent, corner radius).
+- `deploy/theme/custom.css`: our tuning on top of it (red accent, near-black, visible artwork on movie pages).
 - The files are served from **your own server** by Caddy at `/theme/`, so your viewers' devices do not depend on a public CDN for the theme.
 
 ## Easy install
