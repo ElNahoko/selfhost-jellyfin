@@ -9,6 +9,8 @@ Dashboard → Libraries → Add Media Library.
 | TV Shows | Shows | `/media/shows` |
 | Music | Music | `/media/music` |
 | Audiobooks | see note | `/media/audiobooks` |
+| Books | Books | `/media/books` |
+| Manga | Books | `/media/manga` |
 
 **Audiobooks note:** Jellyfin has no first-class audiobook library. Common approaches: a **Music** library (one folder per author, one subfolder per book) or the **Books** type. Client support differs, so test one item on every device you care about before loading a large collection.
 
@@ -17,6 +19,12 @@ Library settings worth setting:
 - **Do not** enable "Save artwork into media folders" (the media mount is read-only by design).
 - Real-time monitoring: fine on local disks. For large libraries schedule scans nightly instead.
 - Trickplay / chapter image extraction are CPU and disk heavy. On a small server, disable "Extract chapter images" and be selective with trickplay generation.
+
+## Books and manga
+Jellyfin 12 reads books itself. Use the **Books** library type for both a *Books* and a *Manga* library (separate folders keep them tidy).
+- **EPUB** opens in the web reader. **PDF, CBZ and CBR** are listed with covers, but whether they open in the web reader or only download depends on the client version: test one file on each device you use. Dedicated Jellyfin reader apps exist for phones and tablets if you read a lot.
+- Layout: `Books/Author/Title.epub`, `Manga/Series/Series - Volume 01.cbz`.
+- Free, legal starters: public-domain classics from [Project Gutenberg](https://www.gutenberg.org) (EPUB), and old public-domain art books on the Internet Archive.
 
 ## Users
 - **Administrator**: separate account; do not use it for watching.

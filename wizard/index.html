@@ -215,7 +215,7 @@ function steps(){
   {id:"jf",title:"Configure Jellyfin in the browser",where:"Browser",b:[
     {t:"p",x:"Open <b>https://"+esc(dom)+"</b> as the admin and work through this list (details: <code class='inline'>docs/06-configure-jellyfin.md</code>)."},
     {t:"list",x:["Dashboard → Networking → <b>Known proxies</b>: add the Docker network subnet (command below). UPnP off.",
-      "Dashboard → Libraries: <b>Movies</b>, <b>TV Shows</b>, <b>Music</b>, <b>Audiobooks</b> → paths under /media/…",
+      "Dashboard → Libraries: <b>Movies</b>, <b>TV Shows</b>, <b>Music</b>, <b>Audiobooks</b>, <b>Books</b>, <b>Manga</b> (Books type) → paths under /media/…",
       "Dashboard → Playback → Transcoding: no hardware accel, limit simultaneous transcodes to 1.",
       "Dashboard → Users: one normal account per person, no admin rights, set passwords privately.",
       "Each user → Playback: <b>video transcoding off</b>, bitrate limit 12–15 Mbit/s, max 2 active sessions."]},
@@ -229,7 +229,7 @@ function steps(){
   {id:"uploads",title:"Upload page (optional)",where:"Server (as "+u+")",b:[
     {t:"p",x:"A drag-and-drop page to add media from any browser. It needs its own hostname (for example <code class='inline'>files."+esc(filesBase)+"</code>) pointing to the same IP as Jellyfin."},
     {t:"cmd",w:"server",l:"Set it up (prints the login once: save it in a password manager)",c:"cd ~/selfhost-jellyfin\nsudo bash scripts/05-setup-uploads.sh files."+filesBase},
-    {t:"p",x:"Open the page, sign in, choose Movies / TV Shows / Music / Audiobooks and drop files. See <code class='inline'>docs/11-upload-page.md</code>."}
+    {t:"p",x:"Open the page, sign in, choose Movies / TV Shows / Music / Audiobooks / Books / Manga and drop files. See <code class='inline'>docs/11-upload-page.md</code>."}
   ]},
   {id:"verify",title:"Automated checks",where:"Server (as "+u+")",b:[
     {t:"cmd",w:"server",l:"Run the checks and copy the whole output",c:"sudo bash /opt/jellyfin/scripts/verify.sh "+dom},

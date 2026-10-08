@@ -93,7 +93,7 @@ button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color
     <ul class="list" id="list"></ul>
 
     <p class="tip">Naming helps Jellyfin find artwork: <code>Movies/Title (Year)/Title (Year).mkv</code>,
-      <code>Shows/Show Name (Year)/Season 01/Show S01E01.mkv</code>, <code>Music/Artist/Album/01 Track.mp3</code>.
+      <code>Shows/Show Name (Year)/Season 01/Show S01E01.mkv</code>, <code>Music/Artist/Album/01 Track.mp3</code>, <code>Books/Author/Title.epub</code>, <code>Manga/Series/Series - Volume 01.cbz</code>.
       New items show up in Jellyfin within a minute or two. Large uploads can be closed and resumed: pick the same file again.</p>
   </section>
 </div>
@@ -106,7 +106,9 @@ var LIBS=[
   {id:"movies",label:"Movies",ic:"🎬",hint:"Films"},
   {id:"shows",label:"TV Shows",ic:"📺",hint:"Series and seasons"},
   {id:"music",label:"Music",ic:"🎵",hint:"Artists and albums"},
-  {id:"audiobooks",label:"Audiobooks",ic:"📚",hint:"Books you can listen to"}
+  {id:"audiobooks",label:"Audiobooks",ic:"🎧",hint:"Books you can listen to"},
+  {id:"books",label:"Books",ic:"📖",hint:"EPUB and PDF to read"},
+  {id:"manga",label:"Manga",ic:"🗾",hint:"Comics: CBZ, PDF, EPUB"}
 ];
 var CHUNK=16*1024*1024, RETRIES=6;
 var cwd="movies";            // current folder, no leading/trailing slash
