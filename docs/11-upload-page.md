@@ -26,3 +26,5 @@ A small web page where you drag and drop movies, shows, music and audiobooks str
 - The login uses HTTP Basic authentication over HTTPS. Use the long random password the script generates and do not share it. To rotate it, delete `/opt/jellyfin/uploads.env` and run the script again.
 - Prefer the command line? `rsync -avP --partial ./movies/ media@SERVER:/srv/media/movies/` works too.
 - Why not File Browser? It was a popular choice but the project is archived with no further security fixes, so this guide does not use it.
+
+If you edit `deploy/uploads/assets/index.html`, run `sudo docker compose restart uploads`: the file server keeps the page in memory.
