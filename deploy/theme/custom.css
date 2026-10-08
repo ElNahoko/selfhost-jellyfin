@@ -20,7 +20,7 @@ html.layout-tv .itemBackdrop {
   height: 52vh !important;
 }
 html .itemBackdrop::after {
-  background: linear-gradient(180deg, rgba(10, 10, 12, .45) 0%, rgba(10, 10, 12, 0) 30%, rgba(10, 10, 12, .8) 82%, #0a0a0c 100%) !important;
+  background: linear-gradient(180deg, rgba(20, 20, 20, .5) 0%, rgba(20, 20, 20, 0) 28%, rgba(20, 20, 20, .55) 62%, #141414 100%) !important;
 }
 html.layout-desktop .detailRibbon,
 html.layout-tv .detailRibbon {
@@ -34,3 +34,37 @@ html .MuiAppBar-root .MuiButton-root .MuiSvgIcon-root,
 html .MuiAppBar-root .MuiIconButton-root .MuiSvgIcon-root {
   color: rgba(255, 255, 255, .86) !important;
 }
+
+/* ---------------- Netflix look: page, font, header ---------------- */
+html, html body, html .skinBody, html .backgroundContainer { background-color: #141414 !important; }
+html body { font-family: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+/* transparent header that fades out over the picture, brand on the left, icons on the right */
+html header.MuiAppBar-root {
+  background: linear-gradient(180deg, rgba(0, 0, 0, .78) 0%, rgba(0, 0, 0, 0) 100%) !important;
+  box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 0 !important;
+}
+html header.MuiAppBar-root .MuiToolbar-root { min-height: 68px; padding: 0 4% !important; }
+html header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root { position: static !important; transform: none !important; left: auto !important; order: 1; gap: .2em; }
+html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root { order: 2; }
+html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root:last-child { order: 3; width: auto; flex: none; margin-left: 1em; }
+html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root:nth-child(2) { margin-left: auto; }
+html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root { background: transparent !important; border-radius: 4px !important; font-size: .95rem; font-weight: 500; }
+html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:hover { background: rgba(255, 255, 255, .1) !important; }
+html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child { color: #e50914 !important; font-weight: 900; font-size: 1.35rem; letter-spacing: .06em; text-transform: uppercase; margin-right: 1.2em; }
+html.jf-scrolled header.MuiAppBar-root { background: #141414 !important; transition: background-color .25s; }
+
+/* ---------------- Movie / show page, Netflix-style: big picture, logo and info on the left, no poster column ---------------- */
+html.layout-desktop .detailImageContainer { display: none !important; }
+html.layout-desktop #itemDetailPage .detailLogo { margin-left: 4% !important; left: 0 !important; margin-top: -11vh; margin-bottom: 7vh; position: relative; z-index: 2; max-width: 34vw; }
+html.layout-desktop .detailPagePrimaryContainer { padding-left: 4% !important; margin-left: 0 !important; }
+html.layout-desktop .detailRibbon,
+html.layout-desktop .detailPagePrimaryContent { padding-left: 0 !important; margin-left: 0 !important; }
+html.layout-desktop .detailPagePrimaryContent .detailSection { max-width: 62em; }
+html.layout-desktop .infoWrapper { margin-left: 0 !important; }
+html.layout-desktop .detailRibbon { margin-top: 0; }
+html.layout-desktop .mainDetailButtons { margin-right: 4%; }
+html .itemBackdrop { height: 58vh !important; }
+html.layout-desktop .itemDetailPage:has(.detailLogo:not(.hide)) .detailRibbon .itemName.parentNameLast { display: none; }   /* logo already says the title */
+html .itemBackdrop { position: relative; }
+html .itemBackdrop::after { content: ""; position: absolute; inset: 0; pointer-events: none; }

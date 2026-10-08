@@ -21,11 +21,14 @@ It downloads the pinned theme, copies our files, enables the banner helper and r
 - To load it, Jellyfin's own `index.html` needs one extra `<script>` line. `deploy/theme/compose.theme.yaml` does this with a one-shot helper container that copies `index.html` out of the **same Jellyfin image** and adds the line every time the stack starts, so it can never go stale after an upgrade.
 - Undo: remove `compose.theme.yaml` from `COMPOSE_FILE` in `.env`, run `docker compose up -d`, and delete the Custom CSS.
 
-## Home page layout (short and Netflix-style)
-- **Order** is a per-user Jellyfin setting (User menu → **Home**). Recommended: *Continue Watching → Next Up → My Media (library tiles) → Latest media*. It is stored on the server, so it applies on every device that honours Jellyfin's home settings. Apply it to all accounts at once through the API (`/DisplayPreferences/usersettings?userId=…&client=emby`, keys `homesection0…`, values such as `resume`, `nextup`, `smalllibrarytiles`, `latestmedia`).
-- Order on the page: banner → **Continue Watching** → **Next Up** → our rows. The **My Media** tiles and Jellyfin's own "Recently Added in …" rows are hidden, because the libraries are already in the top bar and our rows replace them.
-- Our rows (at most five, built from three requests): **Recently added**, one **Because you watched …**, **Top rated**, and the two biggest **genres** (a genre needs at least three titles). Rows that would repeat an earlier row are skipped. Results are cached for ten minutes per browser tab.
-- The banner and extra rows run in the **web** client (computer, phone and tablet browsers; on a phone use *Add to Home screen* for an app-like icon). The native Android/iOS apps and the TV app have their own screens, so they show Jellyfin's standard home with the section order above and the colours where the app supports server styling.
+## Home page layout (Netflix-style)
+- **Billboard** at the top: a full-width picture of a random title with its logo, rating, a three-line description, a white **Play** button and a grey **More Info** button, the age rating on the right, and slow auto-rotation. It reads items through the logged-in user's own session.
+- **Rows** of landscape thumbnails below it: *Continue Watching* (red progress bar), *Next Up* (without the titles already in Continue Watching), *Recently Added*, *Top 10* (large outlined numbers on posters), one *Because You Watched …* and the biggest genres. Hover a thumbnail on a computer and it grows into a small panel with Play, details, rating and genres; left/right arrows scroll a row. Rows that would repeat an earlier row are skipped.
+- Jellyfin's own video rows and the library tiles are hidden (our rows replace them; the libraries are in the top bar). Order of Jellyfin's remaining sections is still a per-user setting (User menu → **Home**).
+- **Header:** transparent over the picture with the server name in red on the left, solid once you scroll.
+- **Movie / show page:** a tall picture that fades into the page, the title logo over its lower edge, then Play and the details, with no poster column.
+- Browse rows are cached for ten minutes per browser tab; Continue Watching and Next Up are always fresh.
+- All of this runs in the **web** client (computer, phone and tablet browsers; on a phone use *Add to Home screen*). The native Android/iOS apps and the TV app have their own screens, so they show Jellyfin's standard home.
 
 ## Manual install
 (or just run the script above; this is what it does)
