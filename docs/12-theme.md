@@ -49,7 +49,7 @@ Save and hard-reload the browser (Ctrl+Shift+R).
 ## Good to know
 - The theme loads two fonts from Google Fonts (Inter and an icon font). If you do not want that, self-host those fonts or remove the `@import` lines for fonts from your copy of the theme file.
 - **Jellyfin 12 ships a new interface.** ElegantFin documents full support for the *Legacy* interface; in each client open **User menu → Display → Display mode** and choose **Desktop (Legacy)** if something looks off.
-- Library tiles: set a 16:9 picture per library (Dashboard → Libraries → library → Images), for example a coloured gradient with the library name.
+- Library tiles: set a 16:9 picture per library (Dashboard → Libraries → library → Images). `deploy/theme/tiles/make-tiles.ps1` (Windows PowerShell) builds artwork tiles: a slanted collage of your own films' backdrops (put `movie_*.jpg` backdrops in an `art` folder next to the script) for Movies/TV Shows, and drawn illustrations for Music and Audiobooks (ready-made JPGs are included). Upload the results as each library's Primary image, then clear the browser cache once.
 - A featured banner is not built into Jellyfin. The one here is our own small script (above); third-party banner add-ons usually load unpinned scripts from public CDNs, so review anything like that before using it on a server your family relies on.
 - Give the server a nice name (Dashboard → General → Server name) or the top-left shows the container ID.
 - Undo: empty the Custom CSS box.

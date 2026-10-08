@@ -135,10 +135,12 @@
         .then(function (r) { return [{ title: "Top rated", items: r.Items || [] }]; }, function () { return []; })
     ];
     return Promise.all(jobs).then(function (parts) {
-      var seenTitles = {}, rows = [];
+      var seenTitles = {}, seenSets = {}, rows = [];
       parts.forEach(function (g) { g.forEach(function (row) {
         if (!row.items || row.items.length < 2 || seenTitles[row.title]) return;   // keep rows with real content only
-        seenTitles[row.title] = 1; rows.push(row);
+        var sig = row.items.map(function (i) { return i.Id; }).sort().join(",");     // skip a row that repeats an earlier one
+        if (seenSets[sig]) return;
+        seenTitles[row.title] = 1; seenSets[sig] = 1; rows.push(row);
       }); });
       rowsState.data = rows.slice(0, 5); rowsState.loadedAt = Date.now(); rowsState.loading = false;
     }, function () { rowsState.loading = false; });
