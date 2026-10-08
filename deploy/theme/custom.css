@@ -1,12 +1,16 @@
 /* Local tuning on top of the Abyss theme (MIT, github.com/AumGupta/abyss-jellyfin).
    Palette: near-black with a red accent (streaming-app look). Change the two accent lines to recolour everything. */
 :root {
-  --abyss-accent: 229, 9, 20;
-  --abyss-accent-channel: 229 9 20;
+  /* Abyss uses the accent as a LIGHT highlight with dark text (selected rows, active tab, hover): keep it light.
+     Red is applied explicitly where a streaming app uses it: brand, progress bars, Play-All, avatar. */
+  --abyss-accent: 245, 245, 247;
+  --abyss-accent-channel: 245 245 247;
   --abyss-radius: 8px;
   --abyss-glass-tint: 18, 18, 20;
   --abyss-backdrop-blur: 0px;
 }
+html .itemProgressBarForeground, html .transcodingProgress > div { background-color: #e50914 !important; }
+html .detailButton-primary, html .btnPlay.raised, html .btnPlay { /* keep Jellyfin's own Play buttons white like ours */ }
 
 /* Artwork behind every page: crisp and visible, only dimmed enough to keep text readable (Abyss blurs it to mud). */
 html .backdropImage {
@@ -27,32 +31,23 @@ html.layout-tv .detailRibbon {
   background: transparent !important;
 }
 
-/* Header: calm light-grey labels and icons, the red is kept for the active tab (instead of red text everywhere). */
-html .MuiAppBar-root .MuiButton-root,
-html .MuiAppBar-root .MuiIconButton-root,
-html .MuiAppBar-root .MuiButton-root .MuiSvgIcon-root,
-html .MuiAppBar-root .MuiIconButton-root .MuiSvgIcon-root {
-  color: rgba(255, 255, 255, .86) !important;
-}
-
 /* ---------------- Netflix look: page, font, header ---------------- */
 html, html body, html .skinBody, html .backgroundContainer { background-color: #141414 !important; }
 html body { font-family: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; }
 
 /* transparent header that fades out over the picture, brand on the left, icons on the right */
-html header.MuiAppBar-root {
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) {
   background: linear-gradient(180deg, rgba(0, 0, 0, .78) 0%, rgba(0, 0, 0, 0) 100%) !important;
   box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 0 !important;
 }
-html header.MuiAppBar-root .MuiToolbar-root { min-height: 68px; padding: 0 4% !important; }
-html header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root { position: static !important; transform: none !important; left: auto !important; order: 1 !important; gap: .2em; }
-html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root { order: 2 !important; }
-html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root:last-child { order: 3 !important; width: auto; flex: none; margin-left: 1em; }
-html header.MuiAppBar-root .MuiToolbar-root > .MuiBox-root:nth-child(2) { margin-left: auto; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root { background: transparent !important; border-radius: 4px !important; font-size: .95rem; font-weight: 500; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:hover { background: rgba(255, 255, 255, .1) !important; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child { color: #e50914 !important; font-weight: 900; font-size: 1.35rem; letter-spacing: .06em; text-transform: uppercase; margin-right: 1.2em; }
-html.jf-scrolled header.MuiAppBar-root { background: #141414 !important; transition: background-color .25s; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiToolbar-root { min-height: 68px; padding: 0 4% !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiToolbar-root > .MuiStack-root { position: static !important; transform: none !important; left: auto !important; order: 1 !important; gap: .2em; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiToolbar-root > .MuiBox-root { order: 2 !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiToolbar-root > .MuiBox-root:last-child { order: 3 !important; width: auto; flex: none; margin-left: 1em; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiToolbar-root > .MuiBox-root:nth-child(2) { margin-left: auto; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root { background: transparent !important; border-radius: 4px !important; font-size: .95rem; font-weight: 500; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:hover { background: rgba(255, 255, 255, .1) !important; }
+html.jf-scrolled header.MuiAppBar-root:has(button[aria-label="User Menu"]) { background: #141414 !important; transition: background-color .25s; }
 
 /* ---------------- Movie / show page, Netflix-style: big picture, logo and info on the left, no poster column ---------------- */
 /* poster stays: a smaller card overlapping the bottom of the picture, with the info to its right */
@@ -60,7 +55,7 @@ html.layout-desktop .detailPagePrimaryContainer { position: relative; }
 html.layout-desktop .detailImageContainer { display: block !important; position: absolute !important; left: 4% !important; top: -8vw !important; width: 13vw !important; z-index: 3; }
 html.layout-desktop .detailImageContainer .card, html.layout-desktop .detailImageContainer .cardBox, html.layout-desktop .detailImageContainer .cardScalable { width: 100% !important; position: relative !important; left: 0 !important; top: 0 !important; margin: 0 !important; }
 html.layout-desktop .detailImageContainer .cardImageContainer, html.layout-desktop .detailImageContainer .cardPadder { width: 100% !important; max-width: 100% !important; border-radius: 6px; box-shadow: 0 1em 3em rgba(0, 0, 0, .75); }
-html.layout-desktop #itemDetailPage .detailLogo { margin-left: 23% !important; left: 0 !important; margin-top: -11vh; margin-bottom: 7vh; position: relative; z-index: 2; max-width: 34vw; }
+html.layout-desktop #itemDetailPage .detailLogo { position: absolute !important; z-index: 2; left: 23% !important; margin: 0 !important; top: calc(58vh - 6.5vw - 1.4vh) !important; width: 24vw !important; max-width: none !important; height: 6.5vw !important; background-size: contain !important; background-repeat: no-repeat !important; background-position: left bottom !important; }
 html.layout-desktop .detailPagePrimaryContainer { padding-left: 4% !important; margin-left: 0 !important; }
 html.layout-desktop .detailRibbon,
 html.layout-desktop .detailPagePrimaryContent { padding-left: 19% !important; margin-left: 0 !important; }
@@ -72,14 +67,37 @@ html .itemBackdrop { height: 58vh !important; }
 html.layout-desktop .itemDetailPage:has(.detailLogo:not(.hide)) .detailRibbon .itemName.parentNameLast { display: none; }   /* logo already says the title */
 html .itemBackdrop { position: relative; }
 html .itemBackdrop::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
-/* wide title logos (e.g. Slow Horses) must not be cut off */
-html.layout-desktop #itemDetailPage .detailLogo { width: 34vw !important; max-width: none !important; height: 11vw !important; background-size: contain !important; background-repeat: no-repeat !important; background-position: left bottom !important; }
 
-/* ---------------- own brand: DARFLIX (house + play button), replaces the Jellyfin icon and the server name in the header ---------------- */
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child { font-size: 0 !important; letter-spacing: 0; margin-right: 1.2em; padding-left: 4px !important; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child .MuiButton-startIcon { margin: 0 .55rem 0 0 !important; width: 36px; height: 36px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff2a36'/%3E%3Cstop offset='1' stop-color='%23b10812'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23g)'/%3E%3Cpath d='M32 11 54 28v22a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V28z' fill='%23fff'/%3E%3Cpath d='M26 29.5 41 38 26 46.5z' fill='%23e50914'/%3E%3C/svg%3E") center / contain no-repeat; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child .MuiButton-startIcon > * { display: none !important; }
-html header.MuiAppBar-root .MuiStack-root > a.MuiButton-root:first-child::after { content: "DARFLIX"; font-size: 1.45rem; font-weight: 900; letter-spacing: .09em; line-height: 1; background: linear-gradient(90deg, #fff 49%, #e50914 49%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+/* ---------------- own brand: LUMIO (lens with a play button), replaces the Jellyfin icon and the server name in the header ---------------- */
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:first-child { font-size: 0 !important; letter-spacing: 0; margin-right: 1.4em; padding-left: 4px !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:first-child .MuiButton-startIcon { margin: 0 .6rem 0 0 !important; width: 34px; height: 34px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3b3b'/%3E%3Cstop offset='1' stop-color='%23c10f1d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%23fff' stroke-width='5'/%3E%3Cpath d='M28 24.5 41 32 28 39.5z' fill='%23fff' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:first-child .MuiButton-startIcon > * { display: none !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:first-child::after { content: "LUMIO"; font-size: 1.5rem; font-weight: 800; letter-spacing: .12em; line-height: 1; background: linear-gradient(90deg, #fff 62%, #e50914 62%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+
+/* ---------------- header, right side: search + avatar only, tidy and consistent ---------------- */
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) button[aria-label="SyncPlay"] { display: none !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root { width: 40px; height: 40px; border-radius: 50% !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root:hover { background: rgba(255, 255, 255, .14) !important; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiSvgIcon-root { font-size: 1.45rem; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) button[aria-label="User Menu"] .MuiAvatar-root { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #ff3b3b, #b10812); color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.0); transition: box-shadow .15s; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) button[aria-label="User Menu"]:hover .MuiAvatar-root { box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) button[aria-label="User Menu"] .MuiAvatar-root .MuiSvgIcon-root { font-size: 1.3rem; color: #fff; }
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) button[aria-label="User Menu"] { padding: 4px; border-radius: 10px !important; }
+
+/* ---------------- count badges (episodes / unplayed) on posters: small dark pill instead of a red square ---------------- */
+html .countIndicator, html .playedIndicator, html .cardIndicators .countIndicator {
+  background: rgba(0, 0, 0, .72) !important; color: #fff !important; border-radius: 999px !important;
+  padding: 2px 9px !important; min-width: 0 !important; height: auto !important; line-height: 1.5 !important;
+  font-size: .78rem !important; font-weight: 700 !important; letter-spacing: .02em; box-shadow: none !important;
+  top: .5em !important; right: .5em !important; left: auto !important; border: 1px solid rgba(255,255,255,.18);
+}
+html .playedIndicator .MuiSvgIcon-root, html .playedIndicator .material-icons { font-size: 1rem !important; color: #46d369 !important; }
+
+/* ---------------- native scroll arrows (cast lists, search rows): keep Jellyfin's placement, only restyle the buttons ---------------- */
+html .emby-scrollbuttons-button { border-radius: 50% !important; background: rgba(40, 40, 40, .9) !important; border: 1px solid rgba(255,255,255,.25) !important; color: #fff !important; }
+html .emby-scrollbuttons-button:hover:not([disabled]) { background: #fff !important; color: #000 !important; border-color: #fff !important; }
+html .emby-scrollbuttons-button[disabled] { opacity: .35; }
+html .emby-scrollbuttons-button .MuiSvgIcon-root, html .emby-scrollbuttons-button .material-icons { color: inherit !important; }
 
 /* ---------------- grids (Movies / TV Shows): clean hover instead of the dark murky overlay ---------------- */
 html .cardOverlayContainer { background: linear-gradient(0deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,0) 48%) !important; border: 0 !important; border-radius: 6px !important; }
@@ -92,3 +110,40 @@ html .card .cardBox { transition: transform .2s ease; }
 html .card:hover .cardBox, html .card:focus-within .cardBox { transform: scale(1.05); }
 html .card:hover { position: relative; z-index: 4; }
 html .itemsContainer { overflow: visible; }
+
+/* ---------------- episode / track lists (season page, playlists): thumbnail + title + two-line description, no squeezed text ---------------- */
+html .itemsContainer.vertical-list { gap: .2rem; }
+html .listItem { border-radius: 8px !important; transition: background-color .15s; }
+html .listItem:hover, html .listItem:focus-within { background: rgba(255, 255, 255, .08) !important; color: inherit !important; }
+html .listItem:hover *, html .listItem:focus-within * { color: inherit; }
+html .listItem-largeImage { padding: .5rem .6rem; }
+html .listItem-largeImage .listItem-content { align-items: center; gap: 1.1rem; }
+html .listItem-largeImage .listItemImage-large { width: 15rem !important; max-width: 38%; height: auto !important; aspect-ratio: 16 / 9; flex: none; border-radius: 6px; background-size: cover; }
+html .listItem-largeImage .listItemBody { flex: 1 1 0; min-width: 0; padding: 0 !important; }
+html .listItem .listItemBodyText { font-size: 1.08rem; font-weight: 700; color: #fff; margin: 0 0 .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .listItem .listItemMediaInfo { font-size: .86rem; color: #9a9a9a; margin-bottom: .3rem; }
+html .listItem .listItem-overview { font-size: .92rem; line-height: 1.45; color: #b3b3b3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; max-height: none; }
+html .listViewUserDataButtons { flex: none; opacity: .5; transition: opacity .15s; }
+html .listItem:hover .listViewUserDataButtons, html .listItem:focus-within .listViewUserDataButtons { opacity: 1; }
+html .listItemImageButton { background: rgba(0, 0, 0, .55) !important; color: #fff !important; border-radius: 50% !important; border: 2px solid rgba(255, 255, 255, .85) !important; }
+html .listItem-indexnumberleft { color: #9a9a9a; font-size: 1.3rem; }
+@media (max-width: 700px) { html .listItem-largeImage .listItemImage-large { width: 9rem !important; } html .listItem .listItem-overview { -webkit-line-clamp: 2; } html .listViewUserDataButtons { display: none; } }
+
+/* ---------------- movie / show page typography ---------------- */
+html #itemDetailPage .overview, html #itemDetailPage .detailSection .overview, html #itemDetailPage .itemOverview { font-size: 1.05rem; line-height: 1.6; color: #d6d6d6; max-width: 52em; }
+html #itemDetailPage .itemMiscInfo { font-size: 1rem; color: #bcbcbc; }
+html #itemDetailPage .sectionTitle { font-size: 1.45rem; font-weight: 700; margin-bottom: .5rem; }
+html #itemDetailPage .itemTag, html #itemDetailPage .tagline { color: #9a9a9a; }
+html #itemDetailPage .detailSectionContent { max-width: 62rem; }
+
+/* narrow screens: the tab row collapses into a menu button, so show the brand next to it */
+@media (max-width: 1000px) {
+  html header.MuiAppBar-root .MuiToolbar-root:has(button[aria-label="User Menu"])::before { content: ""; order: 1; flex: none; width: 30px; height: 30px; margin-left: .55rem; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3b3b'/%3E%3Cstop offset='1' stop-color='%23c10f1d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%23fff' stroke-width='5'/%3E%3Cpath d='M28 24.5 41 32 28 39.5z' fill='%23fff' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+  html header.MuiAppBar-root .MuiToolbar-root:has(button[aria-label="User Menu"])::after { content: "LUMIO"; order: 1; flex: none; margin-left: .55rem; font-size: 1.2rem; font-weight: 800; letter-spacing: .12em; line-height: 1; background: linear-gradient(90deg, #fff 62%, #e50914 62%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+}
+
+/* main header: calm light labels and icons */
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:not(:first-child),
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root,
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root .MuiSvgIcon-root,
+html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:not(:first-child) .MuiSvgIcon-root { color: rgba(255, 255, 255, .88) !important; }

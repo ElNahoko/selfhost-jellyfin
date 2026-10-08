@@ -226,7 +226,7 @@
       .then(function (r) {
         var all = r.Items || [], by = {}, rows = [];
         rows.push({ title: "Recently Added", items: all.slice().sort(function (x, y) { return (y.DateCreated || "") < (x.DateCreated || "") ? -1 : 1; }).slice(0, 14) });
-        if (all.length >= 4) rows.push({ title: "Top 10 on Home Cinema", items: all.slice(0, 10), top: true });
+        if (all.length >= 4) rows.push({ title: "Top 10 on Lumio", items: all.slice(0, 10), top: true });
         all.forEach(function (it) { (it.Genres || []).forEach(function (g) { (by[g] = by[g] || []).push(it); }); });
         Object.keys(by).filter(function (g) { return by[g].length >= 3; })
           .sort(function (x, y) { return by[y].length - by[x].length || (x < y ? -1 : 1); })
@@ -272,25 +272,21 @@
       if (sec.querySelector('.card[data-type="CollectionFolder"]') || /^(Recently Added|Continue Watching|Next Up)/i.test(title)) sec.classList.add("jf-hide");
     });
   }
-  function mountRows() {
-    var tries = 0, t = setInterval(function () {
-      var c = container(), anchor = c && c.querySelector(".verticalSection");
-      if (anchor || ++tries > 100) {
-        clearInterval(t); if (!anchor) return;
-        tidyHome(); setTimeout(tidyHome, 1500);
-        loadRows().then(function () {
-          var c2 = container(); if (!c2) return;
-          var old = document.getElementById("jfRows"); if (old) old.remove();
-          if (!rowsState.data.length) return;
-          var wrap = document.createElement("div"); wrap.id = "jfRows";
-          wrap.innerHTML = rowsState.data.map(rowHtml).join("");
-          wrap.addEventListener("click", onRowsClick);
-          if (!(window.matchMedia && window.matchMedia("(hover: none)").matches) && !reduceMotion) wireCardPreviews(wrap);
-          var hero = document.getElementById("jfHero");
-          if (hero && hero.parentNode === c2) c2.insertBefore(wrap, hero.nextSibling); else c2.insertBefore(wrap, c2.firstChild);
-        });
-      }
-    }, 300);
+  var rowsBusy = false, rowsDirty = true;
+  function buildRows(c) {
+    if (rowsBusy) return; rowsBusy = true;
+    loadRows().then(function () {
+      rowsBusy = false; rowsDirty = false;
+      var c2 = container(); if (!c2 || !isHome()) return;
+      var old = document.getElementById("jfRows"); if (old) old.remove();
+      if (!rowsState.data.length) return;
+      var wrap = document.createElement("div"); wrap.id = "jfRows";
+      wrap.innerHTML = rowsState.data.map(rowHtml).join("");
+      wrap.addEventListener("click", onRowsClick);
+      if (!(window.matchMedia && window.matchMedia("(hover: none)").matches) && !reduceMotion) wireCardPreviews(wrap);
+      var hero = document.getElementById("jfHero");
+      if (hero && hero.parentNode === c2) c2.insertBefore(wrap, hero.nextSibling); else c2.insertBefore(wrap, c2.firstChild);
+    }, function () { rowsBusy = false; });
   }
   function wireCardPreviews(wrap) {
     var byId = {}; rowsState.data.forEach(function (r) { r.items.forEach(function (it) { byId[it.Id] = it; }); });
@@ -465,23 +461,31 @@
     e.preventDefault(); e.stopPropagation(); openModal(card.getAttribute("data-id"));
   }, true);
 
-  function container() { return document.querySelector(".homePage .homeSectionsContainer"); }
+  function container() { return document.querySelector(".homePage:not(.hide) .homeSectionsContainer") || document.querySelector(".homePage .homeSectionsContainer"); }
+  function isHome() { return /^#\/home/.test(location.hash) || location.hash === "" || location.hash === "#/"; }
 
-  function mount() {
-    var c = container(); if (!c) return;
-    mountRows();
+  var heroBusy = false;
+  function buildHero(c) {
     var existing = document.getElementById("jfHero");
-    var fresh = Date.now() - state.loadedAt < REFRESH_MS;
-    if (existing && fresh) { start(); return; }
-    if (existing) existing.remove();
-    load().then(function () {
-      var c2 = container(); if (!c2 || !state.items.length) return;
-      var old = document.getElementById("jfHero"); if (old) old.remove();
-      state.root = build();
-      c2.insertBefore(state.root, c2.firstChild);
-      show(0);
-      start();
-    });
+    if (existing) { if (existing.parentNode === c) { if (!state.timer) start(); return; } existing.remove(); }
+    if (heroBusy) return; heroBusy = true;
+    var fresh = state.items.length && Date.now() - state.loadedAt < REFRESH_MS;
+    (fresh ? Promise.resolve() : load()).then(function () {
+      heroBusy = false;
+      var c2 = container(); if (!c2 || !state.items.length || !isHome() || document.getElementById("jfHero")) return;
+      state.root = build(); c2.insertBefore(state.root, c2.firstChild); show(0); start();
+    }, function () { heroBusy = false; });
+  }
+  // Runs twice a second: whenever the home page is on screen and something of ours is missing, put it there.
+  function tick() {
+    if (!isHome()) return;
+    var c = container(); if (!c || !userId()) return;
+    buildHero(c);
+    if (!document.getElementById("jfRows") || rowsDirty) buildRows(c);
+    tidyHome();
+  }
+  function onRoute() {
+    if (isHome()) { rowsDirty = true; tick(); } else { stop(); autoPlay(); }
   }
 
   // Netflix header: transparent on top of the picture, solid once the page is scrolled
@@ -490,19 +494,13 @@
 
   // own brand icon in the browser tab
   (function () {
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2a36"/><stop offset="1" stop-color="#b10812"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#g)"/><path d="M32 11 54 28v22a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V28z" fill="#fff"/><path d="M26 29.5 41 38 26 46.5z" fill="#e50914"/></svg>';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><circle cx="32" cy="32" r="17" fill="none" stroke="#fff" stroke-width="5"/><path d="M28 24.5 41 32 28 39.5z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>';
     var url = "data:image/svg+xml," + encodeURIComponent(svg);
     function set() { [].forEach.call(document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]'), function (l) { l.parentNode.removeChild(l); }); var l = document.createElement("link"); l.rel = "icon"; l.type = "image/svg+xml"; l.href = url; document.head.appendChild(l); }
     set(); setTimeout(set, 3000);
   })();
 
-  function onRoute() {
-    if (/^#\/home/.test(location.hash) || location.hash === "" || location.hash === "#/") { setTimeout(mount, 50); }
-    else { stop(); autoPlay(); }
-  }
   window.addEventListener("hashchange", onRoute);
   document.addEventListener("viewshow", onRoute);
-  // Home page is built asynchronously after login: poll briefly until its container exists.
-  var boot = setInterval(function () { if (userId() && container()) { clearInterval(boot); onRoute(); } }, 400);
-  setTimeout(function () { clearInterval(boot); }, 60000);
+  setInterval(tick, 500);
 })();
