@@ -1,0 +1,10 @@
+.env
+*.key
+*.pem
+id_*
+!*.pub.example
+config/
+cache/
+backups/
+*.tar.gz
+PROGRESS.md

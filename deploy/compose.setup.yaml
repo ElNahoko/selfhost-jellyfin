@@ -1,0 +1,12 @@
+# TEMPORARY override used only for the first-run wizard.
+# It publishes Jellyfin on the server's loopback interface so you can reach it through an SSH tunnel
+# (ssh -L 8096:localhost:8096 you@server) BEFORE the public site exists.
+#
+#   docker compose -f compose.yaml -f compose.setup.yaml up -d jellyfin
+#
+# When the wizard is done, recreate without this file:
+#   docker compose up -d
+services:
+  jellyfin:
+    ports:
+      - "127.0.0.1:8096:8096"

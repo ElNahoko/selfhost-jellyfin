@@ -1,0 +1,13 @@
+{$JELLYFIN_DOMAIN} {
+	# No compression: video is already compressed and this saves CPU on a small server.
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+
+	# Caddy forwards X-Forwarded-For / -Proto / -Host automatically and handles websockets.
+	reverse_proxy jellyfin:8096
+}

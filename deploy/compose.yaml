@@ -1,0 +1,68 @@
+# Jellyfin + Caddy (automatic HTTPS). Copy this folder's contents to /opt/jellyfin on the server.
+# Jellyfin's port 8096 is NOT published to the host: only Caddy (80/443) is reachable from the internet.
+name: jellyfin
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION:?set JELLYFIN_VERSION in .env}
+    container_name: jellyfin
+    user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
+    restart: unless-stopped
+    networks: [web]
+    environment:
+      TZ: ${TZ:-UTC}
+      JELLYFIN_PublishedServerUrl: https://${JELLYFIN_DOMAIN:?set JELLYFIN_DOMAIN in .env}
+    volumes:
+      - ./config:/config          # database, users, metadata (BACK THIS UP)
+      - ./cache:/cache            # image cache, can be rebuilt
+      - /srv/media:/media:ro      # media is read-only inside the container
+    mem_limit: 1280m              # adjust to your RAM; leave room for the OS and Caddy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:${CADDY_VERSION:?set CADDY_VERSION in .env}
+    container_name: caddy
+    restart: unless-stopped
+    networks: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      JELLYFIN_DOMAIN: ${JELLYFIN_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # certificates live here: keep this volume
+      - caddy_config:/config
+    depends_on:
+      jellyfin:
+        condition: service_healthy
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  web:
+
+volumes:
+  caddy_data:
+  caddy_config:
