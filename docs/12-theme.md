@@ -49,7 +49,22 @@ Save and hard-reload the browser (Ctrl+Shift+R).
 ## Good to know
 - The theme loads two fonts from Google Fonts (Inter and an icon font). If you do not want that, self-host those fonts or remove the `@import` lines for fonts from your copy of the theme file.
 - **Jellyfin 12 ships a new interface.** ElegantFin documents full support for the *Legacy* interface; in each client open **User menu → Display → Display mode** and choose **Desktop (Legacy)** if something looks off.
-- Library tiles: set a 16:9 picture per library (Dashboard → Libraries → library → Images). `deploy/theme/tiles/make-tiles.ps1` (Windows PowerShell) builds artwork tiles: a slanted collage of your own films' backdrops (put `movie_*.jpg` backdrops in an `art` folder next to the script) for Movies/TV Shows, and drawn illustrations for Music and Audiobooks (ready-made JPGs are included). Upload the results as each library's Primary image, then clear the browser cache once.
+- Library tiles (photos, see credits below): set a 16:9 picture per library (Dashboard → Libraries → library → Images). `deploy/theme/tiles/make-tiles.ps1` (Windows PowerShell) builds artwork tiles: a slanted collage of your own films' backdrops (put `movie_*.jpg` backdrops in an `art` folder next to the script) for Movies/TV Shows, and drawn illustrations for Music and Audiobooks (ready-made JPGs are included). Upload the results as each library's Primary image, then clear the browser cache once.
 - A featured banner is not built into Jellyfin. The one here is our own small script (above); third-party banner add-ons usually load unpinned scripts from public CDNs, so review anything like that before using it on a server your family relies on.
 - Give the server a nice name (Dashboard → General → Server name) or the top-left shows the container ID.
 - Undo: empty the Custom CSS box.
+
+## Photo credits for the example library tiles
+`deploy/theme/tiles/make-photo-tiles.ps1` builds tiles from openly licensed photos on Wikimedia Commons. The photos are **not** bundled in this repo; download them yourself and keep the credits:
+
+| Tile | Photo (Wikimedia Commons) | Author | Licence |
+|---|---|---|---|
+| Movies | `Kino Atlas Interier J.jpg` | Mojmir Churavy | CC0 |
+| Movies | `061217-N-0336C-052 Sailors watch the Christmas film "Elf".jpg` | U.S. Navy | Public domain |
+| TV Shows | `Woman sitting on a couch watching television while covered with a blanket.jpg` | Shixart1985 | CC BY 2.0 |
+| TV Shows | `Person uses remote control to watch TV at home.jpg` | Shixart1985 | CC BY 2.0 |
+| Music | `Close-up of a dj reaching for a vinyl on the turntable, guitar in a blurry background.jpg` | Shixart1985 | CC BY 2.0 |
+| Music | `Dj holding a vinyl in her hands next to a turntable, guitar in a blurry background.jpg` | Shixart1985 | CC BY 2.0 |
+| Audiobooks | `Man in a checkered shirt enjoys reading a book while wearing headphones.jpg` | Shixart1985 | CC BY 2.0 |
+
+Be gentle with Wikimedia's servers: download a handful of files, with pauses between requests.

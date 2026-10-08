@@ -28,7 +28,7 @@
     linear-gradient(180deg, rgba(9,12,36,.7) 0%, rgba(9,12,36,0) 22%);
 }
 #jfHero .jfh-inner {
-  position: absolute; z-index: 2; left: var(--sidePadding, 3.3%); right: var(--sidePadding, 3.3%); bottom: 13%;
+  position: absolute; z-index: 2; left: var(--sidePadding, 3.3%); right: var(--sidePadding, 3.3%); bottom: 23%;
   display: flex; align-items: flex-end; gap: clamp(1.2em, 3vw, 3em);
 }
 #jfHero .jfh-poster {
@@ -63,7 +63,7 @@
 }
 #jfHero:hover .jfh-nav, #jfHero .jfh-nav:focus-visible { opacity: 1; }
 #jfHero .jfh-prev { left: 1.2%; } #jfHero .jfh-next { right: 1.2%; }
-#jfHero .jfh-dots { position: absolute; z-index: 3; left: 50%; bottom: 5.5%; transform: translateX(-50%); display: flex; gap: .55em; }
+#jfHero .jfh-dots { position: absolute; z-index: 3; left: 50%; bottom: 13%; transform: translateX(-50%); display: flex; gap: .55em; }
 #jfHero .jfh-dot { width: .6em; height: .6em; padding: 0; border-radius: 99px; border: 0; cursor: pointer; background: rgba(255,255,255,.4); transition: width .25s, background .25s; }
 #jfHero .jfh-dot.on { width: 2em; background: #fff; }
 
@@ -105,7 +105,7 @@
 /* ----- phone-sized screens ----- */
 @media (max-width: 600px) {
   #jfHero { height: clamp(340px, 58vh, 520px); margin-top: -48px; }
-  #jfHero .jfh-inner { bottom: 14%; }
+  #jfHero .jfh-inner { bottom: 24%; }
   #jfHero .jfh-meta { font-size: .95em; }
   #jfHero .jfh-btn { padding: .65em 1.3em; }
   #jfRows .jfr-card { width: 34vw; }
