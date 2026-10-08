@@ -122,47 +122,45 @@
     var c = client(), uid = userId();
     if (!c || !uid || rowsState.loading) return Promise.resolve();
     try {                                                    // reuse rows fetched in the last 10 minutes (same tab)
-      var cached = JSON.parse(sessionStorage.getItem("jfRows:" + uid) || "null");
+      var cached = JSON.parse(sessionStorage.getItem("jfRows2:" + uid) || "null");
       if (cached && Date.now() - cached.t < REFRESH_MS) { rowsState.data = cached.rows; rowsState.loadedAt = cached.t; return Promise.resolve(); }
     } catch (x) {}
     rowsState.loading = true;
     var F = "CommunityRating,ProductionYear,PrimaryImageAspectRatio";
     var jobs = [
-      c.getJSON(c.getUrl("Items/Suggestions", { userId: uid, mediaType: "Video", type: "Movie,Series", limit: 14, enableTotalRecordCount: false }))
-        .then(function (r) { return [{ title: "Suggested for you", items: r.Items || [] }]; }, function () { return []; }),
-      c.getJSON(c.getUrl("Movies/Recommendations", { userId: uid, categoryLimit: 3, itemLimit: 12, fields: F }))
-        .then(function (list) {
-          return (list || []).map(function (g) {
-            var t = g.BaselineItemName;
-            var title = g.RecommendationType === "SimilarToRecentlyPlayed" ? "Because you watched " + t
-              : g.RecommendationType === "SimilarToLikedItem" ? "Because you liked " + t
-              : g.RecommendationType === "HasDirectorFromRecentlyPlayed" || g.RecommendationType === "HasLikedDirector" ? "From the director of " + t
-              : g.RecommendationType === "HasActorFromRecentlyPlayed" || g.RecommendationType === "HasLikedActor" ? "With the cast of " + t
-              : "Recommended";
-            return { title: title, items: g.Items || [] };
-          });
-        }, function () { return []; }),
-      // Top rated + one row per genre with at least 3 titles (Netflix-style categories): ONE request, grouped here
-      c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 300, Fields: F + ",Genres", ImageTypeLimit: 1, EnableImageTypes: "Primary" })
+      // ONE request feeds: Recently added, Top rated and the genre rows (grouped here, nothing else is fetched)
+      c.getItems(uid, { IncludeItemTypes: "Movie,Series", Recursive: true, SortBy: "CommunityRating", SortOrder: "Descending", Limit: 300, Fields: F + ",Genres,DateCreated", ImageTypeLimit: 1, EnableImageTypes: "Primary" })
         .then(function (r) {
-          var all = r.Items || [], by = {}, rows = [{ title: "Top rated", items: all.slice(0, 14) }];
+          var all = r.Items || [], by = {}, rows = [];
+          rows.push({ title: "Recently added", items: all.slice().sort(function (x, y) { return (y.DateCreated || "") < (x.DateCreated || "") ? -1 : 1; }).slice(0, 14) });
+          rows.push({ title: "Top rated", items: all.slice(0, 14) });
           all.forEach(function (it) { (it.Genres || []).forEach(function (g) { (by[g] = by[g] || []).push(it); }); });
           Object.keys(by).filter(function (g) { return by[g].length >= 3; })
             .sort(function (x, y) { return by[y].length - by[x].length || (x < y ? -1 : 1); })
-            .slice(0, 6).forEach(function (g) { rows.push({ title: g, items: by[g].slice(0, 14) }); });
+            .slice(0, 2).forEach(function (g) { rows.push({ title: g, items: by[g].slice(0, 14) }); });
           return rows;
+        }, function () { return []; }),
+      c.getJSON(c.getUrl("Movies/Recommendations", { userId: uid, categoryLimit: 1, itemLimit: 12, fields: F }))
+        .then(function (list) {
+          return (list || []).slice(0, 1).map(function (g) {
+            var t = g.BaselineItemName;
+            var title = g.RecommendationType === "SimilarToRecentlyPlayed" ? "Because you watched " + t
+              : g.RecommendationType === "SimilarToLikedItem" ? "Because you liked " + t : "Recommended for you";
+            return { title: title, items: g.Items || [] };
+          });
         }, function () { return []; })
     ];
     return Promise.all(jobs).then(function (parts) {
       var seenTitles = {}, seenSets = {}, rows = [];
-      parts.forEach(function (g) { g.forEach(function (row) {
+      var ordered = [(parts[0] || []).slice(0, 1), parts[1] || [], (parts[0] || []).slice(1)];
+      ordered.forEach(function (g) { g.forEach(function (row) {
         if (!row.items || row.items.length < 2 || seenTitles[row.title]) return;   // keep rows with real content only
         var sig = row.items.map(function (i) { return i.Id; }).sort().join(",");     // skip a row that repeats an earlier one
         if (seenSets[sig]) return;
         seenTitles[row.title] = 1; seenSets[sig] = 1; rows.push(row);
       }); });
-      rowsState.data = rows.slice(0, 8); rowsState.loadedAt = Date.now(); rowsState.loading = false;
-      try { sessionStorage.setItem("jfRows:" + uid, JSON.stringify({ t: rowsState.loadedAt, rows: rowsState.data })); } catch (x) {}
+      rowsState.data = rows.slice(0, 5); rowsState.loadedAt = Date.now(); rowsState.loading = false;
+      try { sessionStorage.setItem("jfRows2:" + uid, JSON.stringify({ t: rowsState.loadedAt, rows: rowsState.data })); } catch (x) {}
     }, function () { rowsState.loading = false; });
   }
   function myMediaSection() {
@@ -170,12 +168,19 @@
     var first = c.querySelector('.card[data-type="CollectionFolder"]');
     return first ? first.closest(".verticalSection") : null;
   }
+  function tidyHome() {
+    var c = container(); if (!c) return;
+    [].forEach.call(c.querySelectorAll(".verticalSection"), function (sec) {
+      var t = sec.querySelector(".sectionTitle, h2"), title = t ? t.textContent.trim() : "";
+      if (sec.querySelector('.card[data-type="CollectionFolder"]') || /^Recently Added/i.test(title)) sec.classList.add("jf-hide");
+    });
+  }
   function mountRows() {
     var tries = 0, t = setInterval(function () {
       var mm = myMediaSection();
       if (mm || ++tries > 100) {
         clearInterval(t); if (!mm) return;
-        mm.classList.add("jf-mymedia");
+        mm.classList.add("jf-mymedia"); tidyHome(); setTimeout(tidyHome, 1500);
         var existing = document.getElementById("jfRows");
         var fresh = Date.now() - rowsState.loadedAt < REFRESH_MS;
         if (existing && fresh) return;

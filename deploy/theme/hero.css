@@ -1,9 +1,9 @@
 /* Featured banner + home page polish. Part of selfhost-jellyfin (MIT). */
-:root { --jfh-bg: #090c24; --jfh-accent: hsl(262, 83%, 66%); }
+:root { --jfh-bg: #0a0a0c; --jfh-accent: hsl(262, 83%, 66%); }
 
 #jfHero {
   position: relative; width: 100%;
-  height: clamp(380px, 66vh, 780px);
+  height: clamp(340px, 52vh, 560px);
   margin-top: -56px;               /* tuck under the floating header */
   margin-bottom: 1.2em;
   overflow: hidden; isolation: isolate;
@@ -23,21 +23,21 @@
 #jfHero .jfh-slide::after {
   content: ""; position: absolute; inset: 0; z-index: 1;
   background:
-    linear-gradient(90deg, rgba(9,12,36,.94) 0%, rgba(9,12,36,.62) 36%, rgba(9,12,36,.12) 72%, rgba(9,12,36,0) 100%),
-    linear-gradient(0deg, rgba(9,12,36,.55) 0%, rgba(9,12,36,0) 40%),
-    linear-gradient(180deg, rgba(9,12,36,.7) 0%, rgba(9,12,36,0) 22%);
+    linear-gradient(90deg, rgba(10,10,12,.94) 0%, rgba(10,10,12,.62) 36%, rgba(10,10,12,.12) 72%, rgba(10,10,12,0) 100%),
+    linear-gradient(0deg, rgba(10,10,12,.55) 0%, rgba(10,10,12,0) 40%),
+    linear-gradient(180deg, rgba(10,10,12,.7) 0%, rgba(10,10,12,0) 22%);
 }
 #jfHero .jfh-inner {
-  position: absolute; z-index: 2; left: var(--sidePadding, 3.3%); right: var(--sidePadding, 3.3%); bottom: 23%;
+  position: absolute; z-index: 2; left: var(--sidePadding, 3.3%); right: var(--sidePadding, 3.3%); bottom: 17%;
   display: flex; align-items: flex-end; gap: clamp(1.2em, 3vw, 3em);
 }
 #jfHero .jfh-poster {
-  flex: none; width: clamp(130px, 14vw, 260px); aspect-ratio: 2/3; object-fit: cover;
+  flex: none; width: clamp(110px, 10vw, 180px); aspect-ratio: 2/3; object-fit: cover;
   border-radius: 1.1em; box-shadow: 0 1.2em 3em rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
 }
 #jfHero .jfh-info { max-width: min(50em, 62vw); }
-#jfHero .jfh-title { margin: 0 0 .25em; font-size: clamp(2rem, 4.6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; text-shadow: 0 .1em .6em rgba(0,0,0,.6); }
-#jfHero .jfh-logo { display: block; max-width: min(100%, 30em); max-height: clamp(70px, 16vh, 170px); object-fit: contain; object-position: left bottom; margin-bottom: .6em; filter: drop-shadow(0 .2em .6em rgba(0,0,0,.6)); }
+#jfHero .jfh-title { margin: 0 0 .25em; font-size: clamp(1.8rem, 3.6vw, 3.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; text-shadow: 0 .1em .6em rgba(0,0,0,.6); }
+#jfHero .jfh-logo { display: block; max-width: min(100%, 30em); max-height: clamp(60px, 13vh, 120px); object-fit: contain; object-position: left bottom; margin-bottom: .6em; filter: drop-shadow(0 .2em .6em rgba(0,0,0,.6)); }
 #jfHero .jfh-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .55em; font-size: 1.05em; opacity: .95; }
 #jfHero .jfh-meta i { width: .28em; height: .28em; border-radius: 50%; background: currentColor; opacity: .6; }
 #jfHero .jfh-star { color: #fbbf24; font-weight: 700; }
@@ -58,7 +58,7 @@
 #jfHero .jfh-play:hover, #jfHero .jfh-play:focus-visible { background: hsl(262, 83%, 72%); }
 #jfHero .jfh-nav {
   position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 2.8em; height: 2.8em; border-radius: 50%;
-  font-size: 1.4em; line-height: 1; cursor: pointer; color: #fff; border: .06em solid rgba(255,255,255,.25); background: rgba(9,12,36,.45);
+  font-size: 1.4em; line-height: 1; cursor: pointer; color: #fff; border: .06em solid rgba(255,255,255,.25); background: rgba(10,10,12,.45);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); opacity: 0; transition: opacity .2s;
 }
 #jfHero:hover .jfh-nav, #jfHero .jfh-nav:focus-visible { opacity: 1; }
@@ -92,13 +92,13 @@
 #jfRows .jfr-row { margin: 0 0 1.8em; padding-left: var(--sidePadding, 3.3%); }
 #jfRows .jfr-title { margin: 0 0 .6em; font-size: 1.45em; font-weight: 700; letter-spacing: -.01em; }
 #jfRows .jfr-scroller { display: flex; gap: 1em; overflow-x: auto; padding: .4em var(--sidePadding, 3.3%) 1em 0; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
-#jfRows .jfr-card { flex: none; width: clamp(120px, 11vw, 210px); color: inherit; text-decoration: none; scroll-snap-align: start; }
+#jfRows .jfr-card { flex: none; width: clamp(110px, 9vw, 170px); color: inherit; text-decoration: none; scroll-snap-align: start; }
 #jfRows .jfr-poster { position: relative; display: block; aspect-ratio: 2/3; border-radius: 1em; overflow: hidden; background: #151a47; box-shadow: 0 .6em 1.4em rgba(0,0,0,.45); transition: transform .18s ease, box-shadow .18s ease; }
 #jfRows .jfr-card:hover .jfr-poster, #jfRows .jfr-card:focus-visible .jfr-poster { transform: translateY(-4px) scale(1.03); box-shadow: 0 1em 2.4em rgba(0,0,0,.6); }
 #jfRows .jfr-card:focus-visible { outline: none; }
 #jfRows .jfr-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #jfRows .jfr-noimg { height: 100%; display: grid; place-items: center; padding: .6em; text-align: center; font-weight: 700; }
-#jfRows .jfr-rate { position: absolute; left: .5em; bottom: .5em; font-size: .8em; padding: .15em .5em; border-radius: 99px; background: rgba(9,12,36,.72); color: #fbbf24; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#jfRows .jfr-rate { position: absolute; left: .5em; bottom: .5em; font-size: .8em; padding: .15em .5em; border-radius: 99px; background: rgba(10,10,12,.72); color: #fbbf24; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 #jfRows .jfr-name { display: block; margin-top: .55em; font-size: .95em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #jfRows .jfr-year { display: block; font-size: .82em; opacity: .65; }
 
@@ -110,3 +110,6 @@
   #jfHero .jfh-btn { padding: .65em 1.3em; }
   #jfRows .jfr-card { width: 34vw; }
 }
+
+/* Rows that Jellyfin would add on its own but we replace (library tiles, "Recently Added in ...") */
+.homeSectionsContainer .jf-hide { display: none !important; }
