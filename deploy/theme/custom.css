@@ -52,9 +52,9 @@ html.jf-scrolled header.MuiAppBar-root:has(button[aria-label="User Menu"]) { bac
 /* ---------------- Movie / show page, Netflix-style: big picture, logo and info on the left, no poster column ---------------- */
 /* poster stays: a smaller card overlapping the bottom of the picture, with the info to its right */
 html.layout-desktop .detailPagePrimaryContainer { position: relative; }
-html.layout-desktop .detailImageContainer { display: block !important; position: absolute !important; left: 4% !important; top: -8vw !important; width: 13vw !important; z-index: 3; }
-html.layout-desktop .detailImageContainer .card, html.layout-desktop .detailImageContainer .cardBox, html.layout-desktop .detailImageContainer .cardScalable { width: 100% !important; position: relative !important; left: 0 !important; top: 0 !important; margin: 0 !important; }
-html.layout-desktop .detailImageContainer .cardImageContainer, html.layout-desktop .detailImageContainer .cardPadder { width: 100% !important; max-width: 100% !important; border-radius: 6px; box-shadow: 0 1em 3em rgba(0, 0, 0, .75); }
+html.layout-desktop .detailImageContainer.hide-mobile { display: block !important; position: absolute !important; left: 4% !important; top: -8vw !important; width: 13vw !important; z-index: 3; }
+html.layout-desktop .detailImageContainer.hide-mobile .card, html.layout-desktop .detailImageContainer.hide-mobile .cardBox, html.layout-desktop .detailImageContainer.hide-mobile .cardScalable { width: 100% !important; position: relative !important; left: 0 !important; top: 0 !important; margin: 0 !important; }
+html.layout-desktop .detailImageContainer.hide-mobile .cardImageContainer, html.layout-desktop .detailImageContainer.hide-mobile .cardPadder { width: 100% !important; max-width: 100% !important; border-radius: 6px; box-shadow: 0 1em 3em rgba(0, 0, 0, .75); }
 html.layout-desktop #itemDetailPage .detailLogo { position: absolute !important; z-index: 2; left: 23% !important; margin: 0 !important; top: calc(58vh - 6.5vw - 1.4vh) !important; width: 24vw !important; max-width: none !important; height: 6.5vw !important; background-size: contain !important; background-repeat: no-repeat !important; background-position: left bottom !important; }
 html.layout-desktop .detailPagePrimaryContainer { padding-left: 4% !important; margin-left: 0 !important; }
 html.layout-desktop .detailRibbon,
@@ -147,3 +147,34 @@ html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > 
 html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root,
 html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiBox-root .MuiIconButton-root .MuiSvgIcon-root,
 html header.MuiAppBar-root:has(button[aria-label="User Menu"]) .MuiStack-root > a.MuiButton-root:not(:first-child) .MuiSvgIcon-root { color: rgba(255, 255, 255, .88) !important; }
+
+/* ---------------- big screens: Jellyfin keeps text at ~15px even on a 2560 or 4K display, so scale the whole interface smoothly ---------------- */
+html { font-size: clamp(14.88px, calc(8px + 0.48vw), 28px) !important; }
+html header.MuiAppBar-root .MuiToolbar-root { min-height: 4.6rem; }
+
+/* ---------------- forms: readable text everywhere (search box, settings, dialogs) ---------------- */
+html input, html textarea, html select, html .emby-input, html .emby-textarea, html .emby-select { color: #fff !important; caret-color: #fff; }
+html input::placeholder, html textarea::placeholder { color: #a8a8a8 !important; opacity: 1; }
+html ::selection { background: rgba(229, 9, 20, .55); color: #fff; }
+
+/* poster on movie / show pages: one picture, filled, never tiled */
+html .detailImageContainer .cardImageContainer { background-size: cover !important; background-repeat: no-repeat !important; background-position: center !important; }
+/* text title (when there is no logo picture): big and white */
+html #itemDetailPage .detailRibbon .itemName.infoText, html .itemDetailPage .detailRibbon .itemName.parentNameLast { font-size: 2.1rem; font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -.01em; margin-bottom: .35rem; }
+html .itemDetailPage .detailRibbon .itemName.subtitle { font-size: 1.15rem; font-weight: 600; color: #d6d6d6; }
+html .detailImageContainer .cardImageContainer, html .detailImageContainer .card, html .detailImageContainer .cardBox { animation: none !important; transition: none !important; transform: none !important; }
+
+/* ---------------- Play / shuffle: one shape language everywhere (white 6px-radius Play, round outlined icon buttons) ---------------- */
+html header.MuiAppBar-root .MuiToolbar-root:not(:has(button[aria-label="User Menu"])) .MuiButton-containedPrimary { background: #fff !important; color: #000 !important; border-radius: 6px !important; box-shadow: none !important; font-weight: 700; }
+html header.MuiAppBar-root .MuiToolbar-root:not(:has(button[aria-label="User Menu"])) .MuiButton-containedPrimary:hover { background: rgba(255, 255, 255, .78) !important; }
+html header.MuiAppBar-root .MuiToolbar-root:not(:has(button[aria-label="User Menu"])) .MuiButton-containedPrimary + .MuiButton-containedPrimary { margin-left: .55rem; width: 2.9rem; min-width: 0; padding: 0; background: rgba(42, 42, 42, .65) !important; color: #fff !important; border: 2px solid rgba(255, 255, 255, .5); border-radius: 50% !important; height: 2.9rem; align-self: center; }
+html header.MuiAppBar-root .MuiToolbar-root:not(:has(button[aria-label="User Menu"])) .MuiButton-containedPrimary + .MuiButton-containedPrimary:hover { border-color: #fff; background: rgba(70, 70, 70, .85) !important; }
+html header.MuiAppBar-root .MuiToolbar-root:not(:has(button[aria-label="User Menu"])) .MuiButton-containedPrimary + .MuiButton-containedPrimary .MuiSvgIcon-root { color: #fff !important; }
+html .btnPlay.detailButton, html .detailButton.btnPlay { border-radius: 6px !important; }
+html .mainDetailButtons .detailButton:not(.btnPlay) { border-radius: 50% !important; }
+#jfHero .jfh-btn, .jfm-play, .jfm-trailer { border-radius: 6px !important; }
+
+/* ---------------- poster grids: larger posters on big screens ---------------- */
+html .itemsContainer.vertical-wrap > .portraitCard, html .itemsContainer.vertical-wrap > .card.portraitCard { width: clamp(9.5rem, 10.5vw, 20rem); }
+html .itemsContainer.vertical-wrap > .squareCard, html .itemsContainer.vertical-wrap > .card.squareCard { width: clamp(9.5rem, 10.5vw, 20rem); }
+html .itemsContainer.vertical-wrap > .backdropCard, html .itemsContainer.vertical-wrap > .card.backdropCard { width: clamp(14rem, 17vw, 30rem); }

@@ -188,3 +188,11 @@ html.jfm-open, html.jfm-open body { overflow: hidden !important; }
   .jfm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { .jfm-back, .jfm-panel { transition: none !important; } }
+
+/* speaker + trailer buttons */
+#jfHero .jfh-mute { position: absolute; z-index: 4; right: var(--nf-side); bottom: 19%; width: 2.8rem; height: 2.8rem; border-radius: 50%; border: 1px solid rgba(255,255,255,.55); background: rgba(20,20,20,.55); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+#jfHero .jfh-mute:hover { background: rgba(255,255,255,.9); color: #000; }
+.jfm-mute { position: absolute; z-index: 4; right: 1rem; bottom: 1.4rem; width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 2px solid rgba(255,255,255,.5); background: rgba(42,42,42,.65); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.jfm-mute:hover { border-color: #fff; background: rgba(60,60,60,.85); }
+.jfm-trailer { display: inline-flex; align-items: center; height: 2.6rem; padding: 0 1.1rem; border-radius: 4px; background: rgba(109,109,110,.7); color: #fff; font-weight: 600; text-decoration: none; }
+.jfm-trailer:hover { background: rgba(109,109,110,.45); }

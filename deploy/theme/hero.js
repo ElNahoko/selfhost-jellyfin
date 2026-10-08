@@ -22,6 +22,14 @@
      Plays ~20 s of the real file, muted, straight from the server (no transcoding, no playback session). Only used when
      this browser can decode the file as it is (H.264 8-bit); everything else keeps the still picture. */
   var previewCache = {}, reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var ICON_SOUND_ON = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>', ICON_SOUND_OFF = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M16.5 12A4.5 4.5 0 0 0 14 8v2.2l2.5 2.5V12zM19 12a7 7 0 0 1-.9 3.4l1.5 1.5A9 9 0 0 0 21 12a9 9 0 0 0-7-8.8v2.1a7 7 0 0 1 5 6.7zM4.3 3 3 4.3 7.7 9H3v6h4l5 5v-6.7l4.3 4.3a8.4 8.4 0 0 1-2.3 1.2v2.1a10.6 10.6 0 0 0 3.7-1.9l2 2 1.3-1.3L4.3 3zM12 4 9.9 6.1 12 8.2V4z"/></svg>';
+  function speakerButton(cls, video) {          // previews start silent; this button lets you hear them
+    var b = document.createElement("button"); b.type = "button"; b.className = cls; b.setAttribute("aria-label", "Sound on/off");
+    function paint() { b.innerHTML = video.muted ? ICON_SOUND_OFF : ICON_SOUND_ON; }
+    paint();
+    b.addEventListener("click", function (e) { e.stopPropagation(); video.muted = !video.muted; if (!video.muted) video.volume = 0.8; paint(); });
+    return b;
+  }
   function resolvePreview(it) {
     if (previewCache[it.Id] !== undefined) return Promise.resolve(previewCache[it.Id]);
     var c = client(), uid = userId();
@@ -41,7 +49,7 @@
     }).catch(function () { return null; }).then(function (r) { previewCache[it.Id] = r; return r; });
   }
   // attach a muted looping preview to `host`; returns a stop() function
-  function attachPreview(host, info, maxMs, cls, onState) {
+  function attachPreview(host, info, maxMs, cls, onState, onVideo) {
     var v = document.createElement("video");
     v.className = cls; v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = "auto"; v.disablePictureInPicture = true; v.setAttribute("aria-hidden", "true");
     var stopped = false, timer = null;
@@ -55,7 +63,7 @@
       else v.addEventListener("timeupdate", function () { if (v.currentTime > (info.start || 0) + 0.3) reveal(); });
     });
     v.addEventListener("error", stop); v.addEventListener("ended", stop);
-    v.src = info.url; host.appendChild(v);
+    v.src = info.url; host.appendChild(v); if (onVideo) onVideo(v);
     var pr = v.play(); if (pr && pr.catch) pr.catch(stop);
     return stop;
   }
@@ -117,7 +125,10 @@
     heroTimer = setTimeout(function () {
       resolvePreview(it).then(function (info) {
         if (!info || !slideEl.classList.contains("on") || document.hidden) return;
-        heroStop = attachPreview(slideEl.querySelector(".jfh-bg"), info, 30000, "jfh-vid", function (on) { state.previewing = on; });
+        var sp = null;
+        heroStop = attachPreview(slideEl.querySelector(".jfh-bg"), info, 30000, "jfh-vid", function (on) {
+          state.previewing = on; if (sp && !on && sp.parentNode) sp.parentNode.removeChild(sp);
+        }, function (v) { sp = speakerButton("jfh-mute", v); slideEl.appendChild(sp); });
       });
     }, 2500);
   }
@@ -325,7 +336,7 @@
 
   /* ---------- detail pop-up: click a title and get a panel instead of a page change ---------- */
   var modal = { el: null, stopPreview: null, token: 0 };
-  var DETAIL_F = "Overview,Genres,Studios,People,Taglines,CommunityRating,OfficialRating,RunTimeTicks,ProductionYear,MediaSources,ProviderIds";
+  var DETAIL_F = "Overview,Genres,Studios,People,Taglines,CommunityRating,OfficialRating,RunTimeTicks,ProductionYear,MediaSources,ProviderIds,RemoteTrailers";
   function fmtMin(ticks) { return runtime(ticks); }
   function closeModal() {
     if (!modal.el) return;
@@ -348,6 +359,7 @@
   function openModal(id) {
     var c = client(), uid = userId(); if (!c || !uid) return details(id);
     closeModal();
+    if (heroStop) { heroStop(); heroStop = null; } clearTimeout(heroTimer); state.previewing = false;      // the banner behind the panel stops its own preview
     var token = ++modal.token;
     var back = document.createElement("div"); back.className = "jfm-back"; back.setAttribute("role", "dialog"); back.setAttribute("aria-modal", "true");
     back.innerHTML = '<div class="jfm-panel"><button type="button" class="jfm-close" aria-label="Close">✕</button><div class="jfm-loading">Loading…</div></div>';
@@ -381,11 +393,13 @@
     if (item.Genres && item.Genres.length) side += '<p><i>Genres:</i> ' + item.Genres.map(esc).join(", ") + "</p>";
     if (item.Studios && item.Studios.length) side += '<p><i>Studio:</i> ' + item.Studios.slice(0, 2).map(function (x) { return esc(x.Name); }).join(", ") + "</p>";
     var fav = ud.IsFavorite;
+    var trailerUrl = ""; (item.RemoteTrailers || []).some(function (t) { if (t && /^https:\/\//.test(t.Url || "")) { trailerUrl = t.Url; return true; } return false; });
     back.querySelector(".jfm-panel").innerHTML =
       '<button type="button" class="jfm-close" aria-label="Close">✕</button>' +
       '<div class="jfm-hero"><div class="jfm-bg"' + (bgUrl ? ' style="background-image:url(\'' + bgUrl + '\')"' : "") + '></div><div class="jfm-grad"></div>' +
       '<div class="jfm-head">' + head + '<div class="jfm-actions"><button type="button" class="jfm-play"><b>▶</b>' + (resume ? "Resume" : "Play") + '</button>' +
       '<button type="button" class="jfm-round jfm-fav' + (fav ? " on" : "") + '" aria-label="My list" title="My list">' + (fav ? "✓" : "＋") + '</button>' +
+      (trailerUrl ? '<a class="jfm-trailer" href="' + esc(trailerUrl) + '" target="_blank" rel="noopener noreferrer" title="Opens the trailer on the web (new tab)">Trailer</a>' : "") +
       '<a class="jfm-round jfm-open-page" href="#/details?id=' + item.Id + '" title="Open the full page" aria-label="Open the full page">⤢</a></div></div></div>' +
       '<div class="jfm-body"><div class="jfm-main"><div class="jfm-meta">' + meta.join("") + "</div>" +
       (item.Taglines && item.Taglines[0] ? '<p class="jfm-tag">' + esc(item.Taglines[0]) + "</p>" : "") +
@@ -403,7 +417,7 @@
     // silent preview behind the top picture
     if (!reduceMotion) setTimeout(function () {
       if (token !== modal.token) return;
-      resolvePreview(item).then(function (info) { if (info && token === modal.token) modal.stopPreview = attachPreview(panel.querySelector(".jfm-bg"), info, 30000, "jfm-vid"); });
+      resolvePreview(item).then(function (info) { if (info && token === modal.token) modal.stopPreview = attachPreview(panel.querySelector(".jfm-bg"), info, 30000, "jfm-vid", null, function (v) { panel.querySelector(".jfm-hero").appendChild(speakerButton("jfm-mute", v)); }); });
     }, 900);
     // similar titles
     c.getJSON(c.getUrl("Items/" + item.Id + "/Similar", { userId: uid, limit: 8, Fields: "ProductionYear,CommunityRating", EnableImageTypes: "Primary,Thumb,Backdrop", ImageTypeLimit: 1 })).then(function (r) {
@@ -476,8 +490,35 @@
       state.root = build(); c2.insertBefore(state.root, c2.firstChild); show(0); start();
     }, function () { heroBusy = false; });
   }
+  // Safety net for pictures: Jellyfin fills posters/backdrops through a lazy loader that can stall (background tab, slow
+  // first paint). Anything with a data-src near the screen is loaded here too; same picture, so doing it twice is harmless.
+  function forceImages() {
+    var vh = window.innerHeight || 800;
+    [].forEach.call(document.querySelectorAll("[data-src]:not([data-jf-img])"), function (el) {
+      var r = el.getBoundingClientRect();
+      if ((!r.width && !r.height) || r.bottom < -vh || r.top > vh * 2.5) return;
+      var url = el.getAttribute("data-src"); if (!url || /^data:/.test(url)) return;
+      el.setAttribute("data-jf-img", "1");
+      var im = new Image();
+      im.onload = function () {
+        if (!el.style.backgroundImage || el.style.backgroundImage === "none") el.style.backgroundImage = 'url("' + url + '")';
+        [].forEach.call(el.querySelectorAll("canvas"), function (cv) { cv.style.opacity = "0"; });
+        el.classList.add("lazy-image-fadein-fast");
+      };
+      im.src = url;
+    });
+    var pg = document.querySelector(".itemDetailPage:not(.hide)");     // the big picture on a movie / show page
+    if (pg) {
+      var b = pg.querySelector(".itemBackdrop");
+      if (b && (!b.style.backgroundImage || b.style.backgroundImage === "none")) {
+        var g = document.querySelector(".backdropImage"), bi = g && getComputedStyle(g).backgroundImage;
+        if (bi && bi !== "none") { b.style.backgroundImage = bi; b.style.backgroundSize = "cover"; b.style.backgroundPosition = "center 20%"; }
+      }
+    }
+  }
   // Runs twice a second: whenever the home page is on screen and something of ours is missing, put it there.
   function tick() {
+    forceImages();
     if (!isHome()) return;
     var c = container(); if (!c || !userId()) return;
     buildHero(c);
