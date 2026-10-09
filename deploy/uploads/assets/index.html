@@ -503,11 +503,7 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 
 .lucky .lwhy{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 0}
 .lucky .wchip{font-size:.8rem;font-weight:650;color:#ffe9a8;background:rgba(245,165,36,.16);border:1px solid rgba(245,165,36,.35);border-radius:99px;padding:3px 11px}
-.lucky .lfresh{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:.88rem;font-weight:650;color:rgba(255,255,255,.7);padding:6px 4px}
-.lucky .lfresh svg{width:1.1em;height:1.1em}
-.lucky .lfresh.on{color:#ffd76a}
-.lucky .lfresh:hover{color:#fff}
-.lucky .lfresh:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:8px}
+
 
 /* in-page trailer player */
 .theatre{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:18px;background:rgba(4,4,8,.88);opacity:0;transition:opacity .22s ease}
@@ -1117,13 +1113,9 @@ async function playTrailer(it){
   yt.href="https://www.youtube.com/watch?v="+encodeURIComponent(d.vid);
 }
 function ytLink(it){return "https://www.youtube.com/results?search_query="+encodeURIComponent(it.n+" "+(it.y||"")+" official trailer");}
-async function whoAmI(){
+async function whoAmI(){      // never opens a dialog (it would replace the screen the person is looking at)
   if(GUEST)return ME;
-  var who=me();
-  if(who)return who;
-  who=await dialog({title:"Your name",text:"So we know who asked.",input:{placeholder:"Name",max:40},ok:"Continue"});
-  if(who){try{localStorage.setItem("requester",who);}catch(e){}}
-  return who;
+  return me()||ME||"admin";
 }
 async function sendRequest(item){
   var who=await whoAmI();if(!who)return false;
@@ -1469,12 +1461,8 @@ async function feelingLucky(){
     act.appendChild(rq);act.appendChild(tr);
     if(it.id){var im=el("a","btn big ghost");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";im.appendChild(el("span","","IMDb"));act.appendChild(im);}
     r.appendChild(act);
-    var fr=el("button","lfresh"+(luckyFresh?" on":""));fr.type="button";fr.setAttribute("aria-pressed",String(luckyFresh));fr.appendChild(svg("spark"));
-    fr.appendChild(el("span","",luckyFresh?"Newer titles first":"Any era"));
-    fr.title="Switch between favouring new releases and picking from every era";
-    fr.onclick=function(){luckyFresh=!luckyFresh;fr.classList.toggle("on",luckyFresh);fr.lastChild.textContent=luckyFresh?"Newer titles first":"Any era";fr.setAttribute("aria-pressed",String(luckyFresh));roll();};
     var rl=el("button","roll");rl.type="button";rl.id="rollBtn";rl.appendChild(svg("dice","die"));rl.appendChild(el("span","","Roll again"));rl.appendChild(el("kbd","","R"));
-    rl.onclick=roll;r.appendChild(rl);r.appendChild(fr);
+    rl.onclick=roll;r.appendChild(rl);
     var fs=filterSummary();if(fs)r.appendChild(el("p","lnote","Picking from: "+fs));
     body.appendChild(r);
     var x=el("button","lx");x.type="button";x.setAttribute("aria-label","Close");x.appendChild(svg("x"));x.onclick=close;body.appendChild(x);
