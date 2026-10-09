@@ -44,3 +44,8 @@ FILES_DOMAIN_PLACEHOLDER {
 		}
 	}
 }
+
+# Optional: when the app lives on the bare domain, send the old names there (path and query kept).
+# files.example.com, www.example.com {
+#	redir https://example.com{uri} permanent
+# }
