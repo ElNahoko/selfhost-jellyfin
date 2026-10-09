@@ -336,6 +336,10 @@ class H(BaseHTTPRequestHandler):
                 except Exception: return self.js({})
                 catalog.save_trailer(key, res[0] if res else "", res[1] if res else "")
                 return self.send(200, json.dumps({"vid": res[0], "title": res[1]} if res else {}).encode(), cache="private, max-age=3600")
+            if path == "/_meta/episodes":
+                sid = (qs.get("id") or [""])[0]
+                d = catalog.episodes_for(sid) if re.fullmatch(r"tt\d{6,10}", sid) else None
+                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=300")
             if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)

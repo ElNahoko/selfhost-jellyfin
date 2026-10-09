@@ -90,13 +90,14 @@ def _build():
             v = int(r[2])
         except ValueError:
             continue
-        if v >= 20000: ratings[r[0]] = (float(r[1]), v)
+        if v >= 8000: ratings[r[0]] = (float(r[1]), v)
     _download("title.basics.tsv.gz", bp)
     items = {}
     want = {t: k for k, ts in KINDS.items() for t in ts}
     for r in _rows(bp):
         if r[0] in ratings and r[1] in want and r[4] == "0":
             rt, v = ratings[r[0]]
+            if v < (20000 if want[r[1]] == "movie" else 8000): continue
             items[r[0]] = {"id": r[0], "k": want[r[1]], "tt": r[1], "n": r[2], "y": int(r[5]) if r[5].isdigit() else None,
                            "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
     os.remove(bp); os.remove(rp)
@@ -224,6 +225,96 @@ def countries():
             threading.Thread(target=_countries_job, daemon=True).start()
     return _cty["d"]
 
+EPS_DB = os.path.join(DBDIR, "episodes.db")
+_eps = {"building": False, "t": 0}
+
+def _epdb():
+    c = sqlite3.connect(EPS_DB, timeout=30)
+    c.execute("CREATE TABLE IF NOT EXISTS ep(tconst TEXT PRIMARY KEY, series TEXT, season INTEGER, ep INTEGER, rating REAL, votes INTEGER, title TEXT)")
+    c.execute("CREATE INDEX IF NOT EXISTS ep_series ON ep(series)")
+    c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
+    return c
+
+def _build_episodes(series_ids):
+    """Seasons/episodes of every catalogue series with their ratings and titles. Streams IMDb's files, small memory."""
+    os.makedirs(DBDIR, exist_ok=True)
+    paths = {n: os.path.join(DBDIR, "e_" + n + ".gz") for n in ("episode", "ratings", "basics")}
+    for n, f in (("episode", "title.episode.tsv.gz"), ("ratings", "title.ratings.tsv.gz"), ("basics", "title.basics.tsv.gz")):
+        _download(f, paths[n])
+    c = _epdb(); c.execute("DELETE FROM ep"); c.commit()
+    wanted, batch = set(series_ids), []
+    tconsts = set()
+    for r in _rows(paths["episode"]):
+        if r[1] in wanted:
+            sn = int(r[2]) if r[2].isdigit() else 0; en = int(r[3]) if r[3].isdigit() else 0
+            batch.append((r[0], r[1], sn, en)); tconsts.add(r[0])
+            if len(batch) >= 5000:
+                c.executemany("INSERT OR REPLACE INTO ep(tconst,series,season,ep) VALUES(?,?,?,?)", batch); batch = []
+    if batch: c.executemany("INSERT OR REPLACE INTO ep(tconst,series,season,ep) VALUES(?,?,?,?)", batch)
+    c.commit()
+    batch = []
+    for r in _rows(paths["ratings"]):
+        if r[0] in tconsts:
+            try: batch.append((float(r[1]), int(r[2]), r[0]))
+            except ValueError: continue
+            if len(batch) >= 5000:
+                c.executemany("UPDATE ep SET rating=?, votes=? WHERE tconst=?", batch); batch = []
+    if batch: c.executemany("UPDATE ep SET rating=?, votes=? WHERE tconst=?", batch)
+    c.commit()
+    batch = []
+    for r in _rows(paths["basics"]):
+        if r[0] in tconsts:
+            batch.append((r[2], r[0]))
+            if len(batch) >= 5000:
+                c.executemany("UPDATE ep SET title=? WHERE tconst=?", batch); batch = []
+    if batch: c.executemany("UPDATE ep SET title=? WHERE tconst=?", batch)
+    c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
+    c.commit(); c.close()
+    for p in paths.values():
+        try: os.remove(p)
+        except OSError: pass
+
+def _episodes_job():
+    try:
+        try: os.nice(10)
+        except OSError: pass
+        cat = _mem["cat"] or _read()
+        if cat: _build_episodes([i for i, it in cat["items"].items() if it["k"] == "series"])
+    except Exception as e:
+        _state["error"] = ("episodes: " + str(e))[:200]
+    finally:
+        _eps["building"] = False
+
+def ensure_episodes():
+    """Starts the (weekly, low-priority) download of season/episode data when it is missing or old."""
+    if _eps["building"] or time.time() - _eps["t"] < 600 or not _mem["cat"]: return
+    _eps["t"] = time.time()
+    try:
+        c = _epdb(); r = c.execute("SELECT v FROM info WHERE k='built'").fetchone(); c.close()
+        if r and time.time() - int(r[0]) < MAXAGE: return
+    except Exception:
+        pass
+    _eps["building"] = True
+    threading.Thread(target=_episodes_job, daemon=True).start()
+
+def episodes_for(sid):
+    try:
+        c = _epdb(); rows = c.execute("SELECT season, ep, rating, votes, title FROM ep WHERE series=? ORDER BY season, ep", (sid,)).fetchall(); c.close()
+    except Exception:
+        return None
+    if not rows: return None
+    seasons = {}
+    for sn, en, rt, vt, tl in rows:
+        seasons.setdefault(sn, []).append([en, rt, vt, tl or ""])
+    out = []
+    for sn in sorted(seasons):
+        eps = seasons[sn]; rated = [e[1] for e in eps if e[1]]
+        out.append({"n": sn, "c": len(eps), "avg": round(sum(rated) / len(rated), 1) if rated else None, "eps": eps})
+    rated_all = [e[1] for s in out for e in s["eps"] if e[1]]
+    real = [s for s in out if s["n"] > 0]
+    return {"seasons": real and out, "season_count": len(real), "episode_count": sum(len(s["eps"]) for s in out if s["n"] > 0),
+            "avg": round(sum(rated_all) / len(rated_all), 1) if rated_all else None}
+
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)
     c.execute("CREATE TABLE IF NOT EXISTS titles(id TEXT PRIMARY KEY, img TEXT, overview TEXT)")
@@ -307,6 +398,11 @@ def _bulk_run():
         for kind in KINDS:
             for r in cat["rows"][kind]:
                 for i in r["ids"]: add(i)
+        cd = _cty.get("d") or {}
+        for code in cd:                                      # then every title of every country list
+            for kind in KINDS:
+                for i in sorted(cd[code].get(kind, ())): 
+                    if i in cat["items"]: add(i)
         for k in range(0, len(order), 40):
             chunk = [i for i in order[k:k + 40] if i["id"] not in _mem["titles"] and time.time() - _failed.get(i["id"], 0) > 1800]
             if chunk and _resolver: _resolver(chunk)
@@ -314,6 +410,7 @@ def _bulk_run():
         _bulk["running"] = False
 
 def ensure_all():
+    ensure_episodes()
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
     _bulk["t"] = time.time()
@@ -410,7 +507,7 @@ def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
     for r in rules.values():
         if not r["home"]: continue
         its, by = members(r["id"])
-        if len(its) < 6: continue
+        if len(its) < 4: continue
         its = sorted(its, key=lambda i: (-i["r"], -i["v"])) if by == "rating" else sorted(its, key=lambda i: (-i["v"], -i["r"]))
         out.append({"id": r["id"], "name": r["name"], "items": its[:HOME_N]})
     for g in gnames:
@@ -418,9 +515,8 @@ def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
         if len(its) < 8: continue
         its = sorted(its, key=lambda i: (-i.get("w", 0), -i["v"]))
         out.append({"id": "gx-" + g.lower(), "name": g, "items": its[:HOME_N]})
-    seen = set()
-    for r in out:
-        r["items"] = [it for it in r["items"]]
+    if not out and pool:      # a small list (e.g. 2 Italian series): one shelf with everything instead of an empty page
+        out.append({"id": "__f", "name": "All titles", "items": sorted(pool, key=lambda i: (-i.get("w", 0), -i["v"]))[:HOME_N]})
     queue_resolve([it for r in out for it in r["items"]])
     d_out = [{"id": r["id"], "name": r["name"], "items": [_dress(cat, it["id"]) for it in r["items"]]} for r in out]
     total = sum(len(r["items"]) for r in d_out)
