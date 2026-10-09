@@ -830,6 +830,17 @@ h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
 .subrow .sl{display:flex;align-items:center;gap:12px;flex:1;min-width:0}.subrow .sl svg{width:18px;height:18px;color:var(--muted);flex:none}
 .subrow .sl b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subrow .sl span{display:block;color:var(--muted);font-size:.8rem}
 .subok{color:#5fb88a;font-size:.84rem;font-weight:650;white-space:nowrap}
+.fav{position:absolute;right:8px;top:8px;z-index:3;width:32px;height:32px;border-radius:50%;border:0;background:rgba(10,10,14,.55);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);opacity:0;transition:opacity .15s,transform .15s}
+.fav svg{width:16px;height:16px}
+.tile:hover .fav,.tile:focus-within .fav,.fav.on{opacity:1}
+.fav.on{color:#ff5470}.fav.on svg path{fill:currentColor}
+.fav:hover{transform:scale(1.08)}
+@media (hover:none){.fav{opacity:1}}
+.btn.favon{color:#ff5470;border-color:rgba(255,84,112,.45)}.btn.favon svg path{fill:currentColor}
+.dlg.signin{max-width:400px}.dlg.signin form{display:flex;flex-direction:column}
+.staffl{display:block;margin-top:14px;font-size:.8rem;color:var(--muted);text-align:center}
+.favnote{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.88rem;margin:0 0 14px}
+.who #signin{padding:5px 12px}
 </style>
 </head>
 <body>
@@ -847,7 +858,7 @@ h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
       </div>
       <span class="snote" id="spS"></span>
     </div>
-    <div class="who"><span class="wl"><span class="wd"></span><span id="whoT"></span></span><span class="wb"><button id="settingsBtn" type="button" title="Settings" aria-label="Settings"></button><button id="signout" type="button" title="Sign out" aria-label="Sign out"></button></span></div>
+    <div class="who"><span class="wl"><span class="wd"></span><span id="whoT"></span></span><span class="wb"><button id="settingsBtn" type="button" title="Settings" aria-label="Settings"></button><button id="signout" type="button" title="Sign out" aria-label="Sign out"></button><button id="signin" class="btn sm primary" type="button" hidden>Sign in</button></span></div>
   </aside>
 
   <main>
@@ -893,7 +904,8 @@ h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
 <script>
 (function(){
 "use strict";
-var ROLE=window.__ROLE||"admin", ME=window.__ME||"", GUEST=ROLE==="guest";
+var ROLE=window.__ROLE||"public", ME=window.__ME||"", ADMIN=ROLE==="admin", STAFF=ADMIN||ROLE==="uploader", MEMBER=ROLE==="member",
+    PUBLICV=ROLE==="public", APPROVED=STAFF||!!window.__APPROVED, GUEST=!STAFF, BRAND=window.__BRAND||"LUMIO";
 if(GUEST)document.body.className+=" guest";
 var SECTIONS=[
   {id:"movies",label:"Movies",ic:"film"},
@@ -904,7 +916,7 @@ var SECTIONS=[
   {id:"profiles",label:"Profiles",ic:"users"}
 ];
 if(GUEST)SECTIONS=SECTIONS.filter(function(s){return s.id==="requests";});
-else SECTIONS=SECTIONS.filter(function(s){return true;});
+else if(!ADMIN)SECTIONS=SECTIONS.filter(function(s){return s.id!=="profiles";});      // uploaders: the library and the catalogue
 var LIBS=SECTIONS.filter(function(s){return s.id!=="requests"&&s.id!=="profiles";});
 var CHUNK=16*1024*1024, RETRIES=40;
 var cwd=GUEST?"requests":"movies";            // current folder, no leading/trailing slash ("requests" = the request page)
@@ -1112,7 +1124,7 @@ function renderHero(){
     var tb=el("div","tcol");tb.appendChild(el("h1","",t.title));
     var box=el("div","meta");if(s){box.appendChild(el("span","chipx",fmtSize(s[0])));box.appendChild(el("span","",s[1]+(s[1]===1?" file":" files")));}
     tb.appendChild(box);h.appendChild(tb);
-    if(!GUEST&&parts.length===2&&libKind())h.appendChild(tidyButton(false));
+    if(ADMIN&&parts.length===2&&libKind())h.appendChild(tidyButton(false));
     return;
   }
   var u=poster(m,300);
@@ -1127,7 +1139,7 @@ function renderHero(){
   if(s){meta.appendChild(el("span","chipx",fmtSize(s[0])));meta.appendChild(el("span","",s[1]+(s[1]===1?" file":" files")));}
   d.appendChild(meta);
   if(m.o)d.appendChild(el("p","",m.o));
-  if(!GUEST&&parts.length===2&&libKind())d.appendChild(tidyButton(!!m.u));
+  if(ADMIN&&parts.length===2&&libKind())d.appendChild(tidyButton(!!m.u));
   h.appendChild(d);
 }
 function tidyButton(primary){var b=el("button","btn sm tidybtn"+(primary?" primary":""));b.type="button";b.appendChild(svg("wand"));b.appendChild(el("span","","Tidy up"));b.onclick=tidyUp;return b;}
@@ -1192,7 +1204,7 @@ function folderTile(x){
   var s2=SIZES["/"+path];if(s2)a.appendChild(el("span","fs",fmtSize(s2[0])));
   t.appendChild(a);
   var rn=el("button","x");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+x.name);rn.appendChild(svg("edit"));rn.onclick=function(){renameItem(x.name,true,x.name);};t.appendChild(rn);
-  var del=el("button","x");del.type="button";del.title="Delete folder";del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
+  var del=el("button","x");del.type="button";del.title="Delete folder";del.hidden=!ADMIN;del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
   del.onclick=function(){remove(x.name,true,x.name);};t.appendChild(del);
   return t;
 }
@@ -1242,7 +1254,7 @@ function card(x){
   var a=el("a","open");navLink(a,path);a.title=x.name;a.setAttribute("aria-label","Open "+title);c.appendChild(a);
   var rn=el("button","x r");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+title);rn.appendChild(svg("edit"));
   rn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();renameItem(x.name,true,title);};c.appendChild(rn);
-  var del=el("button","x");del.type="button";del.title="Delete folder";del.setAttribute("aria-label","Delete "+title);del.appendChild(svg("trash"));
+  var del=el("button","x");del.type="button";del.title="Delete folder";del.hidden=!ADMIN;del.setAttribute("aria-label","Delete "+title);del.appendChild(svg("trash"));
   del.onclick=function(ev){ev.preventDefault();ev.stopPropagation();remove(x.name,true,title);};c.appendChild(del);
   return c;
 }
@@ -1265,7 +1277,7 @@ function row(x){
   if(x.partial)r.appendChild(el("span","bad","Incomplete upload"));
   r.appendChild(el("span","sz",fmtSize(x.size)));r.appendChild(el("span","dt",fmtDate(x.mtime)));
   if(!x.partial){var rn=el("button","x");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+x.name);rn.appendChild(svg("edit"));rn.onclick=function(){renameItem(x.name,false,label);};r.appendChild(rn);}
-  var del=el("button","x");del.type="button";del.title="Delete";del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
+  var del=el("button","x");del.type="button";del.title="Delete";del.hidden=!ADMIN;del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
   del.onclick=function(){remove(x.raw,false,label);};r.appendChild(del);
   return r;
 }
@@ -1431,6 +1443,7 @@ async function api(method,path,body){
   if(!r.ok){var e=new Error("HTTP "+r.status);try{e.body=await r.json();}catch(x){}throw e;}return r.json();
 }
 async function loadRequests(){
+  if(!APPROVED){reqList=[];openReq=0;return;}
   try{reqList=await api("GET","/_meta/requests");}catch(e){reqList=[];}
   openReq=reqList.filter(function(r){return r.status==="open";}).length;renderNav();
   var rb=document.querySelector(".tabs button.amber");      // keep the count on the Requests tab current
@@ -1469,7 +1482,50 @@ async function whoAmI(){      // never opens a dialog (it would replace the scre
   if(GUEST)return ME;
   return me()||ME||"admin";
 }
+var FAV=[];try{FAV=JSON.parse(localStorage.getItem("lumio_fav")||"[]");}catch(e){FAV=[];}
+function favSave(){try{localStorage.setItem("lumio_fav",JSON.stringify(FAV.slice(0,3000)));}catch(e){}}
+function isFav(id){return !!id&&FAV.indexOf(id)>=0;}
+async function favToggle(it){
+  if(!it.id)return false;var on=!isFav(it.id);
+  if(on)FAV.unshift(it.id);else FAV=FAV.filter(function(x){return x!==it.id;});favSave();refreshTiles();
+  toast(on?"Saved to your favorites":"Removed from your favorites");
+  if(MEMBER){try{FAV=await api("POST","/_meta/favorites",on?{add:[it.id]}:{remove:[it.id]});favSave();}catch(e){}}
+  return on;
+}
+async function favSync(){      // a member: what this browser saved goes to the account, then the account's list is the truth
+  if(!MEMBER)return;
+  try{FAV=await api("POST","/_meta/favorites",{add:FAV.slice(0,500)});favSave();refreshTiles();}catch(e){}
+}
+function signInDialog(why){
+  return new Promise(function(res){
+    var m=$("modal"),prev=document.activeElement;m.innerHTML="";
+    var d=el("div","dlg signin");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+    d.appendChild(el("h3","","Sign in"));d.appendChild(el("p","",why||"Keep your favorites on every device. No password: we email you a code."));
+    var f=el("form","");var em=el("input");em.type="email";em.placeholder="you@example.com";em.autocomplete="email";em.required=true;f.appendChild(em);
+    var code=el("input");code.inputMode="numeric";code.autocomplete="one-time-code";code.placeholder="6-digit code";code.maxLength=6;code.hidden=true;f.appendChild(code);
+    var msg=el("p","fmsg");msg.setAttribute("role","alert");f.appendChild(msg);
+    var acts=el("div","acts"),cancel=el("button","btn","Cancel"),go2=el("button","btn primary","Send me a code");cancel.type="button";go2.type="submit";
+    acts.appendChild(cancel);acts.appendChild(go2);f.appendChild(acts);d.appendChild(f);
+    var staffL=el("a","staffl","Staff sign-in");staffL.href="/login";d.appendChild(staffL);
+    function close(v){m.hidden=true;m.innerHTML="";if(prev&&prev.focus)prev.focus();res(v);}
+    cancel.onclick=function(){close(false);};m.onmousedown=function(e){if(e.target===m)close(false);};
+    f.onsubmit=async function(e){
+      e.preventDefault();msg.className="fmsg";msg.textContent="";go2.disabled=true;
+      try{
+        if(code.hidden){await api("POST","/auth/code",{email:em.value});em.readOnly=true;code.hidden=false;code.focus();go2.textContent="Sign in";msg.className="fmsg ok";msg.textContent="Code sent to "+em.value+". Check your inbox (and spam).";}
+        else{await api("POST","/auth/verify",{email:em.value,code:code.value});close(true);location.reload();return;}
+      }catch(err){msg.textContent=err.body&&err.body.error?err.body.error:"That did not work. Try again.";}
+      go2.disabled=false;
+    };
+    m.appendChild(d);m.hidden=false;setTimeout(function(){em.focus();},50);
+  });
+}
 async function sendRequest(item,season){
+  if(!APPROVED){
+    if(PUBLICV)signInDialog("Sign in with your email to ask for titles. No password: we send you a code.");
+    else toast("Requests open once the owner approves your account. Your favorites are saved meanwhile.");
+    return false;
+  }
   var who=await whoAmI();if(!who)return false;
   try{
     var r=await api("POST","/_meta/requests",{kind:item.k||reqKind,title:item.n,year:item.y,poster:item.img||"",who:who,tid:item.id||"",season:season||""});
@@ -1486,11 +1542,14 @@ function tile(it){
   ph.style.background="linear-gradient(145deg,hsl("+hue(it.n)+",42%,34%),hsl("+((hue(it.n)+40)%360)+",45%,20%))";p.appendChild(ph);
   cover(p,rimg(it.img,185));
   if(it.r)p.appendChild(el("span","rate","★ "+it.r.toFixed(1)));
-  var add=el("button","add");add.type="button";p.appendChild(add);
+  var add=el("button","add");add.type="button";if(APPROVED)p.appendChild(add);
+  var fv=el("button","fav");fv.type="button";if(it.id)p.appendChild(fv);
+  fv.onclick=function(e){e.stopPropagation();favToggle(it);};
   t.appendChild(p);t.appendChild(el("div","tt",it.n));t.appendChild(el("div","ty",it.y?String(it.y):""));
   function upd(){
     var s=stateOf(it);add.className="add"+(s?" "+s:"");add.innerHTML="";add.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
     add.title=s==="have"?"Already in the library":s==="asked"?"Already requested":"Request";add.setAttribute("aria-label",add.title);
+    var f=isFav(it.id);fv.className="fav"+(f?" on":"");fv.innerHTML="";fv.appendChild(svg("heart"));fv.title=f?"In your favorites":"Save to favorites";fv.setAttribute("aria-pressed",String(f));fv.setAttribute("aria-label",fv.title);
   }
   t._upd=upd;upd();
   add.onclick=function(e){e.stopPropagation();if(stateOf(it))return;sendRequest(it);};
@@ -1622,10 +1681,13 @@ async function showTitle(it0,opts){
     if(it.g&&it.g.length){var tg=el("div","dtags");it.g.slice(0,4).forEach(function(g){tg.appendChild(el("span","tag",g));});rrow.appendChild(tg);}
     if(rrow.childNodes.length)b.appendChild(rrow);
     var acts=el("div","acts wrap"),s=stateOf(it);
-    var rq=el("button","btn "+(s?"":"primary"));rq.type="button";rq.disabled=!!s;rq.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));rq.appendChild(el("span","",s==="have"?"In the library":s==="asked"?"Requested":"Request"));
-    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=false;};
+    var rq=el("button","btn "+(s||!APPROVED?"":"primary"));rq.type="button";rq.disabled=!!s||(MEMBER&&!APPROVED);rq.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
+    rq.appendChild(el("span","",s==="have"?"In the library":s==="asked"?"Requested":APPROVED?"Request":PUBLICV?"Sign in to request":"Requests after approval"));
+    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=MEMBER&&!APPROVED;};
+    var fb=el("button","btn"+(isFav(it.id)?" favon":""));fb.type="button";fb.hidden=!it.id;fb.appendChild(svg("heart"));fb.appendChild(el("span","",isFav(it.id)?"Saved":"Save"));
+    fb.onclick=async function(){await favToggle(it);paint();};
     var tr=el("button","btn");tr.type="button";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));tr.onclick=function(){playTrailer(it);};
-    acts.appendChild(rq);acts.appendChild(tr);
+    if(APPROVED){acts.appendChild(rq);acts.appendChild(fb);}else{acts.appendChild(fb);acts.appendChild(rq);}acts.appendChild(tr);
     if(opts&&opts.lucky){var an=el("button","btn");an.type="button";an.appendChild(svg("dice"));an.appendChild(el("span","","Another one"));
       an.onclick=async function(){an.disabled=true;var n=await luckyPick();if(n){it=n;it._loaded=1;paint();fetchEps();}else an.disabled=false;};acts.insertBefore(an,acts.firstChild);}
     if(it.id){var im=el("a","btn","IMDb");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";acts.appendChild(im);}
@@ -1701,6 +1763,7 @@ async function renderSettings(){
     sv.disabled=false;
   };
   card.appendChild(f);c.appendChild(card);
+  if(!ADMIN)return;
   // data: what the background jobs have built, and buttons to run them now
   var dp=el("section","panel");var dh=el("div","shead");dh.appendChild(el("h2","sec","Catalogue data"));
   var rf=el("button","btn sm","Refresh");rf.type="button";dh.appendChild(rf);dp.appendChild(dh);
@@ -1800,9 +1863,30 @@ async function renderSettings(){
 }
 async function renderProfiles(){
   var c=$("content");c.innerHTML="";$("hero").hidden=true;
-  var head=el("div","reqbar");var nb=el("button","btn primary","New profile");nb.type="button";nb.insertBefore(svg("plus"),nb.firstChild);
-  head.appendChild(el("p","hint left","Profiles can only see the catalogue and send requests. Give them the link, a name and a password."));head.appendChild(nb);c.appendChild(head);
+  var head=el("div","reqbar");var nb=el("button","btn primary","New uploader");nb.type="button";nb.insertBefore(svg("plus"),nb.firstChild);
+  head.appendChild(el("p","hint left","Uploaders can upload to the library and browse it. They don’t see disk, CPU, settings or other profiles, and can’t delete. Give them the link, a name and a password."));head.appendChild(nb);c.appendChild(head);
   var box=el("div");c.appendChild(box);
+  var ms=el("section","panel");var mh=el("div","shead");mh.appendChild(el("h2","sec","Members"));ms.appendChild(mh);
+  ms.appendChild(el("p","hint left","Visitors who signed in with their email. They keep favorites; they can send requests once you approve them."));
+  var mbox=el("div");ms.appendChild(mbox);c.appendChild(ms);
+  async function drawMembers(){
+    var list=[];try{list=await api("GET","/_meta/members");}catch(e){}
+    mbox.innerHTML="";if(!list.length){mbox.appendChild(el("p","hint left","No members yet."));return;}
+    var rows=el("div","rows");
+    list.forEach(function(u){
+      var r=el("div","row"),av=el("div","av",u.email.charAt(0).toUpperCase());av.style.background="hsl("+hue(u.email)+",45%,36%)";r.appendChild(av);
+      var nm=el("div","nm"),a=el("a","",u.email);a.style.cursor="default";nm.appendChild(a);
+      nm.appendChild(el("small","",(u.last_login?"Last seen "+fmtDate(u.last_login*1000):"Joined "+fmtDate(u.created*1000))+" · "+u.favorites+" favorites"));r.appendChild(nm);
+      r.appendChild(el("span","tag "+(u.approved?"ok":""),u.approved?"Can request":"Favorites only"));
+      var ap=el("button","btn sm"+(u.approved?"":" primary"),u.approved?"Revoke":"Approve");ap.type="button";
+      ap.onclick=async function(){try{await api("POST","/_meta/members/"+encodeURIComponent(u.email),{action:u.approved?"unapprove":"approve"});}catch(e){toast("Could not update");}drawMembers();};
+      var del=el("button","x");del.type="button";del.title="Remove member";del.setAttribute("aria-label","Remove "+u.email);del.appendChild(svg("trash"));
+      del.onclick=async function(){if(!await dialog({title:"Remove member?",text:"“"+u.email+"” is signed out and their favorites are deleted.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/members/"+encodeURIComponent(u.email));}catch(e){toast("Could not remove");}drawMembers();};
+      r.appendChild(ap);r.appendChild(del);rows.appendChild(r);
+    });
+    mbox.appendChild(rows);
+  }
+  drawMembers();
   async function draw(){
     var list=[];try{list=(await api("GET","/_meta/users")).filter(function(u){return u.role!=="admin";});}catch(e){}
     box.innerHTML="";
@@ -1825,7 +1909,7 @@ async function renderProfiles(){
     box.appendChild(rows);
   }
   nb.onclick=async function(){
-    var n=await dialog({title:"New profile",text:"A short name, like the person’s first name. 3–24 letters, numbers, dots or dashes.",input:{placeholder:"name",max:24},ok:"Create"});
+    var n=await dialog({title:"New uploader",text:"A short name, like the person’s first name. 3–24 letters, numbers, dots or dashes.",input:{placeholder:"name",max:24},ok:"Create"});
     if(!n)return;
     try{var d=await api("POST","/_meta/users",{name:n});await credDialog("Profile created",d.name,d.password);}
     catch(e){toast(e.body&&e.body.error?e.body.error:"Could not create the profile");}
@@ -1833,22 +1917,42 @@ async function renderProfiles(){
   };
   draw();
 }
+async function drawFavorites(c){
+  var box=el("div","favpage");c.appendChild(box);
+  if(!FAV.length){var e=el("div","rempty");e.appendChild(svg("heart","big"));e.appendChild(el("b","","No favorites yet"));
+    e.appendChild(el("span","","Tap the heart on any film or series to keep it here."+(PUBLICV?" They are saved in this browser; sign in with your email to keep them on every device.":"")));
+    if(PUBLICV){var sb=el("button","btn primary","Sign in");sb.type="button";sb.onclick=function(){signInDialog();};e.appendChild(sb);}
+    box.appendChild(e);return;}
+  box.appendChild(el("div","hint","Loading…"));
+  var items=[];try{items=await api("GET","/_meta/titles?ids="+FAV.slice(0,200).join(","));}catch(e){}
+  if(!box.isConnected)return;box.innerHTML="";
+  var order={};FAV.forEach(function(id,i){order[id]=i;});items.sort(function(a,b){return order[a.id]-order[b.id];});
+  if(PUBLICV){var note=el("div","favnote");note.appendChild(el("span","","Saved in this browser only."));var sb2=el("button","btn sm","Sign in to keep them everywhere");sb2.type="button";sb2.onclick=function(){signInDialog();};note.appendChild(sb2);box.appendChild(note);}
+  [["movie","Films"],["series","Series"]].forEach(function(k){
+    var its=items.filter(function(x){return x.k===k[0];});if(!its.length)return;
+    var h2=el("h2","sec");h2.appendChild(svg(k[0]==="movie"?"film":"tv","ci"));h2.appendChild(el("span","",k[1]+" · "+its.length));box.appendChild(h2);
+    var g=el("div","tgrid");its.forEach(function(it){g.appendChild(tile(it));});box.appendChild(g);
+  });
+}
 function renderRequests(){
   var c=$("content");c.innerHTML="";$("hero").hidden=true;clearTimeout(catPoll);if(shelfObs){shelfObs.disconnect();shelfObs=null;}
   // header: three plain tabs where the page title used to be, search on the right
   var hd=$("crumbs");hd.innerHTML="";
   var tabs=el("div","tabs");tabs.setAttribute("role","tablist");
-  [["movie","Movies",""],["series","Series",""],["list","Requests","amber"]].forEach(function(k){
-    var on=k[0]==="list"?reqTab==="list":(reqTab==="browse"&&reqKind===k[0]);
+  [["movie","Movies",""],["series","Series",""],["fav","Favorites",""]].concat(APPROVED?[["list","Requests","amber"]]:[]).forEach(function(k){
+    var on=k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
     var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
     b.appendChild(el("span","",k[1]));
     if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
-    b.onclick=function(){if(k[0]==="list")reqTab="list";else{reqTab="browse";reqKind=k[0];reqRow="";}$("filter").value="";saveCat();renderRequests();};
+    if(k[0]==="fav"&&FAV.length)b.appendChild(el("span","cnt",String(FAV.length)));
+    b.onclick=function(){if(k[0]==="list")reqTab="list";else if(k[0]==="fav")reqTab="fav";else{reqTab="browse";reqKind=k[0];reqRow="";}$("filter").value="";saveCat();renderRequests();};
     tabs.appendChild(b);
   });
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
+  if(reqTab==="list"&&!APPROVED)reqTab="browse";
   if(reqTab==="list"){f.hidden=true;$("luckyBtn").hidden=true;var l=el("div");l.id="reqList";c.appendChild(l);drawRequests();loadRequests().then(drawRequests);return;}
+  if(reqTab==="fav"){f.hidden=true;$("luckyBtn").hidden=true;saveCat();drawFavorites(c);return;}
   saveCat();$("luckyBtn").hidden=false;f.hidden=false;f.placeholder=reqKind==="series"?"Search any series…":"Search any movie…";f.setAttribute("aria-label",f.placeholder);
   var res=el("div");res.id="reqRes";c.appendChild(res);
   var chips=el("div","chips");chips.id="reqChips";c.appendChild(chips);
@@ -1956,13 +2060,13 @@ var FP_OPEN=false;
 function saveCat(){try{localStorage.setItem("lumio_cat",JSON.stringify({kind:reqKind,tab:reqTab,row:reqRow,f:reqF,fp:FP_OPEN}));}catch(e){}catUrlSync();}
 function catFromUrl(){      // /catalogue/series?row=top&country=KR&genre=Drama: a link anyone can share
   var m=location.pathname.match(/^\/catalogue\/?([^\/]*)/);if(!m)return false;var k=m[1];
-  if(k==="requests")reqTab="list";else{reqTab="browse";if(k==="series")reqKind="series";else if(k==="movies")reqKind="movie";}
+  if(k==="requests")reqTab="list";else if(k==="favorites")reqTab="fav";else{reqTab="browse";if(k==="series")reqKind="series";else if(k==="movies")reqKind="movie";}
   var p=new URLSearchParams(location.search);reqRow=p.get("row")||"";
   ["country","genre","decade","min"].forEach(function(x){reqF[x]=p.get(x)||"";});FP_OPEN=p.get("fp")==="1";return true;}
 function catPath(){
   var p=new URLSearchParams();
-  if(reqTab!=="list"){if(reqRow)p.set("row",reqRow);["country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
-  return "/catalogue/"+(reqTab==="list"?"requests":reqKind==="series"?"series":"movies")+(p.toString()?"?"+p.toString():"");}
+  if(reqTab==="browse"){if(reqRow)p.set("row",reqRow);["country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
+  return "/catalogue/"+(reqTab==="list"?"requests":reqTab==="fav"?"favorites":reqKind==="series"?"series":"movies")+(p.toString()?"?"+p.toString():"");}
 function catUrlSync(){
   if(cwd!=="requests")return;var u=catPath();if(location.pathname+location.search!==u)history.replaceState(null,"",u);}
 function filtersOn(){return !!(reqF.country||reqF.genre||reqF.decade||reqF.min);}
@@ -2584,11 +2688,13 @@ window.addEventListener("drop",async function(e){
   if(out.length)enqueue(out,{cwd:where});
 });
 
-function paintWho(){var w=$("whoT");if(w)w.textContent=ME||(GUEST?"":"admin");}
-function signOut(){fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"}).finally(function(){location.href="/login";});}
-$("signout").onclick=signOut;$("signout2").onclick=signOut;
+function paintWho(){var w=$("whoT");if(w)w.textContent=PUBLICV?"Not signed in":(ME||"admin");}
+function signOut(){fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"}).finally(function(){location.href=STAFF?"/login":"/";});}
+$("signout").onclick=signOut;$("signout2").onclick=PUBLICV?function(){signInDialog();}:signOut;
+$("signin").onclick=function(){signInDialog();};
 $("settingsBtn").onclick=$("settingsBtn2").onclick=function(){go("settings");};
 if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
+if(PUBLICV){$("signout").hidden=true;$("signin").hidden=false;$("signout2").title="Sign in";$("signout2").setAttribute("aria-label","Sign in");document.querySelector(".who .wd").style.background="var(--muted)";}
 var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
 function upWhat(){return UPWHAT[cwd.split("/")[0]]||"";}
 function paintUpload(){var w=upWhat();$("upT").textContent=w?"Upload "+w:"Upload";}
@@ -2610,9 +2716,8 @@ function render(){
   try{if(localStorage.getItem("lumio_side")==="narrow")app.classList.add("narrow");}catch(e){}
   tg.onclick=function(){var n=app.classList.toggle("narrow");try{localStorage.setItem("lumio_side",n?"narrow":"wide");}catch(e){}tg.title=n?"Expand the sidebar":"Collapse the sidebar";};})();
 cwd=fromHash();catFromUrl();if(location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
-if(GUEST){loadHave().then(refreshTiles);}else{loadSpace();fetch("/_meta/me",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d)ME=d.user;paintWho();}).catch(function(){});}
-paintWho();showResume();
-if(!GUEST){setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
+if(ADMIN){loadSpace();setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
+favSync();paintWho();if(STAFF)showResume();
 })();
 </script>
 </body>

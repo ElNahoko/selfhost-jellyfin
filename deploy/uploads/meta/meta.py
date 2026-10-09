@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Backend for the LUMIO upload and catalogue site (reachable only through Caddy). Sign-in lives in auth.py.
-Roles: admin = everything, guest = catalogue and request list only, enforced here on every call.
+Roles (enforced here on every call): admin = everything; uploader = upload + library; member = email sign-in, favorites,
+requests once approved; no session = public catalogue (read only).
   GET /login, POST /auth/login and /auth/logout, GET /auth/check (Caddy asks this before serving anything else)
   GET  /_meta/items            library metadata from Jellyfin, keyed by upload-page path
   GET  /_meta/img/<id>?w=      a library poster (proxied from Jellyfin)
@@ -16,7 +17,7 @@ Writes need a JSON body and a same-site Origin, so another website cannot trigge
 """
 import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
-import auth, catalog
+import auth, catalog, mail
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -186,17 +187,26 @@ def clip(v, n):
 ASSETS = os.environ.get("ASSETS_DIR", "/assets")
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
-ADMIN_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/space", "/_meta/stats")
+ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
+STAFF_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/have", "/_meta/match", "/_meta/guess")      # admin and uploaders
+APPROVED_ONLY = ("/_meta/requests",)
+SITE = os.environ.get("SITE_URL", "https://files.x0w1v75.com")
+PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
 _rate = {}
 
-def guest_page(user):
+def app_page(s, head=""):
+    """The app, told who is looking (public, member, uploader, admin). `head` adds page-specific tags (SEO)."""
     p = os.path.join(ASSETS, "index.html")
     m = os.path.getmtime(p)
     if m != _page["m"]:
         _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
-    inj = '<script>window.__ROLE="guest";window.__ME=%s;</script>' % json.dumps(user)
-    return _page["html"].replace("<head>", "<head>" + inj, 1).encode()
+    inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;</script>' % (
+        json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND))
+    return _page["html"].replace("<head>", "<head>" + inj + head, 1).encode()
+
+def staff(s): return s["role"] in ("admin", "uploader")
+def approved(s): return staff(s) or (s["role"] == "member" and s.get("approved"))
 
 def limited(user, key, per_min):
     now = time.time(); k = (user, key)
@@ -305,25 +315,31 @@ class H(BaseHTTPRequestHandler):
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
+            if path in ("/", "/index.html", "/profiles", "/settings", "/privacy") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
+                return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
                 s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
-                if not s:
+                if not s or not staff(s):           # the file server is for the admin and uploaders only
                     if meth == "GET" and "text/html" in (self.headers.get("Accept") or "") and not uri.startswith("/_meta"):
                         return self.redirect("/login?next=" + quote(uri, safe="/"))
                     return self.js({"error": "sign in"}, 401)
                 if meth not in ("GET", "HEAD", "OPTIONS") and not self.origin_ok(): return self.js({"error": "forbidden"}, 403)
+                if s["role"] == "uploader" and meth == "DELETE": return self.js({"error": "uploaders cannot delete"}, 403)
                 return self.send(200, b"{}", headers={"X-Role": s["role"]})
-            if path in ("/", "/index.html"):
-                s = self.sess()
-                if not s: return self.redirect("/login")
-                return self.send(200, guest_page(s["user"]), "text/html; charset=utf-8")
             if not path.startswith("/_meta/"): return self.send(404, b"{}")
-            s = self.sess()
-            if not s: return self.js({"error": "sign in"}, 401)
-            admin = s["role"] == "admin"
-            if (path in ADMIN_ONLY or path.startswith("/_meta/img/") or path == "/_meta/users") and not admin:
-                return self.js({"error": "forbidden"}, 403)
-            if path == "/_meta/me": return self.js(s)
+            s = self.sess() or PUBLIC
+            admin = s["role"] == "admin"; rk = s["user"] or "ip:" + self.ip()
+            if (path in ADMIN_ONLY and not admin) or ((path in STAFF_ONLY or path.startswith("/_meta/img/")) and not staff(s)) \
+               or (path in APPROVED_ONLY and not approved(s)):
+                return self.js({"error": "sign in" if s["role"] == "public" else "forbidden"}, 401 if s["role"] == "public" else 403)
+            if path == "/_meta/me": return self.js(dict(s, approved=approved(s), mail=mail.configured()))
+            if path == "/_meta/favorites":
+                if s["role"] != "member": return self.js([])
+                return self.js(auth.favorites(s["user"]))
+            if path == "/_meta/titles":      # several titles at once (favorites)
+                ids = re.findall(r"tt\d{6,10}", (qs.get("ids") or [""])[0])[:200]
+                return self.js([x for x in (catalog.item(i) for i in ids) if x])
+            if path == "/_meta/members": return self.js(auth.list_members())
             if path == "/_meta/items": return self.send(200, cached(_items, build_items, 20))
             if path == "/_meta/sizes": return self.send(200, cached(_sizes, build_sizes, 60))
             if path == "/_meta/space":
@@ -332,7 +348,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/match":              # the official title for a messy folder name (used by Tidy up)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
-                if len(q) < 2 or limited(s["user"], "match", 60): return self.js({})
+                if len(q) < 2 or limited(rk, "match", 60): return self.js({})
                 try:
                     res = search(kind, q)
                     pick = next((x for x in res if yr and str(x["y"]) == yr), None) or (res[0] if res else None)
@@ -342,7 +358,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/trailer":
                 title = clip((qs.get("title") or [""])[0], 100); year = clip((qs.get("year") or [""])[0], 4)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
-                if len(title) < 2 or limited(s["user"], "trailer", 30): return self.js({})
+                if len(title) < 2 or limited(rk, "trailer", 30): return self.js({})
                 key = "%s|%s|%s" % (kind, title.lower(), year)
                 row = catalog.get_trailer(key)
                 if row and (row[0] or time.time() - row[2] < 6 * 3600) and time.time() - row[2] < 7 * 86400:
@@ -367,7 +383,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
-                if len(q) < 2 or limited(s["user"], "guess", 240): return self.js({"img": ""})
+                if len(q) < 2 or limited(rk, "guess", 240): return self.js({"img": ""})
                 key = "%s|%s|%s" % (kind, q.lower(), yr)
                 img = catalog.get_guess(key)
                 if img is None:
@@ -383,7 +399,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/users": return self.js(auth.list_users())
             if path == "/_meta/have": return self.send(200, json.dumps(have_keys()).encode(), cache="private, max-age=30")
             if path == "/_meta/search":
-                if limited(s["user"], "search", 40): return self.js({"error": "slow down"}, 429)
+                if limited(rk, "search", 40 if s["user"] else 15): return self.js({"error": "slow down"}, 429)
                 kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
                 return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
             if path == "/_meta/admin/subtitles" and s["role"] == "admin":
@@ -398,6 +414,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/filters":
                 return self.send(200, json.dumps(catalog.filters_info("series" if (qs.get("type") or [""])[0] == "series" else "movie")).encode(), cache="private, max-age=60")
             if path in ("/_meta/lucky",):
+                if limited(rk, "lucky", 60): return self.js({"error": "slow down"}, 429)
                 kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
                 seen = set(re.findall(r"tt\d{6,10}", (qs.get("seen") or [""])[0]))
                 fresh = (qs.get("fresh") or ["1"])[0] != "0"
@@ -474,9 +491,35 @@ class H(BaseHTTPRequestHandler):
             if path == "/auth/logout":
                 auth.logout(self.headers.get("Cookie"))
                 return self.js({"ok": True}, headers={"Set-Cookie": auth.cookie_value("", clear=True)})
+            if path == "/auth/code":                    # email sign-in, step 1: send a code
+                if not mail.configured(): return self.js({"error": "Sign-in by email is not set up yet."}, 503)
+                if limited("ip:" + self.ip(), "code", 5): return self.js({"error": "Too many tries. Wait a few minutes."}, 429)
+                email, code = auth.request_code(b.get("email"), self.ip())
+                if not email: return self.js({"error": code}, 400)
+                try: mail.send_code(email, code, SITE)
+                except Exception: return self.js({"error": "The email could not be sent. Try again later."}, 502)
+                return self.js({"ok": True})
+            if path == "/auth/verify":                  # step 2: the code -> a session
+                tok, err = auth.verify_code(b.get("email"), b.get("code"), self.ip())
+                if not tok: return self.js({"error": err}, 400)
+                return self.js({"ok": True}, headers={"Set-Cookie": auth.cookie_value(tok)})
             s = self.sess()
             if not s: return self.js({"error": "sign in"}, 401)
             admin = s["role"] == "admin"
+            if path == "/_meta/favorites":
+                if s["role"] != "member": return self.js({"error": "members only"}, 403)
+                ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}", t)]
+                auth.set_favorites(s["user"], ok(b.get("add")), ok(b.get("remove")))
+                return self.js(auth.favorites(s["user"]))
+            if path == "/_meta/password" and staff(s):
+                err = auth.change_password(s["user"], b.get("current"), b.get("new"), self.headers.get("Cookie"))
+                return self.js({"error": err}, 400) if err else self.js({"ok": True})
+            if path == "/_meta/refresh" and staff(s):     # ask Jellyfin to scan the media folders now
+                jf("/Library/Refresh", method="POST", timeout=20)
+                _items["t"] = 0; _sizes["t"] = 0
+                return self.js({"ok": True})
+            if path.startswith("/_meta/requests") and not approved(s):
+                return self.js({"error": "Requests are open to approved accounts."}, 403)
             if path == "/_meta/admin/subtitles" and admin:
                 qf = "/db/subocr-queue.json"
                 try:
@@ -525,13 +568,11 @@ class H(BaseHTTPRequestHandler):
                 st = "done" if b.get("status") == "done" else "open"
                 with db() as c: c.execute("UPDATE requests SET status=? WHERE id=?", (st, int(m.group(1))))
                 return self.js({"ok": True})
-            if path == "/_meta/refresh":            # ask Jellyfin to scan the media folders now
-                jf("/Library/Refresh", method="POST", timeout=20)
-                _items["t"] = 0; _sizes["t"] = 0
-                return self.js({"ok": True})
-            if path == "/_meta/password":
-                err = auth.change_password(s["user"], b.get("current"), b.get("new"), self.headers.get("Cookie"))
-                return self.js({"error": err}, 400) if err else self.js({"ok": True})
+            m = re.fullmatch(r"/_meta/members/(.+)", path)
+            if m:
+                email = m.group(1).lower()
+                if b.get("action") in ("approve", "unapprove"):
+                    return self.js({"ok": bool(auth.set_member(email, b["action"] == "approve"))})
             if path == "/_meta/users":
                 pw, err = auth.create_user(b.get("name"), b.get("role"))
                 return self.js({"error": err}, 400) if err else self.js({"name": str(b.get("name")).strip().lower(), "password": pw})
@@ -561,6 +602,9 @@ class H(BaseHTTPRequestHandler):
             with db() as c:
                 c.execute("DELETE FROM requests WHERE id=?", (int(m.group(1)),)); c.execute("DELETE FROM request_votes WHERE req_id=?", (int(m.group(1)),))
             return self.js({"ok": True})
+        m = re.fullmatch(r"/_meta/members/(.+)", path)
+        if m:
+            auth.delete_member(m.group(1).lower()); return self.js({"ok": True})
         m = re.fullmatch(r"/_meta/users/([a-z0-9._-]{3,24})", path)
         if m:
             who = m.group(1)

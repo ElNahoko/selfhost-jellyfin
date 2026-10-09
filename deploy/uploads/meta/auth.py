@@ -1,8 +1,10 @@
 """Sign-in for the upload/catalogue site.
 
-Two roles:
-  admin  the owner. Password is the existing upload password (verified against its crypt hash, never stored again).
-  guest  profiles the admin creates: they only get the catalogue and the request list.
+Roles:
+  admin     the owner. Password is the existing upload password (verified against its crypt hash, never stored again).
+  uploader  profiles the admin creates (name + password): they upload and browse the library, nothing else.
+  member    a visitor who signed in with an email code. Keeps favorites; can request titles once the admin approves them.
+  (no session = public: the catalogue only)
 
 Sessions are random tokens in an HttpOnly, Secure, SameSite=Strict cookie; only a hash of the token is stored.
 Failed sign-ins are throttled per address and per account."""
@@ -28,9 +30,13 @@ def db():
     c.execute("CREATE TABLE IF NOT EXISTS users(username TEXT PRIMARY KEY, hash TEXT, active INTEGER DEFAULT 1, created INTEGER, last_login INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS sessions(th TEXT PRIMARY KEY, username TEXT, role TEXT, exp INTEGER)")
     try:
-        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'guest'")
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'uploader'")
     except sqlite3.OperationalError:
         pass
+    c.execute("UPDATE users SET role='uploader' WHERE role IS NULL OR role='guest'")       # the old "guest" profiles are uploaders now
+    c.execute("CREATE TABLE IF NOT EXISTS members(email TEXT PRIMARY KEY, approved INTEGER DEFAULT 0, created INTEGER, last_login INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS codes(email TEXT PRIMARY KEY, hash TEXT, exp INTEGER, tries INTEGER DEFAULT 0, sent INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS favorites(email TEXT, tid TEXT, added INTEGER, PRIMARY KEY(email, tid))")
     return c
 
 def hash_pw(pw):
@@ -87,7 +93,7 @@ def login(user, pw, ip):
         r = c.execute("SELECT * FROM users WHERE username=?", (user,)).fetchone()
         if r:
             if r["active"] and check_pw(pw, r["hash"]):
-                role = r["role"] or "guest"
+                role = r["role"] or "uploader"
                 c.execute("UPDATE users SET last_login=? WHERE username=?", (int(time.time()), user))
         elif _admin_ok(user, pw):
             role = "admin"
@@ -108,14 +114,17 @@ def session(cookie_header):
     if not m:
         return None
     with db() as c:
-        r = c.execute("SELECT username, exp FROM sessions WHERE th=?", (hashlib.sha256(m.group(1).encode()).hexdigest(),)).fetchone()
+        r = c.execute("SELECT username, exp, role FROM sessions WHERE th=?", (hashlib.sha256(m.group(1).encode()).hexdigest(),)).fetchone()
         if not r or r["exp"] < time.time():
             return None
+        if r["role"] == "member":
+            mem = c.execute("SELECT approved FROM members WHERE email=?", (r["username"],)).fetchone()
+            return {"user": r["username"], "role": "member", "approved": bool(mem and mem["approved"])} if mem else None
         u = c.execute("SELECT active, role FROM users WHERE username=?", (r["username"],)).fetchone()
         if u:
             if not u["active"]:
                 return None
-            role = u["role"] or "guest"
+            role = u["role"] or "uploader"
         elif r["username"] == ADMIN_USER.lower():
             role = "admin"
         else:
@@ -137,7 +146,7 @@ def list_users():
     with db() as c:
         rows = [dict(r) for r in c.execute("SELECT username, role, active, created, last_login FROM users ORDER BY created DESC")]
     for r in rows:
-        r["role"] = r["role"] or "guest"
+        r["role"] = r["role"] or "uploader"
         r["builtin"] = r["username"] == ADMIN_USER.lower()
     if not any(r["builtin"] for r in rows):
         rows.append({"username": ADMIN_USER.lower(), "role": "admin", "active": 1, "created": None, "last_login": None, "builtin": True})
@@ -152,9 +161,9 @@ def get_role(name):
             return u["role"]
     return None
 
-def create_user(name, role="guest"):
+def create_user(name, role="uploader"):
     name = (name or "").strip().lower()
-    role = "admin" if role == "admin" else "guest"
+    role = "admin" if role == "admin" else "uploader"
     if not USER_RE.match(name) or name == ADMIN_USER.lower():
         return None, "Use 3-24 letters, numbers, dots, dashes."
     pw = new_password()
@@ -204,3 +213,64 @@ def change_password(user, current, new, cookie_header):
         keep = hashlib.sha256(m.group(1).encode()).hexdigest() if m else ""
         c.execute("DELETE FROM sessions WHERE username=? AND th<>?", (user, keep))
     return None
+
+# ---------- members: email + one-time code (no password) ----------
+EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$")
+CODE_MINUTES = 15
+
+def request_code(email, ip):
+    """-> (email, code) to send, or (None, reason). One code per address at a time, at most one every 60 s."""
+    email = (email or "").strip().lower()[:254]
+    if not EMAIL_RE.match(email): return None, "That email address does not look right."
+    if _throttled(ip, "code:" + email): return None, "Too many tries. Wait a few minutes."
+    now = int(time.time())
+    with db() as c:
+        r = c.execute("SELECT sent FROM codes WHERE email=?", (email,)).fetchone()
+        if r and r["sent"] and now - r["sent"] < 60: return None, "A code was just sent. Check your inbox (and spam), or wait a minute."
+        code = "%06d" % secrets.randbelow(1000000)
+        c.execute("INSERT OR REPLACE INTO codes VALUES(?,?,?,0,?)", (email, hashlib.sha256((email + code).encode()).hexdigest(), now + CODE_MINUTES * 60, now))
+    _fail(ip, "code:" + email)          # counts towards the throttle: requesting codes in a loop gets blocked
+    return email, code
+
+def verify_code(email, code, ip):
+    """-> (token, None) or (None, reason). A code works once, for 15 minutes, 5 tries."""
+    email = (email or "").strip().lower()[:254]; code = re.sub(r"\D", "", str(code or ""))[:6]
+    if _throttled(ip, "verify:" + email): return None, "Too many tries. Wait a few minutes."
+    now = int(time.time())
+    with db() as c:
+        r = c.execute("SELECT * FROM codes WHERE email=?", (email,)).fetchone()
+        if not r or r["exp"] < now or r["tries"] >= 5:
+            return None, "That code has expired. Ask for a new one."
+        if not hmac.compare_digest(r["hash"], hashlib.sha256((email + code).encode()).hexdigest()):
+            c.execute("UPDATE codes SET tries=tries+1 WHERE email=?", (email,)); _fail(ip, "verify:" + email)
+            return None, "That code is not right."
+        c.execute("DELETE FROM codes WHERE email=?", (email,))
+        c.execute("INSERT OR IGNORE INTO members(email, approved, created) VALUES(?,0,?)", (email, now))
+        c.execute("UPDATE members SET last_login=? WHERE email=?", (now, email))
+        tok = secrets.token_urlsafe(32)
+        c.execute("DELETE FROM sessions WHERE exp<?", (now,))
+        c.execute("INSERT INTO sessions VALUES(?,?,?,?)", (hashlib.sha256(tok.encode()).hexdigest(), email, "member", now + SESSION_DAYS * 86400))
+    return tok, None
+
+def list_members():
+    with db() as c:
+        return [dict(r) for r in c.execute("SELECT m.email, m.approved, m.created, m.last_login, (SELECT count(*) FROM favorites f WHERE f.email=m.email) AS favorites FROM members m ORDER BY m.approved, m.created DESC")]
+
+def set_member(email, approved):
+    with db() as c:
+        return c.execute("UPDATE members SET approved=? WHERE email=?", (1 if approved else 0, email)).rowcount
+
+def delete_member(email):
+    with db() as c:
+        c.execute("DELETE FROM members WHERE email=?", (email,)); c.execute("DELETE FROM favorites WHERE email=?", (email,))
+        c.execute("DELETE FROM sessions WHERE username=?", (email,))
+
+def favorites(email):
+    with db() as c:
+        return [r[0] for r in c.execute("SELECT tid FROM favorites WHERE email=? ORDER BY added DESC", (email,))]
+
+def set_favorites(email, add=(), remove=()):
+    now = int(time.time())
+    with db() as c:
+        c.executemany("INSERT OR IGNORE INTO favorites VALUES(?,?,?)", [(email, t, now) for t in add])
+        c.executemany("DELETE FROM favorites WHERE email=? AND tid=?", [(email, t) for t in remove])
