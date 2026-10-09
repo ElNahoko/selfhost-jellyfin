@@ -14,3 +14,11 @@ Jellyfin encoding is also set to `veryfast`, with throttling and segment deletio
 ## From the admin panel
 
 Settings → **Subtitles** shows every video with picture subtitles grouped by film or show: how many are converted, what is left, what failed (hover for the error), and the file being converted right now. **Convert all** or **Convert** on one show queues the work: the panel writes `data/subocr-queue.json`, and `/opt/jellyfin/subocr/watch.sh` (root cron, every minute) starts a pass for it. A pass that is already running picks the request up between two files. Status: `data/subocr.json`.
+
+## Memory (what went wrong on 9 October, and the fix)
+
+pgsrip decodes every subtitle image of a track before reading them, and glues them into composite images up to 31,744 px wide. For a feature film (2,000+ subtitles) that took ~900 MB, the server has 2 GB, and the first library pass froze it.
+
+- The converter runs in a container capped at **600 MB** (`--memory 600m`): if it runs out, only it is stopped.
+- `patch_pgsrip.py` caps the composites at 4,096 px.
+- When pgsrip still cannot finish a track (long films), `stream_ocr.py` takes over: it extracts the track, then reads, OCRs and writes **one subtitle at a time**. Measured on a 2 h film: 2,315 subtitles, 168 MB peak, about 7 minutes.

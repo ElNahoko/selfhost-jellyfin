@@ -1,7 +1,7 @@
 #!/bin/sh
 # Converts picture subtitles into .srt files, then asks Jellyfin to pick them up.
 # Hard memory cap: OCR of a feature film can need ~900 MB; on a 2 GB server an uncapped run froze everything (Oct 2026).
-#   subocr.sh        every video (not scheduled: run it by hand or from the panel)
+#   subocr.sh        every video (root cron, nightly 02:00)
 #   subocr.sh queue  what the admin panel asked for (started by watch.sh)
 MODE="${1:-all}"
 docker ps --format '{{.Names}}' | grep -qx subocr && exit 0          # a pass is already running (it reads the panel's queue too)

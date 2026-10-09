@@ -67,6 +67,10 @@ def convert(st, f):
     r = subprocess.run(args, capture_output=True, text=True)
     f["srt"] = srt_langs(path)
     todo = [l for l in LANGS if l in f["pgs"] and l not in f["srt"]]
+    for l in todo:          # pgsrip holds every image of a track at once and dies on long films: read those one subtitle at a time
+        r = subprocess.run(["nice", "-n", "19", "python", "/stream_ocr.py", path, l], capture_output=True, text=True)
+    f["srt"] = srt_langs(path)
+    todo = [l for l in LANGS if l in f["pgs"] and l not in f["srt"]]
     if todo:
         f["state"] = "failed"; f["err"] = (r.stderr or r.stdout or "no subtitle written").strip().splitlines()[-1][:200] if (r.stderr or r.stdout) else "no subtitle written"
     else:
