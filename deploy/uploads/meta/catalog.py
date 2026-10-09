@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 9      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 10      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -26,70 +26,71 @@ KINDS = {"movie": ("movie",), "series": ("tvSeries", "tvMiniSeries")}
 MIN_VOTES = {"movie": 60000, "series": 30000}
 
 ANIME_F = os.path.join(DBDIR, "anime.json")
-_anime = {"s": set(), "mt": 0, "building": False, "t": 0}
+_anime = {"s": set(), "m": {}, "mt": 0, "building": False, "t": 0}
 
-def _anime_set():
+ANILIST = "https://graphql.anilist.co"
+FRIBB = "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-full.json"
+ANIME_PAGES = 100           # 50 per page, most popular first: the 5,000 best-known anime on AniList
+
+def _anime_meta():
+    """{imdb id: [anilist popularity, anilist score]} from data/anime.json (written by the weekly anime job)."""
     try:
         mt = os.path.getmtime(ANIME_F)
         if mt != _anime["mt"]:
-            _anime["s"] = set(json.load(open(ANIME_F))); _anime["mt"] = mt
+            d = json.load(open(ANIME_F))
+            _anime["m"] = d if isinstance(d, dict) else {i: [0, None] for i in d}
+            _anime["s"] = set(_anime["m"]); _anime["mt"] = mt
     except (OSError, ValueError):
         pass
+    return _anime.get("m") or {}
+
+def _anime_set():
+    _anime_meta()
     return _anime["s"]
 
-_JP_SCRIPT = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
-_ROMAJI = re.compile(r"[\u00e2\u00ee\u00fb\u00f4\u00ea]|(^|\s)(no|wa)(\s|$|:)", re.I)   # "Tonari no Totoro", "Shippûden"
-_OTHER = {"FR", "ES", "DE", "IT", "BR", "PT", "CN", "TR", "CZ", "HU", "PL", "RU", "AR", "MX"}   # regions that list their own originals
-_NA = "\\N"
-
-def _norm(t): return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
-
-def anime_verdict(orig, us, other_same, cty):
-    """Is this animated title Japanese? Its original title (IMDb) against its English one, with the country lists as a check."""
-    if "JP" in cty: return True
-    if cty: return False                              # Wikidata says French, Korean, Chinese, ...
-    if _JP_SCRIPT.search(orig): return True
-    if not orig: return False
-    o, u = _norm(orig), _norm(us)
-    if not o or o == u: return False                  # the original title is the English one
-    if _ROMAJI.search(orig): return True
-    if u and (u in o or o in u or difflib.SequenceMatcher(None, o, u).ratio() >= .8): return False   # "Tim Burton's The Nightmare ..."
-    if other_same: return False
-    return not (set(o.split()) & {"the", "and", "of", "a", "an", "in", "on", "with", "for", "from", "my", "your", "little", "big"})
-
-def anime_scan(path, anim, cty_of):
-    """Streams title.akas: original title, English title and whether another country lists the original, per animated title."""
-    orig, us, rows = {}, {}, {}
-    for r in _rows(path):
-        t = r[0]
-        if t not in anim: continue
-        if r[7] == "1": orig[t] = r[2]
-        elif r[3] == "US" and r[4] in (_NA, "en") and (r[5] == "imdbDisplay" or t not in us): us[t] = r[2]
-        elif r[3] in _OTHER: rows.setdefault(t, []).append(r[2])
-    out = set()
-    for t in anim:
-        o = _norm(orig.get(t, ""))
-        other = any(_norm(x) == o for x in rows.get(t, ())) if o else False
-        if anime_verdict(orig.get(t, ""), us.get(t, ""), other, cty_of(t)): out.add(t)
-    return out
+def _anilist_page(page):
+    q = "query($p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage} media(type:ANIME,sort:POPULARITY_DESC,isAdult:false){id popularity averageScore}}}"
+    req = urllib.request.Request(ANILIST, data=json.dumps({"query": q, "variables": {"p": page}}).encode(),
+                                 headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": UA})
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r: return json.load(r)["data"]["Page"]
+        except urllib.error.HTTPError as e:
+            if e.code == 429: time.sleep(int(e.headers.get("Retry-After") or 60) + 1); continue
+            raise
+    return None
 
 def _anime_job():
-    """Anime = animated titles that are Japanese. Streams IMDb's akas file (large), low priority, once a week."""
+    """Anime = what AniList (the anime community's database) lists, mapped to IMDb ids. Small downloads, once a week."""
     try:
         try: os.nice(10)
-        except OSError: pass
-        cat = _mem["cat"] or _read()
-        if not cat: return
-        anim = {i for i, it in cat["items"].items() if "Animation" in it["g"]}
-        ap = os.path.join(DBDIR, "akas.tsv.gz")
-        _download("title.akas.tsv.gz", ap)
-        cd = _cty.get("d") or {}
-        def cty_of(t): return {c for c in cd if any(t in cd[c].get(k, ()) for k in KINDS)}
-        found = anime_scan(ap, anim, cty_of)
-        os.remove(ap)
+        except (OSError, AttributeError): pass
+        fp = os.path.join(DBDIR, "anime-map.json")
+        with urllib.request.urlopen(urllib.request.Request(FRIBB, headers={"User-Agent": UA}), timeout=120) as r, open(fp, "wb") as f:
+            while True:
+                b = r.read(1 << 20)
+                if not b: break
+                f.write(b)
+        to_imdb = {}
+        for x in json.load(open(fp, encoding="utf-8")):
+            ids = x.get("imdb_id") or []
+            if isinstance(ids, str): ids = [ids]
+            if x.get("anilist_id") and ids: to_imdb[x["anilist_id"]] = [i for i in ids if re.fullmatch(r"tt\d{6,10}", i)]
+        os.remove(fp)
+        meta = {}
+        for page in range(1, ANIME_PAGES + 1):
+            pg = _anilist_page(page)
+            if not pg: break
+            for m in pg["media"]:
+                for i in to_imdb.get(m["id"], ()):
+                    old = meta.get(i)
+                    if not old or (m["popularity"] or 0) > old[0]: meta[i] = [m["popularity"] or 0, m["averageScore"]]
+            if not pg["pageInfo"]["hasNextPage"]: break
+            time.sleep(2.2)                       # AniList allows 30 requests a minute
+        if len(meta) < 200: raise RuntimeError("AniList returned too little (%d titles)" % len(meta))
         tmp = ANIME_F + ".tmp"
-        json.dump(sorted(found), open(tmp, "w")); os.replace(tmp, ANIME_F)
-        _anime["mt"] = 0; _anime_set()
+        json.dump(meta, open(tmp, "w")); os.replace(tmp, ANIME_F)
+        _anime["mt"] = 0; found = set(_anime_meta())
         cat = _mem["cat"]
         if cat:
             with _lock:
@@ -100,6 +101,8 @@ def _anime_job():
         _state["error"] = ("anime: " + str(e))[:200]
     finally:
         _anime["building"] = False
+
+def _norm(t): return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()      # used by the search
 
 def ensure_anime():
     cat = _mem["cat"]
@@ -121,10 +124,10 @@ def _rules(kind, this):
         R.append({"id": id_, "name": name, "fn": fn, "sort": sort, "home": home, "pool": pool})
     add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True, "all")
     add("fresh", "Just released", lambda i: i["y"] == this, V, True, "all")
-    add("newanime", "Latest anime", lambda i: i["y"] and i["y"] >= this - 1 and i["id"] in _anime_set(), V, True, "all")
+    add("newanime", "Latest anime", lambda i: i["y"] and i["y"] >= this - 1 and i["id"] in _anime_set(), "ap", True, "all")
     add("top", "Top rated", lambda i: True, W, True)
     add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True, "all")
-    add("anime", "Anime", lambda i: i["id"] in _anime_set(), W, True, "all")
+    add("anime", "Anime", lambda i: i["id"] in _anime_set(), "ap", True, "all")
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
         add("mind", "Mind-benders", lambda i: i["r"] >= 7.0 and ((a(i, "Thriller") and g(i, "Mystery", "Sci-Fi")) or a(i, "Sci-Fi", "Mystery") or (a(i, "Drama") and g(i, "Mystery") and g(i, "Sci-Fi", "Thriller"))), W, True, "all")
@@ -175,14 +178,16 @@ def _make_rows(items, this):
     """The shelves: every rule applied to the titles of its kind (the "main" pool needs many votes, "all" takes everything)."""
     rows, rowids = {"movie": [], "series": []}, []
     for kind in KINDS:
-        an = _anime_set()
+        am = _anime_meta(); an = set(am)
+        for i in items.values():
+            if i["id"] in am: i["ap"] = am[i["id"]][0]
         everyone = [i for i in items.values() if i["k"] == kind and (not i.get("la") or i["id"] in an)]
         main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
         for rule in _rules(kind, this):
             pool = everyone if rule["pool"] == "all" else main
-            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:2000]
+            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i.get(rule["sort"], 0))[:3000]
             if len(lst) < 8: continue
-            rows[kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
+            rows[kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "keep": rule["sort"] == "ap", "ids": [i["id"] for i in lst]})
             rowids.extend(i["id"] for i in lst)
     return rows, list(dict.fromkeys(rowids))
 
@@ -215,9 +220,10 @@ def _build():
     db.execute("CREATE TABLE r(id TEXT PRIMARY KEY, rating REAL, votes INTEGER)")
     db.execute("CREATE TABLE b(id TEXT PRIMARY KEY, tt TEXT, name TEXT, year INTEGER, rt INTEGER, genres TEXT)")
     _download("title.ratings.tsv.gz", rp)
+    an = _anime_set()
     batch = []
     for r in _rows(rp):
-        if r[2].isdigit() and int(r[2]) >= ANIME_MIN:
+        if r[2].isdigit() and (int(r[2]) >= ANIME_MIN or r[0] in an):
             batch.append((r[0], float(r[1]), int(r[2])))
             if len(batch) >= 20000: db.executemany("INSERT INTO r VALUES(?,?,?)", batch); batch = []
     if batch: db.executemany("INSERT INTO r VALUES(?,?,?)", batch)
@@ -237,9 +243,10 @@ def _build():
         kind = want[tt]; g = genres.split(",") if genres else []
         anim, recent = "Animation" in g, bool(year and year >= this - 1)
         need = _need(kind, anim, recent)
+        if i in an: anim = True
         if votes < need and not anim: continue
         it = {"id": i, "k": kind, "tt": tt, "n": name, "y": year, "rt": rt, "g": g, "r": rating, "v": votes}
-        if votes < need: it["la"] = 1          # a low-vote animated title: kept only if it turns out to be anime
+        if votes < need and i not in an: it["la"] = 1     # a low-vote animated title: kept only if AniList lists it
         items[i] = it
     db.close()
     for q in (sp, sp + "-journal"):
@@ -341,7 +348,7 @@ def _build_countries():
 def _countries_job():
     try:
         try: os.nice(10)
-        except OSError: pass
+        except (OSError, AttributeError): pass
         _build_countries()
     finally:
         _cty["building"] = False
@@ -433,7 +440,7 @@ def _build_episodes(series_ids):
 def _episodes_job():
     try:
         try: os.nice(10)
-        except OSError: pass
+        except (OSError, AttributeError): pass
         cat = _mem["cat"] or _read()
         if cat: _build_episodes([i for i, it in cat["items"].items() if it["k"] == "series"])
     except Exception as e:
@@ -620,7 +627,7 @@ def _build_cast(ids):
 def _cast_job():
     try:
         try: os.nice(10)
-        except OSError: pass
+        except (OSError, AttributeError): pass
         cat = _mem["cat"] or _read()
         if cat: _build_cast(cat["items"].keys())
     except Exception as e:
@@ -802,7 +809,7 @@ def load():
 def _background():
     try:
         try: os.nice(10)
-        except OSError: pass
+        except (OSError, AttributeError): pass
         _build()
         with _lock:
             _mem["cat"] = _read(); _mem["t"] = time.time()
@@ -839,7 +846,7 @@ def queue_resolve(items):
 def _bulk_run():
     try:
         try: os.nice(10)
-        except OSError: pass
+        except (OSError, AttributeError): pass
         cat = _mem["cat"]
         if not cat: return
         order, seen = [], set()
@@ -996,7 +1003,7 @@ def view(kind, row=None, sort=None, offset=0, limit=40, flt=None):
         r = next((r for r in rows if r["id"] == row), None)
         if not r: return {"rows": [], "chips": chips}
         sort = sort if sort in SORTS else r.get("by", "rating")
-        allit = _ordered(cat, r["ids"], sort)
+        allit = [cat["items"][i] for i in r["ids"]] if r.get("keep") and sort == r.get("by") else _ordered(cat, r["ids"], sort)
         page = allit[offset:offset + limit]
         queue_resolve(page)
         its = [_dress(cat, i["id"]) for i in page]
@@ -1006,7 +1013,7 @@ def view(kind, row=None, sort=None, offset=0, limit=40, flt=None):
     for r in rows:
         if not r["home"]: continue
         # the shelf is the top of the category; show it ordered by what it is about (rating, or popularity for "Popular")
-        top = _ordered(cat, r["ids"][:HOME_N], r.get("by", "rating"))
+        top = [cat["items"][i] for i in r["ids"][:HOME_N]] if r.get("keep") else _ordered(cat, r["ids"][:HOME_N], r.get("by", "rating"))
         out.append({"id": r["id"], "name": r["name"], "items": [_dress(cat, i["id"]) for i in top]})
     queue_resolve([cat["items"][i] for r in rows if r["home"] for i in r["ids"][:HOME_N]])
     total = sum(len(r["items"]) for r in out)
