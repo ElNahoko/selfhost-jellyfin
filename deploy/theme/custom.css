@@ -178,3 +178,16 @@ html .mainDetailButtons .detailButton:not(.btnPlay) { border-radius: 50% !import
 html .itemsContainer.vertical-wrap > .portraitCard, html .itemsContainer.vertical-wrap > .card.portraitCard { width: clamp(9.5rem, 10.5vw, 20rem); }
 html .itemsContainer.vertical-wrap > .squareCard, html .itemsContainer.vertical-wrap > .card.squareCard { width: clamp(9.5rem, 10.5vw, 20rem); }
 html .itemsContainer.vertical-wrap > .backdropCard, html .itemsContainer.vertical-wrap > .card.backdropCard { width: clamp(14rem, 17vw, 30rem); }
+
+/* ---------------- action buttons on movie / show pages: same round buttons everywhere, a hover you can actually see ---------------- */
+html .mainDetailButtons .detailButton:not(.btnPlay) { width: 2.9rem; height: 2.9rem; padding: 0; border-radius: 50% !important; background: rgba(42, 42, 42, .65) !important; border: 2px solid rgba(255, 255, 255, .4) !important; color: #fff !important; transition: background-color .15s, border-color .15s; }
+html .mainDetailButtons .detailButton:not(.btnPlay):hover, html .mainDetailButtons .detailButton:not(.btnPlay):focus-visible { background: rgba(255, 255, 255, .24) !important; border-color: #fff !important; }
+html .mainDetailButtons .detailButton:not(.btnPlay) .material-icons, html .mainDetailButtons .detailButton:not(.btnPlay) .MuiSvgIcon-root { color: #fff !important; }
+html .mainDetailButtons .btnPlayTrailer { width: auto !important; padding: 0 1.15rem 0 .95rem !important; border-radius: 6px !important; }
+html .mainDetailButtons .btnPlayTrailer::after { content: "Trailer"; margin-left: .45rem; font-weight: 600; font-size: 1rem; }
+/* every other icon button (episode rows, cards, dialogs): hover = light veil, never a black hole */
+html .paper-icon-button-light:hover, html .listItemButton:hover, html .cardOverlayButton:hover, html .itemAction.paper-icon-button-light:hover { background: rgba(255, 255, 255, .2) !important; color: #fff !important; }
+html .mainDetailButtons .btnPlayTrailer { display: inline-flex !important; flex-direction: row !important; align-items: center; justify-content: center; gap: .4rem; height: 2.9rem !important; white-space: nowrap; }
+html .mainDetailButtons .btnPlayTrailer::after { margin-left: 0; }
+html .mainDetailButtons .btnPlayTrailer .material-icons, html .mainDetailButtons .btnPlayTrailer .MuiSvgIcon-root { margin: 0 !important; }
+html .mainDetailButtons .detailButton.btnPlayTrailer:not(.btnPlay) { border-radius: 6px !important; width: auto !important; }
