@@ -191,6 +191,22 @@ def limited(user, key, per_min):
         ts.append(now); _rate[k] = ts
     return False
 
+def filt(qs):
+    f = {}
+    c = re.sub(r"[^A-Z]", "", (qs.get("country") or [""])[0].upper())[:3]
+    if c: f["country"] = c
+    g = clip((qs.get("genre") or [""])[0], 20)
+    if g: f["genre"] = g
+    try:
+        d = int((qs.get("decade") or [0])[0])
+        if 1900 <= d <= 2030: f["decade"] = d - d % 10
+    except ValueError: pass
+    try:
+        m = float((qs.get("min") or [0])[0])
+        if 0 < m <= 10: f["min"] = m
+    except ValueError: pass
+    return f
+
 def have_keys():
     try: d = json.loads(cached(_items, build_items, 20))
     except Exception: return []
@@ -287,6 +303,22 @@ class H(BaseHTTPRequestHandler):
                 if limited(s["user"], "search", 40): return self.js({"error": "slow down"}, 429)
                 kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
                 return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
+            if path == "/_meta/filters":
+                return self.send(200, json.dumps(catalog.filters_info("series" if (qs.get("type") or [""])[0] == "series" else "movie")).encode(), cache="private, max-age=60")
+            if path in ("/_meta/lucky",):
+                kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
+                tid = catalog.lucky(kind, filt(qs))
+                it = catalog.item(tid) if tid else None
+                if it and catalog.known(tid) is None:
+                    resolve_one(it); it = catalog.item(tid)
+                return self.js(it or {}, 200 if it else 404)
+            if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")):
+                def num2(k, d, hi):
+                    try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
+                    except ValueError: return d
+                body = json.dumps(catalog.view_filter("series" if (qs.get("type") or [""])[0] == "series" else "movie", filt(qs),
+                                                      (qs.get("sort") or [""])[0], num2("offset", 0, 8000), max(1, num2("limit", 40, 60)))).encode()
+                return self.send(200, body, cache="private, max-age=20")
             if path == "/_meta/catalog":
                 row = re.sub(r"[^a-z0-9-]", "", (qs.get("row") or [""])[0]) or None
                 def num(k, d, hi):

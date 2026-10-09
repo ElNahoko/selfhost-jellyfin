@@ -4,7 +4,7 @@ Everything lives in /db. Rebuilt weekly in the background at low priority.
 
 Shelves are rules over that data ("hidden gems", "mind-benders", "short and sweet", ...), shown on the home view; every
 shelf can also be opened on its own with up to 60 titles."""
-import gzip, json, os, sqlite3, threading, time, urllib.request
+import gzip, json, os, random, sqlite3, threading, time, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -36,7 +36,7 @@ def _rules(kind, this):
     add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True)
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
-        add("mind", "Mind-benders", lambda i: i["r"] >= 7.3 and ((a(i, "Thriller") and g(i, "Mystery", "Sci-Fi")) or a(i, "Sci-Fi", "Mystery")), W, True)
+        add("mind", "Mind-benders", lambda i: i["r"] >= 7.0 and ((a(i, "Thriller") and g(i, "Mystery", "Sci-Fi")) or a(i, "Sci-Fi", "Mystery") or (a(i, "Drama") and g(i, "Mystery") and g(i, "Sci-Fi", "Thriller"))), W, True, "all")
         add("feel", "Feel-good", lambda i: i["r"] >= 7.0 and (g(i, "Family") or (a(i, "Comedy") and g(i, "Romance", "Music"))), W, True)
         add("edge", "Edge of your seat", lambda i: i["r"] >= 7.2 and a(i, "Thriller") and g(i, "Crime", "Mystery", "Horror"), W, True)
         add("family", "Family night", lambda i: i["v"] >= 80000 and g(i, "Family", "Animation"))
@@ -101,7 +101,7 @@ def _build():
                            "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
     os.remove(bp); os.remove(rp)
     this = date.today().year
-    out = {"built": int(time.time()), "items": {}, "rows": {"movie": [], "series": []}}
+    out = {"built": int(time.time()), "items": {}, "rows": {"movie": [], "series": []}, "rowids": []}
     for kind in KINDS:
         everyone = [i for i in items.values() if i["k"] == kind]
         main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
@@ -112,10 +112,76 @@ def _build():
             lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:300]
             if len(lst) < 8: continue
             out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
-            for i in lst: out["items"][i["id"]] = {k: v for k, v in i.items() if k not in ("w", "tt")}
+            out["rowids"].extend(i["id"] for i in lst)
+    for i in items.values():
+        if "w" in i: out["items"][i["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in i.items() if k != "tt"}
+    out["rowids"] = list(dict.fromkeys(out["rowids"]))
     tmp = CAT + ".tmp"
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
     os.replace(tmp, CAT)
+
+GROUPS = [("FR", "French cinema", ["Q142"]), ("ES", "Spanish cinema", ["Q29", "Q96", "Q414", "Q739", "Q298"]),
+          ("IT", "Italian cinema", ["Q38"]), ("DE", "German cinema", ["Q183"]), ("JP", "Japanese cinema", ["Q17"]),
+          ("KR", "Korean cinema", ["Q884"]), ("IN", "Indian cinema", ["Q668"])]
+COUNTRIES_F = os.path.join(DBDIR, "countries.json")
+_cty = {"t": 0, "d": None, "building": False, "fail": 0}
+
+def _wikidata(cls, qids):
+    q = "SELECT DISTINCT ?imdb WHERE { VALUES ?c { %s } ?f wdt:P31 wd:%s; wdt:P495 ?c; wdt:P345 ?imdb. }" % (" ".join("wd:" + x for x in qids), cls)
+    url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
+    req = urllib.request.Request(url, headers={"User-Agent": "lumio-catalogue/1.0 (self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
+    with urllib.request.urlopen(req, timeout=150) as r:
+        d = json.load(r)
+    return [b["imdb"]["value"] for b in d["results"]["bindings"] if str(b["imdb"]["value"]).startswith("tt")]
+
+def _build_countries():
+    cat = _mem["cat"] or _read()
+    if not cat: return
+    have = set(cat["items"])
+    out = {"built": int(time.time())}
+    ok = tried = 0
+    for code, label, qids in GROUPS:
+        out[code] = {}
+        for kind, cls in (("movie", "Q11424"), ("series", "Q5398426")):
+            ids = []
+            tried += 1
+            for attempt in range(3):
+                try:
+                    ids = [i for i in _wikidata(cls, qids) if i in have]; ok += 1; break
+                except Exception:
+                    time.sleep(10 * (attempt + 1))
+            out[code][kind] = ids
+            time.sleep(3)
+    if ok < tried * 0.7:            # most queries failed (network, rate limit): keep the old file and try again later
+        _cty["fail"] = time.time()
+        return
+    tmp = COUNTRIES_F + ".tmp"
+    with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
+    os.replace(tmp, COUNTRIES_F)
+    _cty["t"] = 0
+
+def _countries_job():
+    try:
+        try: os.nice(10)
+        except OSError: pass
+        _build_countries()
+    finally:
+        _cty["building"] = False
+
+def countries():
+    """{code: {kind: set(ids)}} or None while it is still being collected (started in the background when missing/old)."""
+    if time.time() - _cty["t"] > 120:
+        _cty["t"] = time.time()
+        try:
+            with open(COUNTRIES_F) as f: raw = json.load(f)
+            _cty["d"] = {c: {k: set(v) for k, v in raw[c].items()} for c in raw if c != "built"}
+            old = time.time() - raw.get("built", 0) > MAXAGE
+        except Exception:
+            _cty["d"] = None; old = True
+        if old and not _cty["building"] and _mem["cat"] and time.time() - _cty["fail"] > 900:
+            _cty["building"] = True
+            threading.Thread(target=_countries_job, daemon=True).start()
+    return _cty["d"]
 
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)
@@ -132,7 +198,10 @@ def load():
     """Catalogue dict or None; starts a background build when missing or older than a week."""
     with _lock:
         if time.time() - _mem["t"] > 30:
-            _mem["cat"] = _read()
+            try: mt = os.path.getmtime(CAT)
+            except OSError: mt = 0
+            if mt != _mem.get("mt") or _mem["cat"] is None:      # re-read the (large) catalogue file only when it changed
+                _mem["cat"] = _read(); _mem["mt"] = mt
             try:
                 with _titles() as c: _mem["titles"] = {r[0]: (r[1], r[2]) for r in c.execute("SELECT id,img,overview FROM titles")}
             except Exception:
@@ -154,6 +223,7 @@ def _background():
         cat = _mem["cat"]
         if cat:
             ensure_all()
+            countries()
             first = {}
             for kind in KINDS:
                 for r in cat["rows"][kind]:
@@ -206,7 +276,7 @@ def ensure_all():
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
     _bulk["t"] = time.time()
-    if all(i in _mem["titles"] for i in _mem["cat"]["items"]): return
+    if all(i in _mem["titles"] for i in _mem["cat"].get("rowids", [])): return
     _bulk["running"] = True
     threading.Thread(target=_bulk_run, daemon=True).start()
 
@@ -268,6 +338,56 @@ def view(kind, row=None, sort=None, offset=0, limit=40):
     queue_resolve([cat["items"][i] for r in rows if r["home"] for i in r["ids"][:HOME_N]])
     total = sum(len(r["items"]) for r in out)
     return {"building": _state["building"], "ready": sum(1 for r in out for x in r["items"] if "img" in x) >= total * 0.95, "rows": out, "chips": chips}
+
+FSORTS = dict(SORTS)
+FSORTS["best"] = lambda i: (-i.get("w", 0), -i["v"])
+
+def _filter_pool(kind, f):
+    cat = load()
+    if not cat: return None, []
+    ids = None
+    if f.get("country"):
+        cd = countries()
+        if cd is None or f["country"] not in cd: return cat, []
+        ids = cd[f["country"]].get(kind, set())
+    dec = f.get("decade")
+    out = []
+    for i, it in cat["items"].items():
+        if it["k"] != kind or (ids is not None and i not in ids): continue
+        if f.get("genre") and f["genre"] not in it["g"]: continue
+        if dec and not (it["y"] and dec <= it["y"] <= dec + 9): continue
+        if f.get("min") and it["r"] < f["min"]: continue
+        out.append(it)
+    return cat, out
+
+def view_filter(kind, f, sort=None, offset=0, limit=40):
+    cat, pool = _filter_pool(kind, f)
+    if cat is None: return {"building": True, "rows": [], "chips": []}
+    sort = sort if sort in FSORTS else "best"
+    pool.sort(key=FSORTS[sort])
+    page = pool[offset:offset + limit]
+    queue_resolve(page)
+    its = [_dress(cat, i["id"]) for i in page]
+    return {"rows": [{"id": "filter", "name": "Results", "items": its}], "total": len(pool), "offset": offset, "sort": sort, "default": "best",
+            "ready": all("img" in x for x in its), "countries_ready": countries() is not None}
+
+def lucky(kind, f):
+    cat, pool = _filter_pool(kind, f)
+    if not pool: return None
+    good = [i for i in pool if i["r"] >= 7.0 and i["v"] >= 40000] or pool
+    it = random.choice(good)
+    return it["id"]
+
+def filters_info(kind):
+    cat = load()
+    if not cat: return {"countries": [], "genres": [], "decades": []}
+    gs = {}
+    for it in cat["items"].values():
+        if it["k"] == kind:
+            for g in it["g"]: gs[g] = gs.get(g, 0) + 1
+    cd = countries()
+    return {"countries": [{"id": c, "name": n} for c, n, _ in GROUPS if cd and c in cd and cd[c].get(kind)],
+            "genres": sorted(g for g, n in gs.items() if n >= 40), "decades": list(range(2020, 1909, -10))}
 
 def item(i):
     cat = load()
