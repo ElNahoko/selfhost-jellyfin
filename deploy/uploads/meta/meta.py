@@ -296,8 +296,9 @@ class H(BaseHTTPRequestHandler):
         if k and code == 200 and ctype == "application/json":
             self._rc_key = None
             try:
-                if not json.loads(body).get("building"): rc_put(k[0], k[1], body)
-            except Exception: rc_put(k[0], k[1], body)
+                j = json.loads(body)
+                if not (isinstance(j, dict) and (j.get("building") or j.get("pending"))): rc_put(k[0], k[1], body)
+            except Exception: pass
         self.send_response(code); self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -479,7 +480,8 @@ class H(BaseHTTPRequestHandler):
                     mine = c.execute("SELECT r.title, r.year FROM requests r JOIN request_votes v ON v.req_id=r.id WHERE v.who=?", (s["user"],)).fetchall()
                 exclude = have | {(r["title"].lower(), r["year"]) for r in asked}
                 taste = {}
-                for g, n in catalog.genres_for(list(have)).items(): taste[g] = taste.get(g, 0) + n * 0.5        # what is in the library
+                if s["role"] != "public":       # visitors get no "matches your taste" (it would be the owner's library)
+                    for g, n in catalog.genres_for(list(have)).items(): taste[g] = taste.get(g, 0) + n * 0.5        # what is in the library
                 for g, n in catalog.genres_for([(r["title"].lower(), r["year"]) for r in mine]).items(): taste[g] = taste.get(g, 0) + n * 2   # what this person asked for
                 tid, why = catalog.lucky(kind, filt(qs), exclude, taste, seen, fresh)
                 it = catalog.item(tid) if tid else None

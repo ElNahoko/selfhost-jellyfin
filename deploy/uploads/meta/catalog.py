@@ -129,10 +129,10 @@ def _rules(kind, this):
     R = []
     def add(id_, name, fn, sort=W, home=False, pool="main"):
         R.append({"id": id_, "name": name, "fn": fn, "sort": sort, "home": home, "pool": pool})
-    add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True, "all")
-    add("fresh", "Just released", lambda i: i["y"] == this, V, True, "all")
+    add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1 and i["r"] >= 6.0, V, True, "all")
+    add("fresh", "Just released", lambda i: i["y"] == this and i["r"] >= 5.5, V, True, "all")
     add("top", "Top rated", lambda i: True, W, True)
-    add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True, "all")
+    add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15 and i["r"] >= 6.0, V, True, "all")
     add("anime", "Anime", lambda i: i["id"] in _anime_set(), "ap", True, "all")
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
@@ -674,7 +674,7 @@ def cast_for(tid):
             seen[n] = {"n": n, "c": ch}; cast.append(seen[n])
     out = {"directors": uniq(n for n, k, _ in rows if k == "director")[:3],
            "writers": uniq(n for n, k, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:8]}
-    _photos(tid, out["cast"])
+    if _photos(tid, out["cast"]): out["pending"] = True      # some portraits are still being looked up (ask again in a moment)
     return out
 
 def _photos(tid, cast):
@@ -683,9 +683,21 @@ def _photos(tid, cast):
     names = [c["n"] for c in cast]
     c = _castdb()
     have = {r[0]: r[1] for r in c.execute("SELECT name, url FROM photo WHERE name IN (%s)" % ",".join("?" * len(names)), names)}
+    c.close()
+    for x in cast:
+        if have.get(x["n"]): x["p"] = have[x["n"]]
     todo = [n for n in names if n not in have]
-    if todo:
-        found, t0 = {}, time.time()
+    if not todo or tid in _photo_busy: return bool(todo)
+    _photo_busy.add(tid)                     # look the missing ones up in the background: the dialog never waits for TVmaze
+    threading.Thread(target=_photo_fetch, args=(tid, todo), daemon=True).start()
+    return True
+
+_photo_busy = set()
+
+def _photo_fetch(tid, todo):
+    try:
+        c = _castdb()
+        found, tried, t0 = {}, set(), time.time()
         try:
             e = _epdb(); r = e.execute("SELECT tvmaze FROM epx_info WHERE series=? AND tvmaze IS NOT NULL", (tid,)).fetchone(); e.close()
         except Exception:
@@ -696,7 +708,8 @@ def _photos(tid, cast):
                     p = x.get("person") or {}
                     if p.get("name") in todo and p.get("image"): found[p["name"]] = p["image"].get("medium") or ""
             for n in todo:
-                if n in found or time.time() - t0 > 5: continue
+                if n in found or time.time() - t0 > 20: continue
+                tried.add(n)
                 for x in _tvmaze(TVMAZE + "/search/people?q=" + urllib.parse.quote(n)):
                     p = x.get("person") or {}
                     if p.get("name", "").lower() == n.lower():
@@ -704,11 +717,10 @@ def _photos(tid, cast):
         except Exception:
             pass
         now = int(time.time())
-        c.executemany("INSERT OR REPLACE INTO photo VALUES(?,?,?)", [(n, found.get(n, ""), now) for n in todo if n in found or time.time() - t0 > 5 or True])
-        c.commit(); have.update(found)
-    c.close()
-    for x in cast:
-        if have.get(x["n"]): x["p"] = have[x["n"]]
+        c.executemany("INSERT OR REPLACE INTO photo VALUES(?,?,?)", [(n, found.get(n, ""), now) for n in todo if n in found or n in tried])
+        c.commit(); c.close()
+    finally:
+        _photo_busy.discard(tid)
 
 # ---------- admin tools: counts for the sidebar, status of the background jobs, "rebuild now" ----------
 _cnt = {"t": 0, "d": {}}
