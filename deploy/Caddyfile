@@ -17,7 +17,7 @@
 	# Optional self-hosted theme files (see docs/12-theme.md). Harmless if the folder is empty.
 	# TVs (LG webOS, Samsung Tizen, ...) have an old browser and a remote control instead of a mouse, so they get
 	# plain stock Jellyfin: every theme file is answered with an empty one. Phones, tablets and computers get the theme.
-	@tv header_regexp tv User-Agent (Web0S|webOS|Tizen|SMART-TV|SmartTV|NetCast|HbbTV)
+	@tv header_regexp tv User-Agent (Web0S|webOS|Tizen|SMART-TV|SmartTV|NetCast|HbbTV|JellyfinDesktop|JellyfinMediaPlayer)
 	handle /theme/* {
 		header Cache-Control "no-cache"
 		handle @tv {

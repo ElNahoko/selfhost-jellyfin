@@ -4,7 +4,7 @@ Everything lives in /db. Rebuilt weekly in the background at low priority.
 
 Shelves are rules over that data ("hidden gems", "mind-benders", "short and sweet", ...), shown on the home view; every
 shelf can also be opened on its own with up to 60 titles."""
-import gzip, json, os, random, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
+import gzip, json, math, os, random, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -120,17 +120,34 @@ def _build():
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
     os.replace(tmp, CAT)
 
-GROUPS = [("FR", "French cinema", ["Q142"]), ("ES", "Spanish cinema", ["Q29", "Q96", "Q414", "Q739", "Q298"]),
-          ("IT", "Italian cinema", ["Q38"]), ("DE", "German cinema", ["Q183"]), ("JP", "Japanese cinema", ["Q17"]),
-          ("KR", "Korean cinema", ["Q884"]), ("IN", "Indian cinema", ["Q668"])]
+# "French cinema" means films whose ORIGINAL LANGUAGE is French (so English-language co-productions are not mixed in);
+# for films without a language on Wikidata the country of origin is used. Country-only groups exclude English-language films.
+GROUPS = [("FR", "French cinema", {"langs": ["Q150"], "countries": ["Q142"]}),
+          ("ES", "Spanish cinema", {"langs": ["Q1321"], "countries": ["Q29", "Q96", "Q414"]}),
+          ("IT", "Italian cinema", {"langs": ["Q652"], "countries": ["Q38"]}),
+          ("DE", "German cinema", {"langs": ["Q188"], "countries": ["Q183"]}),
+          ("JP", "Japanese cinema", {"langs": ["Q5287"], "countries": ["Q17"]}),
+          ("KR", "Korean cinema", {"langs": ["Q9176"], "countries": ["Q884"]}),
+          ("IN", "Indian cinema", {"langs": ["Q1568", "Q5885", "Q8097", "Q36236", "Q33673", "Q9610"], "countries": ["Q668"]}),
+          ("BE", "Belgian cinema", {"langs": [], "countries": ["Q31"]}),
+          ("BR", "Brazilian cinema", {"langs": [], "countries": ["Q155"]}),
+          ("SE", "Scandinavian cinema", {"langs": [], "countries": ["Q34", "Q35", "Q20", "Q33"]}),
+          ("CN", "Chinese cinema", {"langs": [], "countries": ["Q148", "Q8646", "Q865"]}),
+          ("IR", "Iranian cinema", {"langs": [], "countries": ["Q794"]}),
+          ("TR", "Turkish cinema", {"langs": [], "countries": ["Q43"]})]
 COUNTRIES_F = os.path.join(DBDIR, "countries.json")
 _cty = {"t": 0, "d": None, "building": False, "fail": 0}
 
-def _wikidata_pair(qids):
-    """Films and series made in these countries (Wikidata, free). One request returns both kinds: {"movie": [...], "series": [...]}.
+def _wikidata_pair(spec):
+    """Films and series of a "cinema" group (Wikidata, free). One request returns both kinds: {"movie": [...], "series": [...]}.
     Wikidata allows about one request a minute for us, so a 429 is waited out (Retry-After) instead of hammered."""
-    q = ("SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?c { %s } VALUES ?cls { wd:Q11424 wd:Q5398426 } "
-         "?f wdt:P31 ?cls; wdt:P495 ?c; wdt:P345 ?imdb. }") % " ".join("wd:" + x for x in qids)
+    parts = []
+    if spec["langs"]:
+        parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. }" % " ".join("wd:" + x for x in spec["langs"]))
+    if spec["countries"]:
+        extra = "FILTER NOT EXISTS { ?f wdt:P364 [] }" if spec["langs"] else "FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 }"
+        parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. %s }" % (" ".join("wd:" + x for x in spec["countries"]), extra))
+    q = "SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?cls { wd:Q11424 wd:Q5398426 } ?f wdt:P31 ?cls; wdt:P345 ?imdb. %s }" % " UNION ".join(parts)
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(8):
@@ -167,12 +184,12 @@ def _build_countries():
             out.update({c: v for c, v in prev.items() if c not in ("built", "complete") and (v.get("movie") or v.get("series"))})
     except Exception:
         pass
-    for n, (code, label, qids) in enumerate(GROUPS):
+    for n, (code, label, spec) in enumerate(GROUPS):
         if code in out:
             ok += 1
             continue
         try:
-            pair = _wikidata_pair(qids)
+            pair = _wikidata_pair(spec)
             out[code] = {k: [i for i in v if i in have] for k, v in pair.items()}
             ok += 1
         except Exception:
@@ -304,6 +321,20 @@ def ensure_all():
     _bulk["running"] = True
     threading.Thread(target=_bulk_run, daemon=True).start()
 
+def get_trailer(key):
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS trailers(key TEXT PRIMARY KEY, vid TEXT, title TEXT, ts INTEGER)")
+            r = c.execute("SELECT vid, title, ts FROM trailers WHERE key=?", (key,)).fetchone()
+            return r
+    except Exception:
+        return None
+
+def save_trailer(key, vid, title):
+    with _titles() as c:
+        c.execute("CREATE TABLE IF NOT EXISTS trailers(key TEXT PRIMARY KEY, vid TEXT, title TEXT, ts INTEGER)")
+        c.execute("INSERT OR REPLACE INTO trailers VALUES(?,?,?,?)", (key, vid or "", title or "", int(time.time())))
+
 def save_guess(key, img):
     with _titles() as c:
         c.execute("CREATE TABLE IF NOT EXISTS guesses(key TEXT PRIMARY KEY, img TEXT)")
@@ -395,12 +426,61 @@ def view_filter(kind, f, sort=None, offset=0, limit=40):
     return {"rows": [{"id": "filter", "name": "Results", "items": its}], "total": len(pool), "offset": offset, "sort": sort, "default": "best",
             "ready": all("img" in x for x in its), "countries_ready": countries() is not None}
 
-def lucky(kind, f):
+def _byname(cat):
+    ix = _mem.get("byname")
+    if ix is None or ix[0] is not cat:
+        _mem["byname"] = ix = (cat, {(it["n"].lower(), it["y"]): it for it in cat["items"].values()})
+    return ix[1]
+
+def genres_for(pairs):
+    """Genre counts for (title, year) pairs we know (the library, what somebody requested): the household's taste."""
+    cat = load()
+    if not cat: return {}
+    ix, cnt = _byname(cat), {}
+    for n, y in pairs:
+        it = ix.get((n, y))
+        if it:
+            for g in it["g"]: cnt[g] = cnt.get(g, 0) + 1
+    return cnt
+
+def lucky(kind, f, exclude=(), taste=None, seen=(), fresh=True):
+    """One good title to watch, picked by weighted chance:
+       quality (the vote-weighted rating)  x  freshness (new releases win unless a decade was chosen or 'Any era')
+       x  popularity (so it is not obscure)  x  taste (genres the library and the requests lean towards).
+       Titles already in the library, already requested or already shown in this session are skipped."""
     cat, pool = _filter_pool(kind, f)
-    if not pool: return None
-    good = [i for i in pool if i["r"] >= 7.0 and i["v"] >= 40000] or pool
-    it = random.choice(good)
-    return it["id"]
+    if not pool: return None, []
+    this = date.today().year
+    taste = taste or {}
+    top = max(taste.values()) if taste else 0
+    use_fresh = fresh and not f.get("decade")
+    def candidates(strict):
+        out = []
+        for it in pool:
+            if it["id"] in seen: continue
+            if strict and (it["n"].lower(), it["y"]) in exclude: continue
+            if it["r"] < 6.6 or it["v"] < 20000: continue
+            q = max(0.05, it.get("w", it["r"]) - 6.3)
+            age = max(0, this - (it["y"] or this - 30))
+            rec = (0.12 + 0.88 * math.exp(-age / 4.5)) if use_fresh else 1.0
+            pop = math.log10(max(it["v"], 10)) / 6.0
+            aff = sum(taste.get(g, 0) for g in it["g"]) / (top * max(1, len(it["g"]))) if top else 0
+            out.append((it, q ** 1.6 * rec * pop * (1 + 0.9 * aff), aff))
+        return out
+    cands = candidates(True) or candidates(False)
+    if not cands: return None, []
+    it, _, aff = random.choices(cands, weights=[c[1] for c in cands], k=1)[0]
+    why = []
+    age = this - (it["y"] or this)
+    if age <= 1: why.append("New release")
+    elif age <= 4: why.append("Recent")
+    if it["r"] >= 8.0: why.append("Critics and fans love it")
+    elif it["r"] >= 7.4: why.append("Highly rated")
+    if it["v"] < 90000 and it["r"] >= 7.5: why.append("Hidden gem")
+    if aff >= 0.45 and top:
+        mg = [g for g in sorted(it["g"], key=lambda g: -taste.get(g, 0)) if taste.get(g, 0) >= top * 0.5][:1]
+        if mg: why.append("Matches your taste: " + mg[0])
+    return it["id"], why[:3]
 
 def filters_info(kind):
     cat = load()

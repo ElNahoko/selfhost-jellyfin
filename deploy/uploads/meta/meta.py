@@ -191,6 +191,43 @@ def limited(user, key, per_min):
         ts.append(now); _rate[k] = ts
     return False
 
+def find_trailer(title, year, kind):
+    """The best-looking trailer video for a title: first YouTube results page (no API key), scored, cached for a week."""
+    q = urllib.parse.quote("%s %s %s" % (title, year or "", "official trailer" if kind != "series" else "official trailer tv series"))
+    req = urllib.request.Request("https://www.youtube.com/results?search_query=%s&sp=EgIQAQ%%253D%%253D" % q, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9", "Cookie": "CONSENT=YES+cb; SOCS=CAI"})
+    html = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "replace")
+    m = re.search(r"var ytInitialData = (\{.*?\});</script>", html, re.S)
+    if not m: return None
+    found = []
+    def walk(o):
+        if isinstance(o, dict):
+            if "videoRenderer" in o:
+                v = o["videoRenderer"]
+                found.append(("".join(r.get("text", "") for r in v.get("title", {}).get("runs", [])), v.get("videoId", ""), (v.get("lengthText") or {}).get("simpleText", "")))
+            for x in o.values(): walk(x)
+        elif isinstance(o, list):
+            for x in o: walk(x)
+    walk(json.loads(m.group(1)))
+    words = [w for w in re.findall(r"[a-z0-9']+", title.lower()) if len(w) > 2]
+    best = None
+    for t, vid, ln in found[:12]:
+        tl = t.lower(); sc = 0
+        if "official trailer" in tl: sc += 3
+        elif "trailer" in tl: sc += 2
+        elif "teaser" in tl: sc += 1
+        if re.search(r"reaction|review|explained|breakdown|ending|scene|clip|parody|fan made|fanmade|recap|spoiler", tl): sc -= 3
+        if year and str(year) in tl: sc += 1
+        if words and all(w in tl for w in words): sc += 2
+        try:
+            mm, ss = ln.split(":")[-2:]; secs = int(mm) * 60 + int(ss)
+            if 25 <= secs <= 300: sc += 1
+            elif secs > 600: sc -= 2
+        except Exception: pass
+        if vid and (best is None or sc > best[0]): best = (sc, vid, t)
+    return (best[1], best[2]) if best and best[0] >= 2 else None
+
 def filt(qs):
     f = {}
     c = re.sub(r"[^A-Z]", "", (qs.get("country") or [""])[0].upper())[:3]
@@ -287,6 +324,18 @@ class H(BaseHTTPRequestHandler):
                 except Exception:
                     pick = None
                 return self.js({"n": pick["n"], "y": pick["y"]} if pick else {})
+            if path == "/_meta/trailer":
+                title = clip((qs.get("title") or [""])[0], 100); year = clip((qs.get("year") or [""])[0], 4)
+                kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
+                if len(title) < 2 or limited(s["user"], "trailer", 30): return self.js({})
+                key = "%s|%s|%s" % (kind, title.lower(), year)
+                row = catalog.get_trailer(key)
+                if row and (row[0] or time.time() - row[2] < 6 * 3600) and time.time() - row[2] < 7 * 86400:
+                    return self.send(200, json.dumps({"vid": row[0], "title": row[1]}).encode(), cache="private, max-age=3600")
+                try: res = find_trailer(title, year, kind)
+                except Exception: return self.js({})
+                catalog.save_trailer(key, res[0] if res else "", res[1] if res else "")
+                return self.send(200, json.dumps({"vid": res[0], "title": res[1]} if res else {}).encode(), cache="private, max-age=3600")
             if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
@@ -313,10 +362,25 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, json.dumps(catalog.filters_info("series" if (qs.get("type") or [""])[0] == "series" else "movie")).encode(), cache="private, max-age=60")
             if path in ("/_meta/lucky",):
                 kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
-                tid = catalog.lucky(kind, filt(qs))
+                seen = set(re.findall(r"tt\d{6,10}", (qs.get("seen") or [""])[0]))
+                fresh = (qs.get("fresh") or ["1"])[0] != "0"
+                have = set()
+                for k in have_keys():
+                    if k.startswith("Series|" if kind == "series" else "Movie|"):
+                        nm, yr = k.split("|", 1)[1].rsplit("|", 1)
+                        have.add((nm, int(yr) if yr.isdigit() else None))
+                with db() as c:
+                    asked = c.execute("SELECT title, year FROM requests WHERE kind=? AND status='open'", (kind,)).fetchall()
+                    mine = c.execute("SELECT r.title, r.year FROM requests r JOIN request_votes v ON v.req_id=r.id WHERE v.who=?", (s["user"],)).fetchall()
+                exclude = have | {(r["title"].lower(), r["year"]) for r in asked}
+                taste = {}
+                for g, n in catalog.genres_for(list(have)).items(): taste[g] = taste.get(g, 0) + n * 0.5        # what is in the library
+                for g, n in catalog.genres_for([(r["title"].lower(), r["year"]) for r in mine]).items(): taste[g] = taste.get(g, 0) + n * 2   # what this person asked for
+                tid, why = catalog.lucky(kind, filt(qs), exclude, taste, seen, fresh)
                 it = catalog.item(tid) if tid else None
                 if it and catalog.known(tid) is None:
                     resolve_one(it); it = catalog.item(tid)
+                if it: it = dict(it, why=why)
                 return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")):
                 def num2(k, d, hi):
