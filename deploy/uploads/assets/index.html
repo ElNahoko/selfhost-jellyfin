@@ -566,6 +566,28 @@ details.extras>summary{font-weight:600;color:var(--muted)}
   .rtools .search.rq{width:100%;margin-left:0;order:5}
   .rtabs{align-self:stretch}.rtab{flex:1;justify-content:center;padding:8px 8px}
 }
+
+/* requests: denser grid, grouped by category, round icon buttons on the poster */
+.rgrid{grid-template-columns:repeat(auto-fill,minmax(134px,1fr))!important;gap:18px 14px!important;margin-bottom:6px!important}
+.rsec{margin-bottom:26px}
+.rsh{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:1.05rem;font-weight:700}
+.rsh svg{color:var(--muted)}
+.rsh .rn{background:var(--card2);color:var(--muted);border-radius:99px;font-size:.78rem;font-weight:800;padding:1px 10px}
+.rcard .rt{font-size:.9rem;margin-top:8px}
+.rcard .rs{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vote.big{left:8px;bottom:8px;font-size:.9rem;padding:4px 11px;gap:5px}
+.rdone{left:8px;bottom:8px;font-size:.72rem;padding:2px 10px}
+.racts{position:absolute;top:8px;right:8px;z-index:4;display:flex;flex-direction:column;gap:6px;opacity:0;transform:translateX(6px);transition:.18s}
+.rcard:hover .racts,.rcard:focus-within .racts{opacity:1;transform:none}
+@media (hover:none){.racts{opacity:1;transform:none}}
+.rbtn{all:unset;box-sizing:border-box;cursor:pointer;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(10,10,16,.78);color:#fff;border:1px solid rgba(255,255,255,.18);transition:transform .15s,background .15s,color .15s}
+.rbtn svg{width:1.05em;height:1.05em}
+.rbtn:hover{transform:scale(1.1)}
+.rbtn.good:hover{background:var(--ok);color:#06210f;border-color:transparent}
+.rbtn.bad:hover{background:var(--bad);color:#fff;border-color:transparent}
+.rbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rbtn[disabled]{opacity:.5}
+@media (max-width:860px){.rgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))!important;gap:14px 10px!important}.rbtn{width:30px;height:30px}.rcard .rt{font-size:.82rem}}
 </style>
 </head>
 <body>
@@ -1675,7 +1697,7 @@ function drawRequests(){
     q.oninput=function(){RV.q=q.value.trim().toLowerCase();drawRequests();};
     tools.appendChild(kinds);tools.appendChild(sm.el);tools.appendChild(q);
     head.appendChild(tabs);head.appendChild(tools);box.appendChild(head);
-    var grid=el("div","rgrid");grid.id="reqGrid";box.appendChild(grid);box._tb=tb;
+    var grid=el("div","rgroups");grid.id="reqGrid";box.appendChild(grid);box._tb=tb;
   }
   var tbs=box._tb;tbs.wait.c.textContent=String(open.length);tbs.done.c.textContent=String(done.length);tbs.mine.c.textContent=String(my.length);
   var list=RV.tab==="wait"?open:RV.tab==="done"?done:my;
@@ -1688,33 +1710,354 @@ function drawRequests(){
     e.appendChild(el("span","",!reqList.length||RV.tab==="mine"?"Open Movies or Series, then tap + on anything you want to watch.":RV.q||RV.kind!=="all"?"Try another filter.":""));
     grid2.appendChild(e);return;
   }
-  list.forEach(function(r){
+  function card(r){
     var c=el("article","rcard"+(r.status!=="open"?" done":"")),pz=el("div","rpz"),ph=el("div","ph",r.title.charAt(0).toUpperCase());
     ph.style.background="linear-gradient(145deg,hsl("+hue(r.title)+",42%,34%),hsl("+((hue(r.title)+40)%360)+",45%,20%))";pz.appendChild(ph);
     cover(pz,rimg(r.poster,342));
-    var kb=el("span","rkind");kb.appendChild(svg(r.kind==="series"?"tv":"film"));pz.appendChild(kb);
     if(r.status==="open"){
       var voted=isMine(r),v=el("button","vote big"+(voted?" on":""));v.type="button";v.title=voted?"Remove your vote":"I want this too";v.setAttribute("aria-label",v.title);v.appendChild(svg("up2"));v.appendChild(el("span","",String(r.votes||1)));
       v.onclick=async function(){var who=await whoAmI();if(!who)return;v.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e){toast("Could not vote");}await loadRequests();drawRequests();};
       pz.appendChild(v);
     }else pz.appendChild(el("span","rdone","Added"));
+    if(!GUEST){      // round icon buttons on the poster: appear on hover / focus, always visible on touch screens
+      var ac=el("div","racts");
+      var ok=el("button","rbtn good");ok.type="button";ok.title=r.status==="open"?"Mark as added":"Move back to waiting";ok.setAttribute("aria-label",ok.title);ok.appendChild(svg(r.status==="open"?"check":"clock"));
+      ok.onclick=async function(){ok.disabled=true;try{await api("POST","/_meta/requests/"+r.id,{status:r.status==="open"?"done":"open"});}catch(e){toast("Could not update");}await loadRequests();drawRequests();};
+      var del=el("button","rbtn bad");del.type="button";del.title="Remove request";del.setAttribute("aria-label","Remove request");del.appendChild(svg("trash"));
+      del.onclick=async function(){if(!await dialog({title:"Remove request?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
+      ac.appendChild(ok);ac.appendChild(del);pz.appendChild(ac);
+    }
     c.appendChild(pz);
     c.appendChild(el("div","rt",r.title));
-    c.appendChild(el("div","rs",(r.year?r.year+" · ":"")+(r.kind==="series"?"Series":"Movie")));
-    var who=(r.voters||r.who||"").split(", ");
-    c.appendChild(el("div","rw","Asked by "+who[0]+(who.length>1?" +"+(who.length-1):"")+" · "+ago(r.created)));
-    if(!GUEST){
-      var act=el("div","ract");
-      var ok=el("button","btn sm");ok.type="button";ok.appendChild(svg("check"));ok.appendChild(el("span","",r.status==="open"?"Mark added":"Reopen"));
-      ok.onclick=async function(){ok.disabled=true;try{await api("POST","/_meta/requests/"+r.id,{status:r.status==="open"?"done":"open"});}catch(e){toast("Could not update");}await loadRequests();drawRequests();};
-      var del=el("button","btn sm iconbtn");del.type="button";del.title="Remove";del.setAttribute("aria-label","Remove request");del.appendChild(svg("trash"));
-      del.onclick=async function(){if(!await dialog({title:"Remove request?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
-      act.appendChild(ok);act.appendChild(del);c.appendChild(act);
-    }
-    grid2.appendChild(c);
+    var who2=(r.voters||r.who||"").split(", ");
+    c.appendChild(el("div","rs",(r.year?r.year+" · ":"")+who2[0]+(who2.length>1?" +"+(who2.length-1):"")+" · "+ago(r.created)));
+    return c;
+  }
+  var groups=RV.kind==="all"?[["movie","Movies","film"],["series","Series","tv"]]:[[RV.kind,RV.kind==="series"?"Series":"Movies",RV.kind==="series"?"tv":"film"]];
+  groups.forEach(function(gp){
+    var items=list.filter(function(r){return r.kind===gp[0];});if(!items.length)return;
+    var sec=el("section","rsec"),h=el("h2","rsh");h.appendChild(svg(gp[2]));h.appendChild(el("span","",gp[1]));h.appendChild(el("span","rn",String(items.length)));sec.appendChild(h);
+    var g=el("div","rgrid");items.forEach(function(r){g.appendChild(card(r));});sec.appendChild(g);grid2.appendChild(sec);
   });
 }
 
+/* ---------- upload engine (resumable: chunks appended to name.uploading, then renamed) ---------- */
+function xhrSend(method,url,blob,headers,onProgress){
+  return new Promise(function(res,rej){
+    var x=new XMLHttpRequest();x.open(method,url);
+    Object.keys(headers||{}).forEach(function(k){x.setRequestHeader(k,headers[k]);});
+    x.upload.onprogress=function(e){if(e.lengthComputable)onProgress(e.loaded);};
+    x.onload=function(){(x.status>=200&&x.status<300)?res(x.status):rej(new Error("HTTP "+x.status));};
+    x.onerror=function(){rej(new Error("network error"));};x.ontimeout=x.onerror;
+    x.send(blob);
+  });
+}
+async function remoteSize(url){
+  var r=await fetch(url,{method:"HEAD",cache:"no-store"});
+  if(r.status===404)return -1;if(!r.ok)throw new Error("HTTP "+r.status);
+  return parseInt(r.headers.get("Content-Length")||"0",10);
+}
+async function ensureDirs(rel){            // the server needs every parent folder to exist, one level at a time
+  var parts=rel.split("/").slice(0,-1),acc="";
+  for(var i=0;i<parts.length;i++){
+    acc+="/"+encodeURIComponent(parts[i]);
+    var r=await fetch(acc,{method:"MKCOL"});   // 201 created; 405 already exists
+    if(!r.ok&&r.status!==405&&r.status!==409)throw new Error("cannot create folder ("+r.status+")");
+  }
+}
+async function uploadOne(job){
+  var rel=job.dest, url=enc(rel), tmp=url+".uploading", file=job.file;
+  await ensureDirs(rel);
+  var finalSize=await remoteSize(url);
+  if(finalSize===file.size){job.bytes=file.size;job.set(100,"Already there",true);return;}
+  var offset=await remoteSize(tmp);
+  if(offset>file.size){await fetch(tmp,{method:"DELETE"});offset=-1;}
+  if(offset<0)offset=0;
+  var started=Date.now(),base=offset;
+  while(offset<file.size||(file.size===0&&offset===0)){
+    var end=Math.min(offset+CHUNK,file.size),blob=file.slice(offset,end),ok=false,lastErr;
+    for(var attempt=0;attempt<=RETRIES&&!ok;attempt++){
+      try{
+        var start=offset;
+        await xhrSend(offset===0?"PUT":"PATCH",tmp,blob,offset===0?{}:{"X-Update-Range":"append"},function(loaded){
+          var sent=start+loaded,el=(Date.now()-started)/1000,sp=(sent-base)/Math.max(el,.5);job.bytes=sent;
+          job.set(Math.floor(sent*100/Math.max(file.size,1)),fmtSize(sent)+" / "+fmtSize(file.size)+" · "+fmtSize(sp)+"/s");
+        });
+        ok=true;
+      }catch(e){
+        lastErr=e;if(navigator.onLine===false){job.set(null,"Connection lost. Waiting…");await whenOnline();attempt=Math.max(attempt-1,0);}else{job.set(null,"Connection problem, retrying ("+(attempt+1)+")…");}await sleep(Math.min(1000*Math.pow(2,attempt),15000));
+        var cur=await remoteSize(tmp).catch(function(){return -2;});   // re-sync with what the server really has
+        if(cur>=0&&cur!==offset){offset=cur;end=Math.min(offset+CHUNK,file.size);blob=file.slice(offset,end);}
+      }
+    }
+    if(!ok)throw lastErr||new Error("upload failed");
+    offset=end;if(file.size===0)break;
+  }
+  job.set(99,"Finishing…");
+  if(finalSize>=0){await fetch(url,{method:"DELETE"});}   // the old copy goes only now, once the new one is fully uploaded
+  var r=await fetch(tmp,{method:"MOVE",headers:{"Destination":location.origin+url}});
+  if(!r.ok)throw new Error("rename failed (HTTP "+r.status+")");
+  job.bytes=file.size;job.set(100,fmtSize(file.size)+" · done",true);
+}
+/* ---------- queue view: readable titles, one overall progress, only the running file is expanded ---------- */
+var SUBEXT=/\.(srt|ass|ssa|vtt|sub)$/i, jobs=[], batchStart=0, samples=[];
+function pad2(n){return ("0"+n).slice(-2);}
+function cleanWords(t){return t.replace(/[._]+/g," ").replace(/\s+/g," ").trim();}
+function pretty(name){            // "Slow.Horses.S01E01.1080p.WEBRip.x265-RARBG[site].mp4" -> "Slow Horses · S01E01"
+  var sub=SUBEXT.test(name),base=name.replace(/\.[^.]+$/,"").replace(/\[[^\]]*\]/g," "),m,t;
+  if((m=base.match(/^(.*?)[\s._-]+S(\d{1,2})E(\d{1,3})/i))&&cleanWords(m[1])){t=cleanWords(m[1])+" · S"+pad2(m[2])+"E"+pad2(m[3]);}
+  else if((m=base.match(/^(.*?)[\s._(-]+((?:19|20)\d\d)\b/))&&cleanWords(m[1])){t=cleanWords(m[1])+" ("+m[2]+")";}
+  else{t=cleanWords(base.replace(/^\d+[\s._-]+(?=\D)/,""))||name;}
+  return sub?t+" · subtitles":t;
+}
+function icon(name){return SUBEXT.test(name)?"💬":/\.(mp3|flac|m4a|m4b|ogg|opus|wav|aac)$/i.test(name)?"🎵":"🎞";}
+function fmtEta(s){if(!isFinite(s)||s<0)return"";if(s<90)return"less than a minute";if(s<5400)return"about "+Math.round(s/60)+" min";return"about "+(s/3600).toFixed(1)+" h";}
+function addJob(file,rel){
+  var name=rel.split("/").pop(),dir=rel.slice(0,rel.length-name.length).replace(/\/$/,"");
+  var box=document.createElement("div");box.className="job small";box.title=rel;
+  box.innerHTML='<div class="jt"><span class="ji"></span><div class="jn"><div class="name"></div><div class="path"></div></div><div class="st">Waiting</div></div><div class="bar"><i></i></div>';
+  box.querySelector(".ji").textContent=icon(name);box.querySelector(".name").textContent=pretty(name);box.querySelector(".path").textContent=dir?dir+" / "+name:name;
+  var job={file:file,dest:rel,box:box,bytes:0,state:"wait",
+    set:function(pct,txt,done){if(pct!=null)box.querySelector("i").style.width=pct+"%";box.querySelector(".st").textContent=txt;if(done){job.state="done";box.classList.add("done");place(job);}updateSummary();},
+    fail:function(m){job.state="fail";box.classList.add("err");box.querySelector(".st").textContent=m;place(job);updateSummary();}};
+  jobs.push(job);queue.push(job);place(job);
+}
+function place(j){            // running file: big card; waiting/finished: one compact line in a collapsed group; failed: always visible
+  var where=j.state==="run"?"active":j.state==="fail"?"failed":j.state==="done"?"done":"wait";
+  j.box.classList.toggle("small",j.state==="wait"||j.state==="done");
+  if(j.state==="done")j.box.querySelector(".st").textContent="✓ "+fmtSize(j.file.size);
+  $(where).appendChild(j.box);
+}
+function updateSummary(){
+  if(!jobs.length){pillUpdate(null);return;}
+  var total=0,sent=0,done=0,fail=0,now=Date.now();
+  jobs.forEach(function(j){total+=j.file.size;sent+=Math.min(j.bytes,j.file.size);if(j.state==="done")done++;else if(j.state==="fail")fail++;});
+  samples.push([now,sent]);while(samples.length>2&&now-samples[0][0]>12000)samples.shift();
+  var sp=samples.length>1?(sent-samples[0][1])/Math.max((now-samples[0][0])/1000,.5):0;
+  var finished=done+fail===jobs.length, pct=total?Math.floor(sent*100/total):100;
+  $("sum").classList.toggle("fin",finished&&!fail);
+  $("sTitle").textContent=finished?(fail?done+" of "+jobs.length+" uploaded, "+fail+" failed":(jobs.length===1?"Upload finished":"All "+jobs.length+" files uploaded")):"Uploading "+Math.min(done+fail+1,jobs.length)+" of "+jobs.length;
+  $("sKeep").hidden=finished;
+  $("sPct").textContent=pct+"%";$("sBar").style.width=pct+"%";
+  $("sInfo").textContent=finished?fmtSize(total)+" in total":
+    fmtSize(sent)+" of "+fmtSize(total)+(sp>1?" · "+fmtSize(sp)+"/s · "+fmtEta((total-sent)/sp)+" left":"");
+  var w=jobs.filter(function(j){return j.state==="wait";}).length;
+  $("waitD").hidden=!w;$("waitS").textContent="Waiting ("+w+")";
+  $("doneD").hidden=!done;$("doneS").textContent="Finished ("+done+")";
+  $("retry").hidden=!(finished&&fail);$("clear").hidden=!finished;
+  pillUpdate({pct:pct,finished:finished,fail:fail});
+}
+function clearJobs(){jobs=[];samples=[];["active","failed","wait","done"].forEach(function(i){$(i).innerHTML="";});updateSummary();}
+$("clear").onclick=clearJobs;
+$("retry").onclick=function(){
+  var again=jobs.filter(function(j){return j.state==="fail";});
+  jobs=jobs.filter(function(j){return j.state!=="fail";});$("failed").innerHTML="";
+  again.forEach(function(j){addJob(j.file,j.dest);});pump();
+};
+function whenOnline(){
+  if(navigator.onLine!==false)return Promise.resolve();
+  return new Promise(function(res){function f(){window.removeEventListener("online",f);res();}window.addEventListener("online",f);});
+}
+async function pump(){
+  if(running)return;running=true;batchStart=Date.now();samples=[];
+  window.onbeforeunload=function(){return "Uploads are still running.";};
+  while(queue.length){
+    var j=queue.shift();j.state="run";j.box.querySelector(".st").textContent="Starting…";place(j);updateSummary();
+    var tries=0;
+    for(;;){
+      try{await uploadOne(j);break;}
+      catch(e){
+        var msg=String(e.message||e);
+        if(/HTTP 401/.test(msg)){j.fail("Signed out. Sign in again, then add the folder again.");break;}
+        if(tries<40&&(navigator.onLine===false||/network|Failed to fetch|HTTP 5\d\d|HTTP 408|HTTP 429/.test(msg))){      // lost connection: wait, then continue from where it stopped
+          tries++;j.set(null,"Connection lost. Waiting…");await whenOnline();await sleep(Math.min(1500*tries,15000));continue;
+        }
+        j.fail(msg);break;
+      }
+    }
+    settleBatches();
+  }
+  running=false;window.onbeforeunload=null;updateSummary();listDir();watchMeta();toast(jobs.some(function(j){return j.state==="fail";})?"Some files failed. Use Retry failed.":"Uploads finished. Jellyfin adds new files to the library in about a minute.");
+}
+function enqueue(items,opts){   // items: [{file, rel}] rel relative to the folder (opts.cwd, default: the open one)
+  if(!running&&jobs.every(function(j){return j.state==="done";}))clearJobs();   // a finished batch makes room for the next one
+  toast("Upload started. Progress is at the top.");precheck(items,opts).then(function(){pump();});
+}
+async function precheck(items,opts){   // ask the server first what it already has, so the totals start at the real progress and not at 0
+  for(var i=0;i<items.length;i++){
+    var it=items[i],rel=(((opts&&opts.cwd)||cwd)+"/"+it.rel).replace(/\/+/g,"/"),have=0;
+    try{
+      var fs=await remoteSize(enc(rel));
+      if(fs===it.file.size)have=fs;
+      else{var t=await remoteSize(enc(rel)+".uploading");if(t>0&&t<=it.file.size)have=t;}
+    }catch(e){}
+    addJob(it.file,rel);jobs[jobs.length-1].bytes=have;jobs[jobs.length-1].batch=opts&&opts.batch;updateSummary();
+  }
+}
+
+/* ---------- upload progress pill (top bar) ---------- */
+var pill=$("pill"),qEl=$("queue");
+function pillUpdate(s){
+  if(!s){pill.hidden=true;qEl.hidden=true;document.title="LUMIO";return;}
+  pill.hidden=false;pill.classList.toggle("fin",s.finished&&!s.fail);pill.classList.toggle("err",s.finished&&s.fail>0);
+  $("ring").style.setProperty("--p",s.finished?100:s.pct);
+  $("pillT").textContent=s.finished?(s.fail?s.fail+" failed":"Done"):s.pct+"%";
+  document.title=s.finished?"LUMIO":s.pct+"% · Uploading";
+}
+pill.onclick=function(e){e.stopPropagation();qEl.hidden=!qEl.hidden;};
+document.addEventListener("click",function(e){if(!qEl.hidden&&e.composedPath().indexOf(qEl)<0&&e.composedPath().indexOf(pill)<0)qEl.hidden=true;});
+
+/* ---------- remembered uploads: the folder handle is kept in the browser, so after a refresh one click carries on ---------- */
+var IDB=null;
+function idb(){return new Promise(function(res){
+  if(IDB)return res(IDB);
+  try{var r=indexedDB.open("lumio",1);r.onupgradeneeded=function(){r.result.createObjectStore("batches",{keyPath:"id"});};r.onsuccess=function(){IDB=r.result;res(IDB);};r.onerror=function(){res(null);};}catch(e){res(null);}
+});}
+function idbDo(mode,fn){return idb().then(function(db){if(!db)return null;return new Promise(function(res){var t=db.transaction("batches",mode),st=t.objectStore("batches"),out=fn(st);t.oncomplete=function(){res(out&&out.result!==undefined?out.result:null);};t.onerror=t.onabort=function(){res(null);};});});}
+function idbPut(b){return idbDo("readwrite",function(st){return st.put(b);});}
+function idbDel(id){return idbDo("readwrite",function(st){return st.delete(id);});}
+function idbAll(){return idbDo("readonly",function(st){return st.getAll();}).then(function(x){return x||[];});}
+function settleBatches(){      // a folder upload that fully finished is forgotten; anything unfinished stays so it can be resumed
+  var ids={};jobs.forEach(function(j){if(j.batch)(ids[j.batch]=ids[j.batch]||[]).push(j);});
+  Object.keys(ids).forEach(function(id){if(ids[id].every(function(j){return j.state==="done";}))idbDel(id);});
+}
+async function walkHandle(dir,prefix,out){
+  for await(var ent of dir.entries()){
+    var name=ent[0],h=ent[1];if(name.charAt(0)===".")continue;
+    if(h.kind==="file")out.push({file:await h.getFile(),rel:prefix+name});else await walkHandle(h,prefix+name+"/",out);
+  }
+}
+async function startDir(h,where,existing){
+  var out=[];try{await walkHandle(h,h.name+"/",out);}catch(e){toast("Could not read that folder");return;}
+  if(!out.length){toast("That folder is empty");return;}
+  var id=existing||("b"+Date.now());
+  await idbPut({id:id,name:h.name,cwd:where,handle:h,created:Date.now()});
+  enqueue(out,{cwd:where,batch:id});
+}
+async function showResume(){
+  var box=$("resume");if(!box||GUEST)return;
+  var list=await idbAll();box.innerHTML="";
+  if(!list.length){box.hidden=true;return;}
+  box.hidden=false;
+  list.forEach(function(b){
+    var row=el("div","rb"),t=el("div","rt");t.appendChild(el("b","","An upload didn’t finish"));
+    t.appendChild(el("span","","“"+b.name+"”. Resume and finished files are skipped; the rest carries on where it stopped."));row.appendChild(t);
+    var go1=el("button","btn sm primary","Resume");go1.type="button";
+    go1.onclick=async function(){
+      try{var perm=await b.handle.requestPermission({mode:"read"});if(perm!=="granted"){toast("Allow access to the folder to resume");return;}}catch(e){toast("Could not reopen the folder. Choose it again.");return;}
+      row.remove();if(!box.children.length)box.hidden=true;
+      startDir(b.handle,b.cwd,b.id);
+    };
+    var no=el("button","btn sm","Dismiss");no.type="button";no.onclick=function(){idbDel(b.id);row.remove();if(!box.children.length)box.hidden=true;};
+    row.appendChild(go1);row.appendChild(no);box.appendChild(row);
+  });
+}
+
+/* ---------- picking and dropping ---------- */
+var menu=$("upMenu"),upBtn=$("upBtn");
+function closeMenu(){menu.hidden=true;upBtn.setAttribute("aria-expanded","false");}
+upBtn.onclick=function(e){e.stopPropagation();openUploadDialog();};
+function closeUploadDialog(){var m=$("modal");if(m.querySelector(".updlg")){m.hidden=true;m.innerHTML="";}}
+function openUploadDialog(){
+  var m=$("modal"),what=upWhat()||"files";m.innerHTML="";
+  var d=el("div","dlg updlg");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.appendChild(el("h3","","Upload "+what));
+  var zone=el("div","dz");zone.appendChild(svg("up","big"));zone.appendChild(el("b","","Drop a folder or files here"));zone.appendChild(el("span","","into "+crumbLabel(cwd,cwd.split("/").length-1,cwd.split("/").pop())));
+  ["dragenter","dragover"].forEach(function(t){zone.addEventListener(t,function(){zone.classList.add("over");});});
+  ["dragleave","drop"].forEach(function(t){zone.addEventListener(t,function(){zone.classList.remove("over");});});
+  d.appendChild(zone);
+  var acts=el("div","pickrow");
+  var bf=el("button","btn primary");bf.type="button";bf.appendChild(svg("folder"));bf.appendChild(el("span","","Choose a folder"));
+  var bx=el("button","btn");bx.type="button";bx.appendChild(svg("file"));bx.appendChild(el("span","","Choose files"));
+  bf.onclick=function(){closeUploadDialog();$("pickFolder").onclick();};bx.onclick=function(){closeUploadDialog();$("pickFiles").onclick();};
+  acts.appendChild(bf);acts.appendChild(bx);d.appendChild(acts);
+  d.appendChild(el("p","upnote","Your browser asks once to let this site read the folder you pick. That question comes from the browser itself and can’t be removed. Dropping the folder in the box above skips it."));
+  var cl=el("button","btn upclose","Close");cl.type="button";cl.onclick=closeUploadDialog;d.appendChild(cl);
+  m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)closeUploadDialog();};
+  function key(e){if(theatreOpen)return;if(e.key==="Escape"){document.removeEventListener("keydown",key,true);closeUploadDialog();}}
+  document.addEventListener("keydown",key,true);bf.focus();
+}
+document.addEventListener("click",closeMenu);
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeMenu();if(!$("modal").hidden)return;qEl.hidden=true;}});
+$("pickFiles").onclick=function(){closeMenu();$("fileInput").click();};
+$("pickFolder").onclick=async function(){
+  closeMenu();
+  if(window.showDirectoryPicker){var h;try{h=await window.showDirectoryPicker({mode:"read"});}catch(e){return;}startDir(h,cwd);}
+  else $("dirInput").click();
+};
+$("newFolder").onclick=newFolder;
+$("scanBtn").onclick=async function(){
+  var b=$("scanBtn");b.disabled=true;
+  try{await api("POST","/_meta/refresh",{});toast("Jellyfin is scanning. New titles appear in a minute or two.");setTimeout(function(){metaT=0;if(cwd!=="requests"&&cwd!=="profiles"&&cwd!=="settings")listDir();},20000);}
+  catch(e){toast("Could not reach Jellyfin");}
+  setTimeout(function(){b.disabled=false;},4000);
+};
+$("filter").oninput=function(e){
+  if(cwd==="requests"){clearTimeout(reqTimer);var q=e.target.value.trim();reqTimer=setTimeout(function(){doSearch(q);},350);return;}
+  filterText=e.target.value;drawListing();
+};
+$("fileInput").onchange=function(e){enqueue([].map.call(e.target.files,function(f){return{file:f,rel:f.name};}));e.target.value="";};
+$("dirInput").onchange=function(e){enqueue([].map.call(e.target.files,function(f){return{file:f,rel:f.webkitRelativePath||f.name};}));e.target.value="";};
+function readEntries(dir){return new Promise(function(res){var all=[],rd=dir.createReader();(function more(){rd.readEntries(function(b){if(!b.length)return res(all);all=all.concat([].slice.call(b));more();},function(){res(all);});})();});}
+async function walk(entry,prefix,out){
+  if(entry.isFile){await new Promise(function(r){entry.file(function(f){out.push({file:f,rel:prefix+entry.name});r();},r);});}
+  else if(entry.isDirectory){var kids=await readEntries(entry);for(var i=0;i<kids.length;i++)await walk(kids[i],prefix+entry.name+"/",out);}
+}
+var veil=$("veil"),dragDepth=0;
+function hasFiles(e){return e.dataTransfer&&[].indexOf.call(e.dataTransfer.types||[],"Files")>=0;}
+window.addEventListener("dragenter",function(e){if(!hasFiles(e))return;e.preventDefault();if(cwd==="requests"||cwd==="profiles"||cwd==="settings"||GUEST||$("modal").querySelector(".updlg"))return;dragDepth++;
+  $("veilH").textContent="Drop to upload "+upWhat();$("veilT").textContent="into "+crumbLabel(cwd,cwd.split("/").length-1,cwd.split("/").pop());veil.classList.add("on");});
+window.addEventListener("dragover",function(e){e.preventDefault();});
+window.addEventListener("dragleave",function(e){if(!hasFiles(e))return;dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)veil.classList.remove("on");});
+window.addEventListener("drop",async function(e){
+  e.preventDefault();dragDepth=0;veil.classList.remove("on");
+  if(!hasFiles(e)||GUEST)return;
+  closeUploadDialog();
+  if(cwd==="requests"||cwd==="profiles"||cwd==="settings"){toast("Open a library first, then drop your files");return;}
+  var items=e.dataTransfer.items,out=[],where=cwd;
+  if(items&&items.length&&items[0].webkitGetAsEntry){
+    var arr=[].slice.call(items);      // handles and entries must be taken now: the items stop working after the first await
+    var hs=arr.map(function(i){return i.getAsFileSystemHandle?i.getAsFileSystemHandle().catch(function(){return null;}):Promise.resolve(null);});
+    var entries=arr.map(function(i){return i.webkitGetAsEntry();});
+    var handles=await Promise.all(hs);
+    for(var i=0;i<entries.length;i++){
+      if(handles[i]&&handles[i].kind==="directory"){await startDir(handles[i],where);}
+      else if(entries[i])await walk(entries[i],"",out);
+    }
+  }else{[].forEach.call(e.dataTransfer.files,function(f){out.push({file:f,rel:f.name});});}
+  if(out.length)enqueue(out,{cwd:where});
+});
+
+function paintWho(){var w=$("whoT");if(w)w.textContent=ME||(GUEST?"":"admin");}
+function signOut(){fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"}).finally(function(){location.href="/login";});}
+$("signout").onclick=signOut;$("signout2").onclick=signOut;
+$("settingsBtn").onclick=$("settingsBtn2").onclick=function(){go("settings");};
+if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
+var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
+function upWhat(){return UPWHAT[cwd.split("/")[0]]||"";}
+function paintUpload(){var w=upWhat();$("upT").textContent=w?"Upload "+w:"Upload";}
+function render(){
+  var rq=cwd==="requests"||cwd==="profiles"||cwd==="settings";
+  paintUpload();
+  ["newFolder","scanBtn","upBtn"].forEach(function(id){$(id).hidden=rq;});
+  $("filter").hidden=cwd==="profiles"||cwd==="settings";
+  $("luckyBtn").hidden=true;
+  if(cwd!=="requests"){$("filter").placeholder="Filter this folder";$("filter").setAttribute("aria-label","Filter this folder");}
+  closeMenu();
+  renderNav();renderCrumbs();
+  if(cwd==="profiles"){renderProfiles();return;}
+  if(cwd==="settings"){renderSettings();return;}
+  if(rq){renderRequests();return;}
+  renderHero();listDir();
+}
+cwd=fromHash();if(!location.hash)go(cwd);render();loadRequests();
+if(GUEST){loadHave().then(refreshTiles);}else{loadSpace();fetch("/_meta/me",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d)ME=d.user;paintWho();}).catch(function(){});}
+paintWho();showResume();
+if(!GUEST){setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
+})();
+</script>
+</body>
+</html>
 /* ---------- upload engine (resumable: chunks appended to name.uploading, then renamed) ---------- */
 function xhrSend(method,url,blob,headers,onProgress){
   return new Promise(function(res,rej){
