@@ -58,7 +58,7 @@ What the optional [theme](docs/12-theme.md) looks like (a "Netflix-style" skin; 
 | ![Home page: billboard](docs/img/screens/01-home-billboard.jpg) **Home: billboard** | ![Home page: rows](docs/img/screens/02-home-rows.jpg) **Home: rows (Continue Watching, Recently Added, ...)** |
 | ![Hover card](docs/img/screens/03-hover-card.jpg) **Hover: Play, + My list, More info** | ![Info panel](docs/img/screens/04-info-panel.jpg) **Click: info panel with preview, Details, Trailer** |
 | ![Movie page](docs/img/screens/05-details-page.jpg) **Movie page** | ![Movies category page](docs/img/screens/06-category-movies.jpg) **Category page: billboard, rows, full list** |
-| ![Phone layout](docs/img/screens/07-phone.jpg) **Phone** | ![Login page](docs/img/screens/08-login.jpg) **Login** |
+| ![Phone layout](docs/img/screens/07-phone.jpg) **Phone** | ![Login page](docs/img/screens/08-login.jpg) **Login (logo, two fields, one button)** |
 
 The screenshots were made on a throw-away demo server that contained only openly licensed films from the Blender Foundation (Sintel, Tears of Steel, Big Buck Bunny, Elephants Dream, Spring, Cosmos Laundromat, Coffee Run, Sprite Fright; Creative Commons CC BY, artwork via TMDb). The demo files were tiny placeholders, so nothing here shows real playback quality. The demo has since been deleted. The name "Lumio" is just an example: the server name and brand text are yours to change.
 
