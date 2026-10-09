@@ -142,11 +142,10 @@ def _wikidata_pair(spec):
     """Films and series of a "cinema" group (Wikidata, free). One request returns both kinds: {"movie": [...], "series": [...]}.
     Wikidata allows about one request a minute for us, so a 429 is waited out (Retry-After) instead of hammered."""
     parts = []
-    if spec["langs"]:
+    if spec["langs"]:      # by original language: fast, and keeps English-language co-productions out
         parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. }" % " ".join("wd:" + x for x in spec["langs"]))
-    if spec["countries"]:
-        extra = "FILTER NOT EXISTS { ?f wdt:P364 [] }" if spec["langs"] else "FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 }"
-        parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. %s }" % (" ".join("wd:" + x for x in spec["countries"]), extra))
+    else:                  # by country of origin, English-language films excluded
+        parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }" % " ".join("wd:" + x for x in spec["countries"]))
     q = "SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?cls { wd:Q11424 wd:Q5398426 } ?f wdt:P31 ?cls; wdt:P345 ?imdb. %s }" % " UNION ".join(parts)
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
@@ -163,8 +162,9 @@ def _wikidata_pair(spec):
         except urllib.error.HTTPError as e:
             last = e
             wait = 65
-            try: wait = max(wait, int(e.headers.get("Retry-After", "0")) + 5)
+            try: wait = max(wait, min(int(e.headers.get("Retry-After", "0")), 1500) + 5)
             except ValueError: pass
+            if e.code not in (429, 503) and attempt >= 1: break          # a query that keeps failing is skipped, not retried for ever
             time.sleep(wait if e.code in (429, 503) else 30)
         except Exception as e:
             last = e
