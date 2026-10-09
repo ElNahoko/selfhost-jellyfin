@@ -12,6 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
+SCHEMA = 4      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -24,6 +25,50 @@ _bulk = {"running": False, "t": 0}
 KINDS = {"movie": ("movie",), "series": ("tvSeries", "tvMiniSeries")}
 MIN_VOTES = {"movie": 60000, "series": 30000}
 
+ANIME_F = os.path.join(DBDIR, "anime.json")
+_anime = {"s": set(), "mt": 0, "building": False, "t": 0}
+
+def _anime_set():
+    try:
+        mt = os.path.getmtime(ANIME_F)
+        if mt != _anime["mt"]:
+            _anime["s"] = set(json.load(open(ANIME_F))); _anime["mt"] = mt
+    except (OSError, ValueError):
+        pass
+    return _anime["s"]
+
+def _anime_job():
+    """Anime = animated titles whose ORIGINAL title is Japanese (IMDb akas: region JP, flagged as original). Streamed, low priority."""
+    try:
+        try: os.nice(10)
+        except OSError: pass
+        cat = _mem["cat"] or _read()
+        if not cat: return
+        anim = {i for i, it in cat["items"].items() if "Animation" in it["g"]}
+        ap = os.path.join(DBDIR, "akas.tsv.gz")
+        _download("title.akas.tsv.gz", ap)
+        found = set()
+        for r in _rows(ap):
+            if r[0] in anim and r[3] == "JP" and r[7] == "1": found.add(r[0])
+        os.remove(ap)
+        tmp = ANIME_F + ".tmp"
+        json.dump(sorted(found), open(tmp, "w")); os.replace(tmp, ANIME_F)
+    except Exception as e:
+        _state["error"] = ("anime: " + str(e))[:200]
+    finally:
+        _anime["building"] = False
+
+def ensure_anime():
+    cat = _mem["cat"]
+    if _anime["building"] or time.time() - _anime["t"] < 600 or not cat or cat.get("schema") != SCHEMA: return
+    _anime["t"] = time.time()
+    try:
+        if os.path.getmtime(ANIME_F) > cat["built"]: return
+    except OSError:
+        pass
+    _anime["building"] = True
+    threading.Thread(target=_anime_job, daemon=True).start()
+
 def _rules(kind, this):
     g = lambda i, *gs: any(x in i["g"] for x in gs)
     a = lambda i, *gs: all(x in i["g"] for x in gs)
@@ -34,6 +79,7 @@ def _rules(kind, this):
     add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True)
     add("top", "Top rated", lambda i: True, W, True)
     add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True)
+    add("anime", "Anime", lambda i: i["id"] in _anime_set(), W, True, "all")
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
         add("mind", "Mind-benders", lambda i: i["r"] >= 7.0 and ((a(i, "Thriller") and g(i, "Mystery", "Sci-Fi")) or a(i, "Sci-Fi", "Mystery") or (a(i, "Drama") and g(i, "Mystery") and g(i, "Sci-Fi", "Thriller"))), W, True, "all")
@@ -90,19 +136,20 @@ def _build():
             v = int(r[2])
         except ValueError:
             continue
-        if v >= 8000: ratings[r[0]] = (float(r[1]), v)
+        if v >= 3000: ratings[r[0]] = (float(r[1]), v)
     _download("title.basics.tsv.gz", bp)
     items = {}
     want = {t: k for k, ts in KINDS.items() for t in ts}
     for r in _rows(bp):
         if r[0] in ratings and r[1] in want and r[4] == "0":
             rt, v = ratings[r[0]]
-            if v < (20000 if want[r[1]] == "movie" else 8000): continue
+            anim = "Animation" in r[8]
+            if v < ((8000 if anim else 20000) if want[r[1]] == "movie" else (3000 if anim else 8000)): continue
             items[r[0]] = {"id": r[0], "k": want[r[1]], "tt": r[1], "n": r[2], "y": int(r[5]) if r[5].isdigit() else None,
                            "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
     os.remove(bp); os.remove(rp)
     this = date.today().year
-    out = {"built": int(time.time()), "items": {}, "rows": {"movie": [], "series": []}, "rowids": []}
+    out = {"built": int(time.time()), "schema": SCHEMA, "items": {}, "rows": {"movie": [], "series": []}, "rowids": []}
     for kind in KINDS:
         everyone = [i for i in items.values() if i["k"] == kind]
         main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
@@ -110,7 +157,7 @@ def _build():
         for i in everyone: i["w"] = (i["v"] / (i["v"] + m)) * i["r"] + (m / (i["v"] + m)) * C
         for rule in _rules(kind, this):
             pool = everyone if rule["pool"] == "all" else main
-            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:300]
+            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:2000]
             if len(lst) < 8: continue
             out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
             out["rowids"].extend(i["id"] for i in lst)
@@ -340,7 +387,7 @@ def load():
                 pass
             _mem["t"] = time.time()
         cat = _mem["cat"]
-        if (cat is None or time.time() - cat["built"] > MAXAGE) and not _state["building"]:
+        if (cat is None or time.time() - cat["built"] > MAXAGE or cat.get("schema") != SCHEMA) and not _state["building"]:
             _state["building"] = True
             threading.Thread(target=_background, daemon=True).start()
         return cat
@@ -410,6 +457,7 @@ def _bulk_run():
         _bulk["running"] = False
 
 def ensure_all():
+    ensure_anime()
     ensure_episodes()
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return

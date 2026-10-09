@@ -1476,7 +1476,7 @@ function renderRequests(){
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
   if(reqTab==="list"){f.hidden=true;$("luckyBtn").hidden=true;var l=el("div");l.id="reqList";c.appendChild(l);drawRequests();loadRequests().then(drawRequests);return;}
-  $("luckyBtn").hidden=false;f.hidden=false;f.placeholder=reqKind==="series"?"Search any series…":"Search any movie…";f.setAttribute("aria-label",f.placeholder);
+  saveCat();$("luckyBtn").hidden=false;f.hidden=false;f.placeholder=reqKind==="series"?"Search any series…":"Search any movie…";f.setAttribute("aria-label",f.placeholder);
   var res=el("div");res.id="reqRes";c.appendChild(res);
   var chips=el("div","chips");chips.id="reqChips";c.appendChild(chips);
   var morep=el("div","morep");morep.id="reqMore";morep.hidden=true;c.appendChild(morep);
@@ -1569,6 +1569,8 @@ function makeDD(label,opts,cur,onPick,plain){      // a small dropdown whose ent
 function sortMenu(onPick,filtered){return makeDD("Sort by",filtered?FSORTS:SORTS,"",onPick);}
 // ---------- filters: country / genre / decade / rating (the default shelves stay as they are) ----------
 var reqF={country:"",genre:"",decade:"",min:""},FINFO={};
+(function(){try{var o=JSON.parse(localStorage.getItem("lumio_cat")||"{}");if(o.kind==="series"||o.kind==="movie")reqKind=o.kind;if(o.tab==="list")reqTab="list";reqRow=o.row||"";if(o.f)["country","genre","decade","min"].forEach(function(k){reqF[k]=String(o.f[k]||"");});}catch(e){}})();
+function saveCat(){try{localStorage.setItem("lumio_cat",JSON.stringify({kind:reqKind,tab:reqTab,row:reqRow,f:reqF}));}catch(e){}}
 function filtersOn(){return !!(reqF.country||reqF.genre||reqF.decade||reqF.min);}
 function filterQuery(){var q="";["country","genre","decade","min"].forEach(function(k){if(reqF[k])q+="&"+k+"="+encodeURIComponent(reqF[k]);});return q;}
 function clearFilters(){reqF={country:"",genre:"",decade:"",min:""};}
@@ -1739,7 +1741,7 @@ async function drawRow(kind,row,sort){
   async function more(){
     if(st.loading||!active()||(st.total&&st.items.length>=st.total))return;
     st.loading=true;var d;
-    try{d=await api("GET",catUrl(kind,row)+"&sort="+encodeURIComponent(st.sort)+"&offset="+st.items.length+"&limit=40");}catch(e){st.loading=false;return;}
+    try{d=await api("GET",catUrl(kind,row)+"&sort="+encodeURIComponent(st.sort)+"&offset="+st.items.length+"&limit=40");}catch(e){st.loading=false;setTimeout(function(){if(active()&&near())more();},2500);return;}
     if(!active())return;
     if(!st.sort){st.sort=d.sort;sel.set(d.sort);}
     if(!CHIPS[kind]&&d.chips){CHIPS[kind]=d.chips;drawChips(d.chips);}
@@ -1764,9 +1766,10 @@ async function drawRow(kind,row,sort){
   }
   if("IntersectionObserver" in window){shelfObs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)more();});},{rootMargin:"700px 0px"});shelfObs.observe(sent);}
   else window.addEventListener("scroll",function(){if(near())more();});
+  var sc=function(){if(!active()){window.removeEventListener("scroll",sc);return;}if(!st.loading&&sent.isConnected&&near())more();};window.addEventListener("scroll",sc,{passive:true});
   more();
 }
-async function drawCatalog(tries){
+async function drawCatalog(tries){saveCat();
   var box=$("reqCat");if(!box)return;var kind=reqKind,row=reqRow,key=kind+"|"+row+"|"+filterQuery();
   if(row){clearTimeout(catPoll);drawRow(kind,row);return;}
   if(shelfObs){shelfObs.disconnect();shelfObs=null;}
