@@ -143,7 +143,7 @@ def _wikidata_pair(spec):
     Wikidata allows about one request a minute for us, so a 429 is waited out (Retry-After) instead of hammered."""
     parts = []
     if spec["langs"]:      # by original language: fast, and keeps English-language co-productions out
-        parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. }" % " ".join("wd:" + x for x in spec["langs"]))
+        parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }" % " ".join("wd:" + x for x in spec["langs"]))   # not also English
     else:                  # by country of origin, English-language films excluded
         parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }" % " ".join("wd:" + x for x in spec["countries"]))
     q = "SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?cls { wd:Q11424 wd:Q5398426 } ?f wdt:P31 ?cls; wdt:P345 ?imdb. %s }" % " UNION ".join(parts)

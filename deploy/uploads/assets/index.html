@@ -623,6 +623,19 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .dd.full .ddb{width:100%;justify-content:flex-start}
 .dd.full .ddb .dv{flex:1;text-align:left}
 .dd.full .ddm{left:0;right:0;min-width:0;max-height:46vh;overflow:auto}
+
+/* request cards: one homogeneous shape; title area has a fixed height and the button is pinned to the bottom, so every card lines up */
+.rgrid{align-items:stretch}
+.rcard{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;height:100%;transition:border-color .15s,transform .18s,box-shadow .18s}
+.rcard:hover{border-color:#444;transform:translateY(-2px);box-shadow:var(--shadow)}
+.rcard .rpz{border-radius:0;box-shadow:none}
+.rcard:hover .rpz{transform:none;box-shadow:none}
+.rbody{display:flex;flex-direction:column;gap:3px;padding:10px 10px 12px;flex:1;min-width:0}
+.rcard .rt{margin:0;min-height:2.5em;font-size:.9rem;line-height:1.25}
+.rcard .rs{min-height:1.2em}
+.rwant{margin-top:auto!important;position:relative;top:0}
+.rbody .rwant{margin-top:auto}
+.rbody .rs+.rwant{margin-top:10px}
 </style>
 </head>
 <body>
@@ -1764,15 +1777,15 @@ function drawRequests(){
       del.onclick=async function(){if(!await dialog({title:"Remove request?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
       ac.appendChild(ok);ac.appendChild(del);pz.appendChild(ac);
     }
-    c.appendChild(pz);
-    c.appendChild(el("div","rt",r.title));
+    c.appendChild(pz);var body=el("div","rbody");c.appendChild(body);
+    body.appendChild(el("div","rt",r.title));
     var who2=(r.voters||r.who||"").split(", ");
-    c.appendChild(el("div","rs",(r.year?r.year+" · ":"")+who2[0]+(who2.length>1?" +"+(who2.length-1):"")+" · "+ago(r.created)));
+    var rs=el("div","rs",(r.year?r.year+" · ":"")+who2[0]+(who2.length>1?" +"+(who2.length-1):""));rs.title="Asked by "+(r.voters||r.who)+" · "+ago(r.created);body.appendChild(rs);
     if(r.status==="open"){      // an obvious button, not a bare arrow with a number
       var wb=el("button","rwant"+(voted?" on":""));wb.type="button";wb.appendChild(svg(voted?"check":"thumb"));wb.appendChild(el("span","",voted?"You want this":"Me too"));
       wb.title=voted?"Click to take your vote back":"Add your vote: you want this one too";wb.setAttribute("aria-pressed",String(voted));
       wb.onclick=async function(){var who=await whoAmI();if(!who)return;wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e){toast("Could not vote");}await loadRequests();drawRequests();};
-      c.appendChild(wb);
+      body.appendChild(wb);
     }
     return c;
   }
