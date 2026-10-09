@@ -312,6 +312,18 @@ body.guest .tabbar{display:none}
 .rb .rt{flex:1;min-width:220px}
 .rb .rt b{display:block}
 .rb .rt span{color:var(--muted);font-size:.9rem}
+
+/* catalogue tabs: Movies | TV Shows | Requests on one line */
+.tabs{display:flex;gap:28px;border-bottom:1px solid var(--line);margin:0 0 20px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 2px 13px;font-size:1.08rem;font-weight:650;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.tabs button.amber{color:var(--amber)}
+.tabs button.amber.on{border-bottom-color:var(--amber)}
+.tabs .cnt{background:var(--amber);color:#1b1204;border-radius:99px;font-size:.74rem;font-weight:800;padding:1px 8px;min-width:1.4rem;text-align:center}
+@media (max-width:860px){.tabs{gap:22px;margin-bottom:16px}.tabs button{font-size:1rem}}
 </style>
 </head>
 <body>
@@ -636,6 +648,8 @@ async function api(method,path,body){
 async function loadRequests(){
   try{reqList=await api("GET","/_meta/requests");}catch(e){reqList=[];}
   openReq=reqList.filter(function(r){return r.status==="open";}).length;renderNav();
+  var rb=document.querySelector(".tabs button.amber");      // keep the count on the Requests tab current
+  if(rb){var cn=rb.querySelector(".cnt");if(openReq){if(!cn){cn=el("span","cnt");rb.appendChild(cn);}cn.textContent=String(openReq);}else if(cn)cn.remove();}
 }
 function rimg(u,w){return u?"/_meta/rimg?w="+(w||342)+"&u="+encodeURIComponent(u):null;}
 function isAsked(kind,n,y){return reqList.some(function(r){return r.status==="open"&&r.kind===kind&&r.title.toLowerCase()===n.toLowerCase()&&(r.year||0)===(y||0);});}
@@ -816,16 +830,17 @@ async function renderProfiles(){
 }
 function renderRequests(){
   var c=$("content");c.innerHTML="";$("hero").hidden=true;clearTimeout(catPoll);if(shelfObs){shelfObs.disconnect();shelfObs=null;}
-  var bar=el("div","reqbar");
-  var seg=el("div","seg");
-  [["movie","Movies"],["series","TV Shows"]].forEach(function(k){
-    var b=el("button",reqKind===k[0]?"on":"",k[1]);b.type="button";b.onclick=function(){reqKind=k[0];reqRow="";renderRequests();};seg.appendChild(b);
+  // one row of three plain tabs: what you browse (Movies / TV Shows) and the list of requests
+  var tabs=el("div","tabs");tabs.setAttribute("role","tablist");
+  [["movie","Movies",""],["series","TV Shows",""],["list","Requests","amber"]].forEach(function(k){
+    var on=k[0]==="list"?reqTab==="list":(reqTab==="browse"&&reqKind===k[0]);
+    var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
+    b.appendChild(el("span","",k[1]));
+    if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
+    b.onclick=function(){if(k[0]==="list")reqTab="list";else{reqTab="browse";reqKind=k[0];reqRow="";}renderRequests();};
+    tabs.appendChild(b);
   });
-  var seg2=el("div","seg");
-  [["browse","Browse",""],["list","Requests"+(openReq?" "+openReq:""),"amber"]].forEach(function(k){
-    var b=el("button",(reqTab===k[0]?"on ":"")+k[2],k[1]);b.type="button";b.onclick=function(){reqTab=k[0];renderRequests();};seg2.appendChild(b);
-  });
-  bar.appendChild(seg);bar.appendChild(seg2);c.appendChild(bar);
+  c.appendChild(tabs);
   if(reqTab==="list"){var l=el("div");l.id="reqList";c.appendChild(l);drawRequests();loadRequests().then(drawRequests);return;}
   var inp=el("input","big-search");inp.type="search";inp.placeholder=reqKind==="series"?"Search any TV show…":"Search any movie…";inp.setAttribute("aria-label","Search");inp.autocomplete="off";
   c.appendChild(inp);
