@@ -548,7 +548,7 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 /* in-page trailer player */
 .theatre{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:18px;background:rgba(4,4,8,.88);opacity:0;transition:opacity .22s ease}
 .theatre.on{opacity:1}
-.theatre .tbox{width:100%;max-width:1100px;transform:translateY(18px) scale(.97);transition:transform .35s cubic-bezier(.2,.9,.3,1.15)}
+.theatre .tbox{width:min(100%,calc((100vh - 120px) * 16 / 9));width:min(100%,calc((100dvh - 120px) * 16 / 9));max-width:1100px;transform:translateY(18px) scale(.97);transition:transform .35s cubic-bezier(.2,.9,.3,1.15)}
 .theatre.on .tbox{transform:none}
 .theatre .thead{display:flex;align-items:center;gap:10px;margin-bottom:12px;color:#fff}
 .theatre .tt2{flex:1;min-width:0;font-weight:700;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -841,6 +841,13 @@ h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
 .staffl{display:block;margin-top:14px;font-size:.8rem;color:var(--muted);text-align:center}
 .favnote{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.88rem;margin:0 0 14px}
 .who #signin{padding:5px 12px}
+/* while a dialog is open the page behind does not move (phones scrolled it under the finger) */
+html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
+@media (max-width:860px){
+  .dmeta{gap:4px 14px}.dmeta>span+span::before{display:none}
+  .modal{padding:8px 8px max(8px,env(safe-area-inset-bottom))}
+  .dlg.wide,.dscroll{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
+}
 </style>
 </head>
 <body>
@@ -2715,6 +2722,8 @@ function render(){
 (function(){var app=document.querySelector(".app"),tg=$("sideToggle");if(!tg)return;tg.appendChild(svg("chev"));
   try{if(localStorage.getItem("lumio_side")==="narrow")app.classList.add("narrow");}catch(e){}
   tg.onclick=function(){var n=app.classList.toggle("narrow");try{localStorage.setItem("lumio_side",n?"narrow":"wide");}catch(e){}tg.title=n?"Expand the sidebar":"Collapse the sidebar";};})();
+(function(){var m=$("modal");if(!m||!window.MutationObserver)return;      // lock the page while a dialog is open
+  new MutationObserver(function(){document.documentElement.classList.toggle("noscroll",!m.hidden);}).observe(m,{attributes:true,attributeFilter:["hidden"]});})();
 cwd=fromHash();catFromUrl();if(location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
 if(ADMIN){loadSpace();setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
 favSync();paintWho();if(STAFF)showResume();
