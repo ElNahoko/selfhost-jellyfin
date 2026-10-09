@@ -380,6 +380,25 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .pickrow .btn{flex:1;justify-content:center}
 .upnote{margin:14px 0 0!important;font-size:.85rem}
 .upclose{margin-top:6px;width:100%;justify-content:center;background:none;border-color:transparent;color:var(--muted)}
+
+.rate.warn{background:rgba(245,165,36,.92);color:#1b1204}
+.rate.warn::first-letter{color:inherit}
+.dlg .tcheck input{width:auto;margin:4px 0 0;flex:none}
+.card .x.r{right:46px}
+.unm{color:var(--amber)!important;font-size:.92rem;margin:0 0 12px!important}
+.tidybtn{margin-top:14px}
+.hero .tcol{flex:1;min-width:0}
+.hero.mini .tidybtn{margin:0 0 0 auto}
+.dlg.tidy{max-width:560px}
+.tlist{display:grid;gap:14px;margin:0 0 14px;max-height:46vh;overflow:auto}
+.tg .th2{font-size:.78rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:650;margin-bottom:6px}
+.tr{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:.88rem;overflow-wrap:anywhere}
+.tr svg{margin-top:3px;color:var(--muted)}
+.tmore,.tnote{color:var(--muted);font-size:.85rem}
+.tcheck{display:flex;gap:10px;align-items:flex-start;margin:0 0 16px;font-size:.9rem;cursor:pointer}
+.tcheck input{margin-top:4px;accent-color:var(--accent)}
+.sugg{margin:-6px 0 14px;max-width:100%}
+.sugg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -471,6 +490,8 @@ var ICONS={
   users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   refresh:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  edit:'<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  wand:'<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"/>',
   star:'<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>',
   flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
   az:'<path d="M3 17l3-9 3 9M4 14h4M14 8h6l-6 8h6"/>',
@@ -506,7 +527,8 @@ function dialog(o){      // {title, text, input:{value,placeholder}, ok, danger,
     var m=$("modal"),prev=document.activeElement;m.innerHTML="";
     var d=el("div","dlg");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
     d.appendChild(el("h3","",o.title));if(o.text)d.appendChild(el("p","",o.text));
-    var inp=null;if(o.input){inp=el("input");inp.type="text";inp.maxLength=o.input.max||120;inp.value=o.input.value||"";inp.placeholder=o.input.placeholder||"";d.appendChild(inp);}
+    var inp=null;if(o.input){inp=el("input");inp.type="text";inp.maxLength=o.input.max||120;inp.value=o.input.value||"";inp.placeholder=o.input.placeholder||"";d.appendChild(inp);
+      if(o.suggest&&o.suggest!==inp.value){var sg=el("button","btn sm sugg");sg.type="button";sg.appendChild(svg("wand"));sg.appendChild(el("span","","Use clean name: "+o.suggest));sg.onclick=function(){inp.value=o.suggest;inp.focus();};d.appendChild(sg);}}
     var acts=el("div","acts"),done=false;
     function close(v){if(done)return;done=true;m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();res(v);}
     function accept(){close(inp?(inp.value.trim()||null):true);}
@@ -537,7 +559,7 @@ async function loadMeta(){
   metaBusy=false;metaT=Date.now()-8000;return false;
 }
 function metaOf(path){return META["/"+path]||null;}
-function poster(m,w){return m&&m.id?"/_meta/img/"+m.id+"?w="+w:null;}
+function poster(m,w){return m&&m.id&&!m.u?"/_meta/img/"+m.id+"?w="+w:null;}
 function inLibrary(kind,title,year){var t=kind==="series"?"Series":"Movie",n=title.toLowerCase();return !!(LIBSET[t+"|"+n+"|"+(year||"")]||LIBSET[t+"|"+n+"|"]);}
 async function loadSpace(){
   try{var r=await fetch("/_meta/space",{credentials:"same-origin",cache:"no-store"});if(!r.ok)return;var d=await r.json();
@@ -583,7 +605,7 @@ function renderNav(){
 function crumbLabel(path,i,part){
   if(part==="settings")return "Settings";
   if(i===0){var s=SECTIONS.filter(function(l){return l.id===part;})[0];return s?s.label:part;}
-  var m=metaOf(path);return m&&m.n?m.n:cleanFolder(part).title;
+  var m=metaOf(path);return m&&m.n&&!m.u?m.n:cleanFolder(part).title;
 }
 function renderCrumbs(){
   var c=$("crumbs");c.innerHTML="";
@@ -605,14 +627,17 @@ function renderHero(){
   if(!m){
     var t=cleanFolder(parts[parts.length-1]);
     var gp=el("div","pst");h.appendChild(gp);if(parts.length===2)guessPoster(libKind(),t.title,t.year,gp);      // not scanned yet: guess the poster from the name
-    h.appendChild(el("h1","",t.title));
+    var tb=el("div","tcol");tb.appendChild(el("h1","",t.title));
     var box=el("div","meta");if(s){box.appendChild(el("span","chipx",fmtSize(s[0])));box.appendChild(el("span","",s[1]+(s[1]===1?" file":" files")));}
-    h.appendChild(box);return;
+    tb.appendChild(box);h.appendChild(tb);
+    if(!GUEST&&parts.length===2&&libKind())h.appendChild(tidyButton(false));
+    return;
   }
   var u=poster(m,300);
   if(u){var pw=el("div","pst"),im=el("img");im.src=u;im.alt="";im.onerror=function(){pw.remove();};pw.appendChild(im);h.appendChild(pw);}
-  else if(parts.length===2){var pw2=el("div","pst");h.appendChild(pw2);var tg=cleanFolder(parts[1]);guessPoster(libKind(),m.n||tg.title,m.y||tg.year,pw2);}
-  var d=el("div");d.appendChild(el("h1","",m.n||cleanFolder(parts[parts.length-1]).title));
+  else if(parts.length===2){var pw2=el("div","pst");h.appendChild(pw2);var tg=cleanFolder(parts[1]);guessPoster(libKind(),(m.u?tg.title:(m.n||tg.title)),(m.u?tg.year:(m.y||tg.year)),pw2);}
+  var d=el("div");d.appendChild(el("h1","",(m.u?"":m.n)||cleanFolder(parts[parts.length-1]).title));
+  if(m.u&&!GUEST&&parts.length===2){var hn=el("p","unm","Jellyfin could not match this title, so it has no real picture or details. Tidy up renames it to a clean “Title (Year)” and Jellyfin will find it.");d.appendChild(hn);}
   var meta=el("div","meta");
   if(m.y)meta.appendChild(el("span","",String(m.y)));
   if(m.t&&m.t!=="Season")meta.appendChild(el("span","",m.t==="Series"?"TV series":m.t));
@@ -620,8 +645,10 @@ function renderHero(){
   if(s){meta.appendChild(el("span","chipx",fmtSize(s[0])));meta.appendChild(el("span","",s[1]+(s[1]===1?" file":" files")));}
   d.appendChild(meta);
   if(m.o)d.appendChild(el("p","",m.o));
+  if(!GUEST&&parts.length===2&&libKind())d.appendChild(tidyButton(!!m.u));
   h.appendChild(d);
 }
+function tidyButton(primary){var b=el("button","btn sm tidybtn"+(primary?" primary":""));b.type="button";b.appendChild(svg("wand"));b.appendChild(el("span","","Tidy up"));b.onclick=tidyUp;return b;}
 
 /* ---------- folder listing ---------- */
 async function listDir(){
@@ -668,7 +695,12 @@ function drawListing(){
   }
   if(other.length){
     var d=el("details","grp extras");if(!main.length&&!titleDirs.length)d.open=true;
-    var sm=el("summary","","Subtitles and extras · "+other.length);d.appendChild(sm);
+    var subs=other.filter(function(x){return /\.(srt|ass|ssa|vtt|sub)$/i.test(x.name);}),langs={};
+    subs.forEach(function(x){var mm=x.name.match(/\.([a-z]{2,3})(?:\.[^.]*)?\.(?:srt|ass|ssa|vtt|sub)$/i);if(mm)langs[mm[1].toLowerCase()]=1;});
+    var ll=Object.keys(langs),info=[];
+    if(subs.length)info.push(subs.length+" subtitle"+(subs.length>1?"s":"")+(ll.length?" ("+ll.slice(0,6).join(", ")+(ll.length>6?"…":"")+")":""));
+    var oth=other.length-subs.length;if(oth)info.push(oth+" other");
+    var sm=el("summary","","Subtitles and extras · "+info.join(" · "));d.appendChild(sm);
     var bd=el("div","rows inner");other.forEach(function(x){bd.appendChild(row(x));});d.appendChild(bd);content.appendChild(d);
   }
 }
@@ -677,6 +709,7 @@ function folderTile(x){
   a.appendChild(svg("folder"));a.appendChild(el("span","fn",x.name));
   var s2=SIZES["/"+path];if(s2)a.appendChild(el("span","fs",fmtSize(s2[0])));
   t.appendChild(a);
+  var rn=el("button","x");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+x.name);rn.appendChild(svg("edit"));rn.onclick=function(){renameItem(x.name,true,x.name);};t.appendChild(rn);
   var del=el("button","x");del.type="button";del.title="Delete folder";del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
   del.onclick=function(){remove(x.name,true,x.name);};t.appendChild(del);
   return t;
@@ -711,11 +744,12 @@ function parentPoster(w){      // season/series picture for things that have non
 function card(x){
   var path=cwd+"/"+x.name,m=metaOf(path),cf=cleanFolder(x.name);
   var c=el("div","card"),p=el("div","pst");
-  var title=m&&m.n?m.n:cf.title;
+  var title=m&&m.n&&!m.u?m.n:cf.title;
   var ph=el("div","ph",title.charAt(0).toUpperCase());ph.style.background="linear-gradient(145deg,hsl("+hue(x.name)+",42%,34%),hsl("+((hue(x.name)+40)%360)+",45%,20%))";p.appendChild(ph);
   var pu=poster(m,340)||(libKind()==="series"&&cwd.split("/").length>1?parentPoster(340):null);
   if(pu)cover(p,pu);else if(cwd.split("/").length===1)guessPoster(libKind(),cf.title,cf.year,p);
   if(m&&m.r)p.appendChild(el("span","rate","★ "+m.r.toFixed(1)));
+  else if(m&&m.u&&!GUEST)p.appendChild(el("span","rate warn","Not matched"));
   var sz=sizeText(path);if(sz)p.appendChild(el("span","chip",sz));
   c.appendChild(p);
   c.appendChild(el("div","t",title));
@@ -724,6 +758,8 @@ function card(x){
   if(!sub.length)sub.push("Folder");
   c.appendChild(el("div","s",sub.join(" · ")));
   var a=el("a","open");a.href="#/"+path.split("/").map(encodeURIComponent).join("/");a.title=x.name;a.setAttribute("aria-label","Open "+title);c.appendChild(a);
+  var rn=el("button","x r");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+title);rn.appendChild(svg("edit"));
+  rn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();renameItem(x.name,true,title);};c.appendChild(rn);
   var del=el("button","x");del.type="button";del.title="Delete folder";del.setAttribute("aria-label","Delete "+title);del.appendChild(svg("trash"));
   del.onclick=function(ev){ev.preventDefault();ev.stopPropagation();remove(x.name,true,title);};c.appendChild(del);
   return c;
@@ -744,10 +780,128 @@ function row(x){
   nm.appendChild(a);nm.appendChild(el("small","",x.name));r.appendChild(nm);
   if(x.partial)r.appendChild(el("span","bad","Incomplete upload"));
   r.appendChild(el("span","sz",fmtSize(x.size)));r.appendChild(el("span","dt",fmtDate(x.mtime)));
+  if(!x.partial){var rn=el("button","x");rn.type="button";rn.title="Rename";rn.setAttribute("aria-label","Rename "+x.name);rn.appendChild(svg("edit"));rn.onclick=function(){renameItem(x.name,false,label);};r.appendChild(rn);}
   var del=el("button","x");del.type="button";del.title="Delete";del.setAttribute("aria-label","Delete "+x.name);del.appendChild(svg("trash"));
   del.onclick=function(){remove(x.raw,false,label);};r.appendChild(del);
   return r;
 }
+/* ---------- rename and tidy (moves go through the file server's MOVE) ---------- */
+var BADCH=/[\\/:*?"<>|]/g;
+function safeName(n){return n.replace(/:\s*/g," - ").replace(BADCH,"").replace(/\s+/g," ").trim().replace(/[. ]+$/,"");}
+function extOf(n){var m=n.match(/\.[A-Za-z0-9]{2,5}$/);return m?m[0]:"";}
+async function pathExists(path){try{var r=await fetch(enc(path),{method:"HEAD",cache:"no-store",credentials:"same-origin"});return r.ok;}catch(e){return false;}}
+async function movePath(from,to){
+  var r=await fetch(enc(from),{method:"MOVE",headers:{"Destination":location.origin+enc(to)},credentials:"same-origin"});
+  if(r.status===401){location.href="/login";throw new Error("signed out");}
+  if(!r.ok)throw new Error("HTTP "+r.status);
+}
+function cleanSuggestion(name,isDir){
+  if(isDir){var c=cleanFolder(name),t=safeName(c.title);return t&&(t+(c.year?" ("+c.year+")":""));}
+  var ext=extOf(name),c2=cleanFolder(name.slice(0,name.length-ext.length)),t2=safeName(c2.title);return t2&&(t2+(c2.year?" ("+c2.year+")":"")+ext);
+}
+async function renameItem(name,isDir,label){
+  var sug=cleanSuggestion(name,isDir);
+  var nn=await dialog({title:"Rename",text:"Rename “"+label+"”. The picture and details follow the name, so a clean name like Title (Year) works best.",input:{value:name,max:150,placeholder:"New name"},suggest:sug&&sug!==name?sug:"",ok:"Rename"});
+  if(!nn||nn===name)return;
+  var clean=safeName(nn);
+  if(!clean||clean[0]==="."){toast("That name can’t be used");return;}
+  if(await pathExists(cwd+"/"+clean)){toast("Something with that name already exists here");return;}
+  try{await movePath(cwd+"/"+name,cwd+"/"+clean);}catch(e){toast("Could not rename ("+(e.message||e)+")");return;}
+  metaT=0;toast("Renamed");listDir();
+  try{api("POST","/_meta/refresh",{});}catch(e){}
+}
+var JUNK=/(yts|yify|rarbg|torrent|\bwww\.|\.com\b|\.org\b|\.net\b|official site|status)/i, JUNKEXT=/\.(txt|nfo|url|html?|jpe?g|png)$/i;
+async function tidyPlan(){
+  var parts=cwd.split("/"),kind=libKind(),folder=parts[1],m=metaOf(cwd),ops=[],junk=[],notes=[];
+  var tt=(m&&!m.u&&m.n)?{title:m.n,year:m.y}:null;
+  if(!tt){      // Jellyfin has no real title for it: ask the title database what this most likely is
+    var c=cleanFolder(folder);tt={title:c.title,year:c.year?+c.year:null};
+    try{var r=await fetch("/_meta/match?kind="+kind+"&q="+encodeURIComponent(c.title)+"&y="+encodeURIComponent(c.year||""),{credentials:"same-origin"});
+      if(r.ok){var d=await r.json();if(d.n){tt={title:d.n,year:d.y||tt.year};notes.push("Matched to “"+d.n+(d.y?" ("+d.y+")":"")+"”.");}}}catch(e){}
+  }
+  var base=safeName(tt.title+(tt.year?" ("+tt.year+")":""));
+  var files=listing.filter(function(p){return !/Dir/.test(p.path_type);}).map(function(p){return p.name.replace(/\.uploading$/,"");});
+  var dirs=listing.filter(function(p){return /Dir/.test(p.path_type)&&p.name!=="lost+found";}).map(function(p){return p.name.replace(/\/$/,"");});
+  var from=cwd;
+  if(kind==="movie"){
+    var vids=files.filter(function(n){return VIDEO.test(n);});
+    if(vids.length===1){
+      var ext=extOf(vids[0]),oldBase=vids[0].slice(0,vids[0].length-ext.length);
+      if(oldBase!==base)files.forEach(function(n){
+        if(n===vids[0]||n.indexOf(oldBase+".")===0)ops.push({t:"move",from:from+"/"+n,to:from+"/"+base+n.slice(oldBase.length),label:n+"  →  "+base+n.slice(oldBase.length),kind:"file"});
+      });
+    }else if(vids.length>1)notes.push("This folder has several videos, so their names are left as they are.");
+  }else{
+    var seen={};
+    dirs.forEach(function(n){
+      var mm=n.match(/(?:^|[\s._-])S(\d{1,2})(?![\dE])|Season[\s._-]*(\d{1,2})/i);if(!mm)return;
+      var num=+(mm[1]||mm[2]),want="Season "+pad2(num);
+      if(n!==want&&!seen[want]&&dirs.indexOf(want)<0){seen[want]=1;ops.push({t:"move",from:from+"/"+n,to:from+"/"+want,label:n+"  →  "+want,kind:"season"});}
+    });
+    files.forEach(function(n){
+      var mm=n.match(/S(\d{1,2})E\d{1,3}/i);if(!mm||!(VIDEO.test(n)||/\.(srt|ass|vtt|sub)$/i.test(n)))return;
+      var want="Season "+pad2(+mm[1]);ops.push({t:"move",from:from+"/"+n,to:from+"/"+want+"/"+n,label:n+"  →  "+want+"/",kind:"file"});
+    });
+  }
+  files.forEach(function(n){if(JUNKEXT.test(n)&&JUNK.test(n)&&!VIDEO.test(n))junk.push({t:"del",path:from+"/"+n,label:n});});
+  var folderOp=null;
+  if(folder!==base)folderOp={t:"move",from:from,to:parts[0]+"/"+base,label:folder+"  →  "+base,kind:"folder"};
+  return {ops:ops,junk:junk,folderOp:folderOp,notes:notes,base:base};
+}
+async function tidyUp(){
+  if(listing.some(function(p){return /\.uploading$/.test(p.name);})){toast("Wait until the upload in this folder finishes");return;}
+  var plan=await tidyPlan(),m=$("modal"),prev=document.activeElement;
+  if(!plan.ops.length&&!plan.junk.length&&!plan.folderOp){toast("Already tidy");return;}
+  m.innerHTML="";var d=el("div","dlg tidy");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.appendChild(el("h3","","Tidy up"));
+  d.appendChild(el("p","","Clean names let Jellyfin find the right picture and details. Nothing changes until you press Apply."));
+  plan.notes.forEach(function(n){d.appendChild(el("p","tnote",n));});
+  var list=el("div","tlist");
+  function group(title,items,icon){
+    if(!items.length)return;
+    var g=el("div","tg");g.appendChild(el("div","th2",title+" · "+items.length));
+    items.slice(0,6).forEach(function(i){var r=el("div","tr");r.appendChild(svg(icon));r.appendChild(el("span","",i.label));g.appendChild(r);});
+    if(items.length>6)g.appendChild(el("div","tmore","and "+(items.length-6)+" more"));
+    list.appendChild(g);
+  }
+  group(plan.folderOp?"Folder":"",plan.folderOp?[plan.folderOp]:[],"folder");
+  group("Season folders",plan.ops.filter(function(o){return o.kind==="season";}),"folder");
+  group("Files",plan.ops.filter(function(o){return o.kind==="file";}),"file");
+  d.appendChild(list);
+  var rm=null;
+  if(plan.junk.length){
+    var lab=el("label","tcheck");rm=el("input");rm.type="checkbox";rm.checked=true;lab.appendChild(rm);
+    lab.appendChild(el("span","","Also remove "+plan.junk.length+" promo file"+(plan.junk.length>1?"s":"")+": "+plan.junk.slice(0,2).map(function(j){return j.label;}).join(", ")+(plan.junk.length>2?"…":"")));d.appendChild(lab);
+  }
+  var acts=el("div","acts"),cn=el("button","btn","Cancel");cn.type="button";
+  var ap=el("button","btn primary","Apply");ap.type="button";
+  function close(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
+  function key(e){if(e.key==="Escape"){e.stopPropagation();close();}}
+  cn.onclick=close;
+  ap.onclick=async function(){
+    ap.disabled=true;cn.disabled=true;ap.textContent="Working…";
+    var steps=plan.ops.slice();if(rm&&rm.checked)plan.junk.forEach(function(j){steps.push(j);});
+    var failed=0;
+    for(var i=0;i<steps.length;i++){
+      var o=steps[i];
+      try{
+        if(o.t==="del"){var r=await fetch(enc(o.path),{method:"DELETE",credentials:"same-origin"});if(!r.ok)throw new Error("HTTP "+r.status);}
+        else{if(await pathExists(o.to)){failed++;continue;}await movePath(o.from,o.to);}
+      }catch(e){failed++;}
+    }
+    var dest=cwd;
+    if(plan.folderOp){
+      try{if(await pathExists(plan.folderOp.to))failed++;else{await movePath(plan.folderOp.from,plan.folderOp.to);dest=plan.folderOp.to;}}catch(e){failed++;}
+    }
+    close();metaT=0;
+    toast(failed?"Done, but "+failed+" change"+(failed>1?"s":"")+" were skipped (name already taken)":"Tidied up");
+    try{api("POST","/_meta/refresh",{});}catch(e){}
+    if(dest!==cwd)go(dest);else listDir();
+  };
+  acts.appendChild(cn);acts.appendChild(ap);d.appendChild(acts);m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
+  document.addEventListener("keydown",key,true);ap.focus();
+}
+
 async function remove(name,isDir,label){
   var s=SIZES["/"+cwd+"/"+name];
   var ok=await dialog({title:"Delete "+(isDir?"folder":"file")+"?",text:"“"+label+"”"+(isDir?" and everything in it":"")+(s?" ("+fmtSize(s[0])+")":"")+" will be removed from the server. This can’t be undone.",ok:"Delete",danger:true});

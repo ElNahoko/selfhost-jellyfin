@@ -48,6 +48,9 @@ One small web app on its own hostname (for example `files.example.com`) with a s
 
 ## Uploading
 - **Upload** opens a small dialog with a drop box ("Upload movies", "Upload TV shows", ...). Inside a title folder the video is listed first, folders like `Subs` become compact chips and the many subtitle files are tucked into a collapsed "Subtitles and extras" section.
+- **Rename** (pencil icon) works on titles, folders and files. The dialog suggests a clean `Title (Year)` name.
+- **Tidy up** (button on a title folder) renames the folder and video to `Title (Year)`, renames matching subtitle files with it, puts episodes into `Season NN` folders, and can remove promo files from release sites. You see the full list first; nothing changes until you press Apply.
+- Titles Jellyfin could not match are marked **Not matched**; the page shows the right poster anyway (guessed from the name) and Tidy up fixes the name so Jellyfin finds it too.
 - Files are sent in 16 MB pieces to `name.uploading` and renamed when complete. A file already on the server with the same size is skipped; a partial one continues from where it stopped.
 - **Connection lost** (Wi-Fi drop, VPN switch): the page waits for the network and carries on by itself.
 - **Refresh, closed tab or crash:** when you choose or drop a **folder** in Chrome, Edge or another Chromium browser, the page remembers it. After a reload a banner offers **Resume**; one click and only what is missing is sent. In other browsers, add the same folder again: finished files are skipped.

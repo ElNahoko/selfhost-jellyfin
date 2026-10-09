@@ -38,7 +38,7 @@ def jf(path, data=None, timeout=30, method=None):
 
 # ---------- library metadata ----------
 def build_items():
-    d = json.load(jf("/Items?Recursive=true&IncludeItemTypes=%s&Fields=Path,Overview,ProductionYear,CommunityRating"
+    d = json.load(jf("/Items?Recursive=true&IncludeItemTypes=%s&Fields=Path,Overview,ProductionYear,CommunityRating,ProviderIds"
                      "&Limit=20000&EnableTotalRecordCount=false" % TYPES))
     out = {}
     for it in d.get("Items", []):
@@ -52,6 +52,9 @@ def build_items():
                "n": it.get("Name", ""), "y": it.get("ProductionYear"), "r": it.get("CommunityRating"),
                "o": (it.get("Overview") or "")[:500], "t": t,
                "i": it.get("IndexNumber"), "s": it.get("ParentIndexNumber")}
+        if t in ("Movie", "Series"):
+            pid = it.get("ProviderIds") or {}
+            rec["u"] = 0 if (pid.get("Tmdb") or pid.get("Imdb") or pid.get("Tvdb")) else 1      # 1 = Jellyfin could not match it to a real title (its picture may be a random video frame)
         out[p] = rec
         if t == "Movie":                       # movies live in "Title (Year)/Title.mkv": the folder gets the card too
             parent = p.rsplit("/", 1)[0]
@@ -252,6 +255,16 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/space":
                 du = shutil.disk_usage(DATA); return self.js({"used": du.used, "total": du.total})
             if path == "/_meta/stats": return self.js(_stats)
+            if path == "/_meta/match":              # the official title for a messy folder name (used by Tidy up)
+                kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
+                q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
+                if len(q) < 2 or limited(s["user"], "match", 60): return self.js({})
+                try:
+                    res = search(kind, q)
+                    pick = next((x for x in res if yr and str(x["y"]) == yr), None) or (res[0] if res else None)
+                except Exception:
+                    pick = None
+                return self.js({"n": pick["n"], "y": pick["y"]} if pick else {})
             if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
