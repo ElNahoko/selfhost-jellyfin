@@ -41,6 +41,7 @@ One small web app on its own hostname (for example `files.example.com`) with a s
 
 ## The catalogue and requests
 - Shelves such as *Top rated*, *Popular*, *Hidden gems*, *Mind-benders*, *Feel-good*, *Short and sweet* and genre rows come from IMDb's free daily rating files (rebuilt weekly in the background). Posters and plots come from Jellyfin's own TMDb lookup and are cached on the server so pages load fast.
+- Each shelf shows its best 16 titles; **See all** (or a category chip) opens up to 300 titles that keep loading as you scroll, with **Sort by** Rating, Popularity, Newest or A to Z.
 - Tap a poster for details (rating, runtime, genres, plot), a **Trailer** link (a YouTube search for the title) and an **IMDb** link. **+** requests it.
 - A title already in your library shows a green tick. Asking for something already requested adds your vote; the list is sorted by votes.
 - The request list is a small SQLite file in `/opt/jellyfin/uploads/data/`. Back it up with the rest of `/opt/jellyfin`.

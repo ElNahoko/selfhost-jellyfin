@@ -260,7 +260,11 @@ class H(BaseHTTPRequestHandler):
                 return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
             if path == "/_meta/catalog":
                 row = re.sub(r"[^a-z0-9-]", "", (qs.get("row") or [""])[0]) or None
-                body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row)).encode()
+                def num(k, d, hi):
+                    try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
+                    except ValueError: return d
+                body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row,
+                                               (qs.get("sort") or [""])[0], num("offset", 0, 5000), max(1, num("limit", 40, 60)))).encode()
                 return self.send(200, body, cache="private, max-age=20")
             if path == "/_meta/title":
                 tid = (qs.get("id") or [""])[0]

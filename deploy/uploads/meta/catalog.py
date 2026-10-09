@@ -107,9 +107,9 @@ def _build():
         for i in everyone: i["w"] = (i["v"] / (i["v"] + m)) * i["r"] + (m / (i["v"] + m)) * C
         for rule in _rules(kind, this):
             pool = everyone if rule["pool"] == "all" else main
-            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:60]
+            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:300]
             if len(lst) < 8: continue
-            out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "ids": [i["id"] for i in lst]})
+            out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
             for i in lst: out["items"][i["id"]] = {k: v for k, v in i.items() if k not in ("w", "tt")}
     tmp = CAT + ".tmp"
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
@@ -188,7 +188,13 @@ def _dress(cat, i):
     if k: it["img"], it["o"] = k
     return it
 
-def view(kind, row=None):
+SORTS = {"rating": lambda i: (-i["r"], -i["v"]), "votes": lambda i: (-i["v"], -i["r"]),
+         "newest": lambda i: (-(i["y"] or 0), -i["v"]), "name": lambda i: (i["n"].lower(),)}
+
+def _ordered(cat, ids, sort):
+    return sorted((cat["items"][i] for i in ids), key=SORTS[sort])
+
+def view(kind, row=None, sort=None, offset=0, limit=40):
     cat = load()
     if not cat:
         return {"building": True, "error": _state["error"], "rows": [], "chips": []}
@@ -197,14 +203,19 @@ def view(kind, row=None):
     if row:
         r = next((r for r in rows if r["id"] == row), None)
         if not r: return {"rows": [], "chips": chips}
-        its = [_dress(cat, i) for i in r["ids"]]
-        queue_resolve([cat["items"][i] for i in r["ids"]])
-        return {"rows": [{"id": r["id"], "name": r["name"], "items": its}], "chips": chips, "ready": all("img" in x for x in its)}
+        sort = sort if sort in SORTS else r.get("by", "rating")
+        allit = _ordered(cat, r["ids"], sort)
+        page = allit[offset:offset + limit]
+        queue_resolve(page)
+        its = [_dress(cat, i["id"]) for i in page]
+        return {"rows": [{"id": r["id"], "name": r["name"], "items": its}], "chips": chips, "total": len(allit), "offset": offset,
+                "sort": sort, "default": r.get("by", "rating"), "ready": all("img" in x for x in its)}
     out = []
     for r in rows:
         if not r["home"]: continue
-        ids = r["ids"][:HOME_N]
-        out.append({"id": r["id"], "name": r["name"], "items": [_dress(cat, i) for i in ids]})
+        # the shelf is the top of the category; show it ordered by what it is about (rating, or popularity for "Popular")
+        top = _ordered(cat, r["ids"][:HOME_N], r.get("by", "rating"))
+        out.append({"id": r["id"], "name": r["name"], "items": [_dress(cat, i["id"]) for i in top]})
     queue_resolve([cat["items"][i] for r in rows if r["home"] for i in r["ids"][:HOME_N]])
     total = sum(len(r["items"]) for r in out)
     return {"building": _state["building"], "ready": sum(1 for r in out for x in r["items"] if "img" in x) >= total * 0.95, "rows": out, "chips": chips}
