@@ -77,3 +77,11 @@ If you edit `deploy/uploads/assets/index.html`, copy it to `/opt/jellyfin/upload
 - Delete files with the 🗑 button **on this page**. Jellyfin only has a read-only view of the media folder, so its own "Delete media" command cannot remove files.
 - About a minute after the last change the auto-scan service refreshes the library and also removes the entries whose files are gone. This includes the case where you delete the **last** title of a library, which Jellyfin alone would never clean up.
 - A browser tab that was already open can show the old row for up to three minutes; reload the page.
+
+## Title details, episodes and anime
+
+- Clicking a title (catalogue, search results or a request card) opens the details: blurred-poster hero, rating, runtime, genres, trailer, IMDb link, Request.
+- Series show their seasons and episodes: ratings per episode and per season (IMDb datasets, rebuilt weekly into `episodes.db`), air dates and watch time per season and in total (TVmaze, free API, fetched once per series and kept in the same SQLite file), best episode, next episode when the show is still airing. A season can be requested on its own ("Request season 3"); requests carry the IMDb id and the season.
+- "Anime" shelf: animated titles whose original title is Japanese (IMDb akas: original title vs. English title, Wikidata country lists as a tie-breaker). Animated titles enter the catalogue from fewer votes (3,000 for series, 8,000 for movies). The list is `data/anime.json`, rebuilt weekly.
+- Search looks in the catalogue first (instant, tolerant to typos, ranked by popularity) and asks TMDb only when few local titles match.
+- The catalogue remembers your tab, category and filters across reloads (per browser).

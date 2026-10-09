@@ -4,7 +4,7 @@ Everything lives in /db. Rebuilt weekly in the background at low priority.
 
 Shelves are rules over that data ("hidden gems", "mind-benders", "short and sweet", ...), shown on the home view; every
 shelf can also be opened on its own with up to 60 titles."""
-import gzip, json, math, os, random, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
+import difflib, gzip, json, math, os, random, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 4      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 5      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -37,8 +37,44 @@ def _anime_set():
         pass
     return _anime["s"]
 
+_JP_SCRIPT = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+_ROMAJI = re.compile(r"[\u00e2\u00ee\u00fb\u00f4\u00ea]|(^|\s)(no|wa)(\s|$|:)", re.I)   # "Tonari no Totoro", "Shippûden"
+_OTHER = {"FR", "ES", "DE", "IT", "BR", "PT", "CN", "TR", "CZ", "HU", "PL", "RU", "AR", "MX"}   # regions that list their own originals
+_NA = "\\N"
+
+def _norm(t): return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+def anime_verdict(orig, us, other_same, cty):
+    """Is this animated title Japanese? Its original title (IMDb) against its English one, with the country lists as a check."""
+    if "JP" in cty: return True
+    if cty: return False                              # Wikidata says French, Korean, Chinese, ...
+    if _JP_SCRIPT.search(orig): return True
+    if not orig: return False
+    o, u = _norm(orig), _norm(us)
+    if not o or o == u: return False                  # the original title is the English one
+    if _ROMAJI.search(orig): return True
+    if u and (u in o or o in u or difflib.SequenceMatcher(None, o, u).ratio() >= .8): return False   # "Tim Burton's The Nightmare ..."
+    if other_same: return False
+    return not (set(o.split()) & {"the", "and", "of", "a", "an", "in", "on", "with", "for", "from", "my", "your", "little", "big"})
+
+def anime_scan(path, anim, cty_of):
+    """Streams title.akas: original title, English title and whether another country lists the original, per animated title."""
+    orig, us, rows = {}, {}, {}
+    for r in _rows(path):
+        t = r[0]
+        if t not in anim: continue
+        if r[7] == "1": orig[t] = r[2]
+        elif r[3] == "US" and r[4] in (_NA, "en") and (r[5] == "imdbDisplay" or t not in us): us[t] = r[2]
+        elif r[3] in _OTHER: rows.setdefault(t, []).append(r[2])
+    out = set()
+    for t in anim:
+        o = _norm(orig.get(t, ""))
+        other = any(_norm(x) == o for x in rows.get(t, ())) if o else False
+        if anime_verdict(orig.get(t, ""), us.get(t, ""), other, cty_of(t)): out.add(t)
+    return out
+
 def _anime_job():
-    """Anime = animated titles whose ORIGINAL title is Japanese (IMDb akas: region JP, flagged as original). Streamed, low priority."""
+    """Anime = animated titles that are Japanese. Streams IMDb's akas file (large), low priority, once a week."""
     try:
         try: os.nice(10)
         except OSError: pass
@@ -47,9 +83,9 @@ def _anime_job():
         anim = {i for i, it in cat["items"].items() if "Animation" in it["g"]}
         ap = os.path.join(DBDIR, "akas.tsv.gz")
         _download("title.akas.tsv.gz", ap)
-        found = set()
-        for r in _rows(ap):
-            if r[0] in anim and r[3] == "JP" and r[7] == "1": found.add(r[0])
+        cd = _cty.get("d") or {}
+        def cty_of(t): return {c for c in cd if any(t in cd[c].get(k, ()) for k in KINDS)}
+        found = anime_scan(ap, anim, cty_of)
         os.remove(ap)
         tmp = ANIME_F + ".tmp"
         json.dump(sorted(found), open(tmp, "w")); os.replace(tmp, ANIME_F)
@@ -280,6 +316,8 @@ def _epdb(path=EPS_DB):
     c.execute("CREATE TABLE IF NOT EXISTS ep(tconst TEXT PRIMARY KEY, series TEXT, season INTEGER, ep INTEGER, rating REAL, votes INTEGER, title TEXT)")
     c.execute("CREATE INDEX IF NOT EXISTS ep_series ON ep(series)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS epx(series TEXT, season INTEGER, ep INTEGER, airdate TEXT, runtime INTEGER, title TEXT, PRIMARY KEY(series, season, ep))")
+    c.execute("CREATE TABLE IF NOT EXISTS epx_info(series TEXT PRIMARY KEY, fetched INTEGER, tvmaze INTEGER, status TEXT, premiered TEXT, ended TEXT, runtime INTEGER)")
     return c
 
 def _build_episodes(series_ids):
@@ -320,6 +358,12 @@ def _build_episodes(series_ids):
                 c.executemany("UPDATE ep SET title=? WHERE tconst=?", batch); batch = []
     if batch: c.executemany("UPDATE ep SET title=? WHERE tconst=?", batch)
     c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
+    try:                                                  # keep the air dates and runtimes already fetched
+        c.execute("ATTACH DATABASE ? AS old", (EPS_DB,))
+        c.execute("INSERT OR IGNORE INTO epx SELECT * FROM old.epx"); c.execute("INSERT OR IGNORE INTO epx_info SELECT * FROM old.epx_info")
+        c.commit(); c.execute("DETACH DATABASE old")
+    except sqlite3.Error:
+        pass
     c.commit(); c.close()
     os.replace(new, EPS_DB)
     for p in paths.values():
@@ -349,23 +393,116 @@ def ensure_episodes():
     _eps["building"] = True
     threading.Thread(target=_episodes_job, daemon=True).start()
 
-def episodes_for(sid):
+TVMAZE = "https://api.tvmaze.com"
+UA = "LumioCatalogue/1.1 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
+
+def _tvmaze(url):
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=8) as r:
+        return json.load(r)
+
+def fetch_tvmaze(sid):
+    """Air dates, runtimes and titles per episode from TVmaze (free, no key), by IMDb id. Kept in episodes.db; retried daily if missing."""
+    c = _epdb()
+    row = c.execute("SELECT fetched, tvmaze FROM epx_info WHERE series=?", (sid,)).fetchone()
+    if row and time.time() - row[0] < (MAXAGE if row[1] else 86400): c.close(); return
+    show, eps = None, []
     try:
-        c = _epdb(); rows = c.execute("SELECT season, ep, rating, votes, title FROM ep WHERE series=? ORDER BY season, ep", (sid,)).fetchall(); c.close()
+        show = _tvmaze(TVMAZE + "/lookup/shows?imdb=" + sid)
+        if show: eps = _tvmaze(TVMAZE + "/shows/%d/episodes?specials=1" % show["id"])
+    except Exception:
+        pass
+    if show:
+        rt = show.get("averageRuntime") or show.get("runtime")
+        c.execute("INSERT OR REPLACE INTO epx_info VALUES(?,?,?,?,?,?,?)", (sid, int(time.time()), show["id"], show.get("status"), show.get("premiered"), show.get("ended"), rt))
+        c.execute("DELETE FROM epx WHERE series=?", (sid,))
+        c.executemany("INSERT OR REPLACE INTO epx VALUES(?,?,?,?,?,?)",
+                      [(sid, e.get("season") or 0, e.get("number") or 0, e.get("airdate") or None, e.get("runtime"), (e.get("name") or "")[:120])
+                       for e in eps if e.get("number")])
+    else:
+        c.execute("INSERT OR REPLACE INTO epx_info VALUES(?,?,?,?,?,?,?)", (sid, int(time.time()), None, None, None, None, None))
+    c.commit(); c.close()
+
+def episodes_for(sid):
+    """Seasons with episode ratings (IMDb) and air dates / runtimes (TVmaze), plus totals: how long it takes to watch, best episode, next one."""
+    try:
+        fetch_tvmaze(sid)
+        c = _epdb()
+        rows = c.execute("SELECT season, ep, rating, votes, title FROM ep WHERE series=? ORDER BY season, ep", (sid,)).fetchall()
+        x = {(s, e): (a, r, t) for s, e, a, r, t in c.execute("SELECT season, ep, airdate, runtime, title FROM epx WHERE series=?", (sid,))}
+        info = c.execute("SELECT status, premiered, ended, runtime FROM epx_info WHERE series=? AND tvmaze IS NOT NULL", (sid,)).fetchone()
+        c.close()
     except Exception:
         return None
-    if not rows: return None
-    seasons = {}
-    for sn, en, rt, vt, tl in rows:
-        seasons.setdefault(sn, []).append([en, rt, vt, tl or ""])
-    out = []
-    for sn in sorted(seasons):
+    if not rows and not x: return None
+    item = (_mem["cat"] or {}).get("items", {}).get(sid) or {}
+    show_rt, imdb_rt = (info and info[3]) or None, item.get("rt") or None
+    default_rt = imdb_rt or show_rt
+    def ep_rt(tv):
+        if tv and imdb_rt and show_rt and abs(tv - show_rt) >= 15: return tv      # a special-length episode
+        return default_rt
+    ep = {(s, e): [e, r, v, t or ""] for s, e, r, v, t in rows}
+    for k, (a, r, t) in x.items():
+        if k not in ep: ep[k] = [k[1], None, None, t or ""]
+    seasons, today = {}, time.strftime("%Y-%m-%d")
+    for (s, e), rec in sorted(ep.items()):
+        a, r, t = x.get((s, e), (None, None, ""))
+        if not rec[3] and t: rec[3] = t
+        if a and a > today: rec[3] = rec[3] or t           # future episodes keep their title
+        seasons.setdefault(s, []).append(rec + [a, ep_rt(r)])
+    out, best, nxt = [], None, None
+    for sn in sorted(seasons, key=lambda n: (n == 0, n)):
         eps = seasons[sn]; rated = [e[1] for e in eps if e[1]]
-        out.append({"n": sn, "c": len(eps), "avg": round(sum(rated) / len(rated), 1) if rated else None, "eps": eps})
-    rated_all = [e[1] for s in out for e in s["eps"] if e[1]]
-    real = [s for s in out if s["n"] > 0]
-    return {"seasons": out, "season_count": len(real), "episode_count": sum(len(s["eps"]) for s in (real or out)),
-            "avg": round(sum(rated_all) / len(rated_all), 1) if rated_all else None}
+        dates = sorted(e[4] for e in eps if e[4])
+        mins = sum(e[5] for e in eps if e[5]) or None
+        out.append({"n": sn, "c": len(eps), "avg": round(sum(rated) / len(rated), 1) if rated else None, "eps": eps,
+                    "minutes": mins, "first": dates[0] if dates else None, "last": dates[-1] if dates else None})
+        for e in eps:
+            if sn and e[1] and (e[2] or 0) >= 500 and (not best or e[1] > best[3]): best = [sn, e[0], e[3], e[1]]
+            if sn and e[4] and e[4] > today and (not nxt or e[4] < nxt[2]): nxt = [sn, e[0], e[4]]
+    real = [s for s in out if s["n"] > 0] or out
+    rated_all = [e[1] for s in real for e in s["eps"] if e[1]]
+    return {"seasons": out, "season_count": len([s for s in out if s["n"] > 0]), "episode_count": sum(s["c"] for s in real),
+            "avg": round(sum(rated_all) / len(rated_all), 1) if rated_all else None,
+            "minutes": sum(s["minutes"] or 0 for s in real) or None, "best": best, "next": nxt,
+            "status": info and info[0], "premiered": min((s["first"] for s in real if s["first"]), default=info and info[1]),
+            "ended": None if (info and info[0] == "Running") else max((s["last"] for s in real if s["last"]), default=info and info[2])}
+
+# ---------- quick title search inside the catalogue (no network): exact, prefix, every word, substring, then near misses ----------
+_fidx = {"built": None}
+
+def _index(kind):
+    cat = _mem["cat"]
+    if _fidx["built"] != cat["built"]: _fidx.clear(); _fidx["built"] = cat["built"]
+    if kind not in _fidx:
+        _fidx[kind] = [(_norm(it["n"]), it) for it in cat["items"].values() if it["k"] == kind]
+    return _fidx[kind]
+
+def find(kind, q, limit=24):
+    cat = load()
+    if not cat: return []
+    nq = _norm(q); toks = nq.split()
+    if not toks: return []
+    idx, out = _index(kind), []
+    for name, it in idx:
+        if name == nq: sc = 100
+        elif name.startswith(nq): sc = 80
+        else:
+            words = name.split()
+            if all(any(w.startswith(t) for w in words) for t in toks): sc = 60
+            elif nq in name: sc = 50
+            else: continue
+        out.append((sc + min(20, math.log10(max(it["v"], 10)) * 3), it))
+    if len(out) < 5 and len(nq) >= 4:                       # typos: "breakng bad"
+        close = set(difflib.get_close_matches(nq, [n for n, _ in idx], n=8, cutoff=.75))
+        out += [(30 + min(20, math.log10(max(it["v"], 10)) * 3), it) for n, it in idx if n in close]
+    out.sort(key=lambda x: -x[0])
+    seen, res = set(), []
+    for _, it in out:
+        if it["id"] in seen: continue
+        seen.add(it["id"]); res.append(it)
+        if len(res) >= limit: break
+    queue_resolve(res)
+    return [_dress(cat, it["id"]) for it in res]
 
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)

@@ -163,6 +163,9 @@ def db():
     c.execute("""CREATE TABLE IF NOT EXISTS requests(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, title TEXT, year INTEGER,
                  poster TEXT, note TEXT, who TEXT, status TEXT DEFAULT 'open', created INTEGER)""")
     c.execute("CREATE TABLE IF NOT EXISTS request_votes(req_id INTEGER, who TEXT, PRIMARY KEY(req_id, who))")
+    for col in ("tid TEXT", "season INTEGER"):          # added later: IMDb id (opens the details) and a season number
+        try: c.execute("ALTER TABLE requests ADD COLUMN " + col)
+        except sqlite3.OperationalError: pass
     return c
 
 def clip(v, n):
@@ -336,6 +339,11 @@ class H(BaseHTTPRequestHandler):
                 except Exception: return self.js({})
                 catalog.save_trailer(key, res[0] if res else "", res[1] if res else "")
                 return self.send(200, json.dumps({"vid": res[0], "title": res[1]} if res else {}).encode(), cache="private, max-age=3600")
+            if path == "/_meta/find":
+                kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
+                lim = (qs.get("limit") or ["24"])[0]
+                body = json.dumps(catalog.find(kind, clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode()
+                return self.send(200, body, cache="private, max-age=60")
             if path == "/_meta/episodes":
                 sid = (qs.get("id") or [""])[0]
                 d = catalog.episodes_for(sid) if re.fullmatch(r"tt\d{6,10}", sid) else None
@@ -452,15 +460,17 @@ class H(BaseHTTPRequestHandler):
                 poster = clip(b.get("poster"), 300)
                 if poster and urlparse(poster).hostname != "image.tmdb.org": poster = ""
                 who = s["user"] if not admin else (clip(b.get("who"), 40) or s["user"])
+                tid = b.get("tid") if re.fullmatch(r"tt\d{6,10}", str(b.get("tid") or "")) else None
+                season = int(b["season"]) if str(b.get("season") or "").isdigit() and 0 < int(b["season"]) <= 100 else None
                 with db() as c:
                     if c.execute("SELECT count(*) FROM requests WHERE who=? AND created>?", (who, int(time.time()) - 3600)).fetchone()[0] >= 40:
                         return self.js({"error": "slow down"}, 429)
-                    ex = c.execute("SELECT id FROM requests WHERE kind=? AND lower(title)=lower(?) AND IFNULL(year,0)=IFNULL(?,0) AND status='open'", (kind, title, year)).fetchone()
+                    ex = c.execute("SELECT id FROM requests WHERE kind=? AND lower(title)=lower(?) AND IFNULL(year,0)=IFNULL(?,0) AND IFNULL(season,0)=IFNULL(?,0) AND status='open'", (kind, title, year, season)).fetchone()
                     if ex:
                         c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (ex["id"], who))
                         return self.js({"id": ex["id"], "duplicate": True})
-                    cur = c.execute("INSERT INTO requests(kind,title,year,poster,note,who,created) VALUES(?,?,?,?,?,?,?)",
-                                    (kind, title, year, poster, clip(b.get("note"), 200), who, int(time.time())))
+                    cur = c.execute("INSERT INTO requests(kind,title,year,poster,note,who,created,tid,season) VALUES(?,?,?,?,?,?,?,?,?)",
+                                    (kind, title, year, poster, clip(b.get("note"), 200), who, int(time.time()), tid, season))
                     c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (cur.lastrowid, who))
                 return self.js({"id": cur.lastrowid})
             m = re.fullmatch(r"/_meta/requests/(\d+)/vote", path)
