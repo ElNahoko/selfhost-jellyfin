@@ -52,6 +52,7 @@ One small web app on its own hostname (for example `files.example.com`) with a s
 - **Refresh, closed tab or crash:** when you choose or drop a **folder** in Chrome, Edge or another Chromium browser, the page remembers it. After a reload a banner offers **Resume**; one click and only what is missing is sent. In other browsers, add the same folder again: finished files are skipped.
 - The browser itself shows a native question when you pick a folder ("Upload 110 files to this site?" or "Let site view files?"). That is a browser security prompt and cannot be removed by a web page. **Dragging** the folder onto the page avoids the first one.
 - "Done" means the file is **stored**. Jellyfin adds it to the library about a minute later **if the auto-scan service is installed** (`sudo JELLYFIN_API_KEY=<key> bash scripts/07-enable-autoscan.sh`).
+- **Refresh Jellyfin** (button in the top bar of a library) asks Jellyfin to scan right now, instead of waiting for the automatic scan.
 - Use clean names (`Movie Title (2020)/Movie Title (2020).mkv`), see [Add media](08-first-media-and-testing.md).
 
 ## Security notes

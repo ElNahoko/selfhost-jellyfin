@@ -29,12 +29,12 @@ _lock = threading.Lock()
 _items = {"t": 0, "body": b"{}"}
 _sizes = {"t": 0, "body": b"{}"}
 
-def jf(path, data=None, timeout=30):
+def jf(path, data=None, timeout=30, method=None):
     h = {"Authorization": 'MediaBrowser Token="%s"' % KEY}
     if data is not None:
         h["Content-Type"] = "application/json"
         data = json.dumps(data).encode()
-    return urllib.request.urlopen(urllib.request.Request(JF + path, data=data, headers=h), timeout=timeout)
+    return urllib.request.urlopen(urllib.request.Request(JF + path, data=data, headers=h, method=method), timeout=timeout)
 
 # ---------- library metadata ----------
 def build_items():
@@ -337,6 +337,10 @@ class H(BaseHTTPRequestHandler):
             if m:
                 st = "done" if b.get("status") == "done" else "open"
                 with db() as c: c.execute("UPDATE requests SET status=? WHERE id=?", (st, int(m.group(1))))
+                return self.js({"ok": True})
+            if path == "/_meta/refresh":            # ask Jellyfin to scan the media folders now
+                jf("/Library/Refresh", method="POST", timeout=20)
+                _items["t"] = 0; _sizes["t"] = 0
                 return self.js({"ok": True})
             if path == "/_meta/password":
                 err = auth.change_password(s["user"], b.get("current"), b.get("new"), self.headers.get("Cookie"))

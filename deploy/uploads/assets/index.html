@@ -354,6 +354,7 @@ body.guest .tabbar{display:none}
         <input class="search" id="filter" type="search" placeholder="Filter this folder" aria-label="Filter this folder">
         <button class="pill" id="pill" type="button" hidden aria-label="Upload progress"><span class="ring" id="ring"></span><span id="pillT"></span></button>
         <button class="btn" id="newFolder" type="button">New folder</button>
+        <button class="btn" id="scanBtn" type="button" title="Ask Jellyfin to look for new and removed files now"><span id="scanIc"></span>Refresh Jellyfin</button>
         <button class="btn primary" id="upBtn" type="button" aria-haspopup="true" aria-expanded="false"><span id="upIc"></span><span id="upT">Upload</span></button>
         <div class="menu" id="upMenu" hidden>
           <button id="pickFolder" type="button"><span data-i="folder"></span>Upload a folder</button>
@@ -420,6 +421,7 @@ var ICONS={
   add:'<path d="M12 5v14M5 12h14"/>',
   users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  refresh:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
   up2:'<path d="M12 19V5M5 12l7-7 7 7"/>',
@@ -437,6 +439,7 @@ function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
 function pad2(n){return ("0"+n).slice(-2);}
 ["signout","signout2"].forEach(function(id){var b=document.getElementById(id);if(b)b.appendChild(svg("out"));});
+$("scanIc").appendChild(svg("refresh"));
 ["settingsBtn","settingsBtn2"].forEach(function(id){var b=document.getElementById(id);if(b)b.appendChild(svg("gear"));});
 document.querySelectorAll("[data-i]").forEach(function(s){s.appendChild(svg(s.getAttribute("data-i")));});
 $("upIc").appendChild(svg("up"));
@@ -1216,6 +1219,12 @@ $("pickFolder").onclick=async function(){
   else $("dirInput").click();
 };
 $("newFolder").onclick=newFolder;
+$("scanBtn").onclick=async function(){
+  var b=$("scanBtn");b.disabled=true;
+  try{await api("POST","/_meta/refresh",{});toast("Jellyfin is scanning. New titles appear in a minute or two.");setTimeout(function(){metaT=0;if(cwd!=="requests"&&cwd!=="profiles"&&cwd!=="settings")listDir();},20000);}
+  catch(e){toast("Could not reach Jellyfin");}
+  setTimeout(function(){b.disabled=false;},4000);
+};
 $("filter").oninput=function(e){filterText=e.target.value;drawListing();};
 $("fileInput").onchange=function(e){enqueue([].map.call(e.target.files,function(f){return{file:f,rel:f.name};}));e.target.value="";};
 $("dirInput").onchange=function(e){enqueue([].map.call(e.target.files,function(f){return{file:f,rel:f.webkitRelativePath||f.name};}));e.target.value="";};
@@ -1259,7 +1268,7 @@ function paintUpload(){var w=upWhat();$("upT").textContent=w?"Upload "+w:"Upload
 function render(){
   var rq=cwd==="requests"||cwd==="profiles"||cwd==="settings";
   paintUpload();
-  ["filter","newFolder","upBtn"].forEach(function(id){$(id).hidden=rq;});closeMenu();
+  ["filter","newFolder","scanBtn","upBtn"].forEach(function(id){$(id).hidden=rq;});closeMenu();
   renderNav();renderCrumbs();
   if(cwd==="profiles"){renderProfiles();return;}
   if(cwd==="settings"){renderSettings();return;}
