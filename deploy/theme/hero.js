@@ -14,6 +14,16 @@
   function img(id, type, tag, w) {
     return client().getUrl("Items/" + id + "/Images/" + type + "/0", { tag: tag, maxWidth: w, quality: 85 });
   }
+  var ICO = {
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+    info: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>',
+    down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>',
+    full: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 11V3h-8l3.3 3.3-10 10L3 13v8h8l-3.3-3.3 10-10z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 17.3 6.2 3.7-1.6-7L22 9.2l-7.2-.6L12 2 9.2 8.6 2 9.2 7.5 14l-1.7 7z"/></svg>'
+  };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
@@ -89,7 +99,7 @@
     root.id = "jfHero"; root.setAttribute("aria-roledescription", "carousel"); root.setAttribute("aria-label", "Featured");
     var slides = state.items.map(function (it, n) {
       var meta = [];
-      if (it.CommunityRating) meta.push('<span class="jfh-star">★ ' + it.CommunityRating.toFixed(1) + "</span>");
+      if (it.CommunityRating) meta.push('<span class="jfh-star">' + ICO.star + it.CommunityRating.toFixed(1) + "</span>");
       if (it.ProductionYear) meta.push("<span>" + it.ProductionYear + "</span>");
       var rt = runtime(it.RunTimeTicks); if (rt) meta.push("<span>" + rt + "</span>");
       var title = it.ImageTags && it.ImageTags.Logo
@@ -100,8 +110,8 @@
         '<div class="jfh-inner"><div class="jfh-info">' + title +
         '<div class="jfh-meta">' + meta.join('<i></i>') + "</div>" +
         (it.Overview ? '<p class="jfh-over">' + esc(it.Overview) + "</p>" : "") +
-        '<div class="jfh-actions"><button type="button" class="jfh-btn jfh-play" data-act="play"><b>▶</b>Play</button>' +
-        '<button type="button" class="jfh-btn jfh-more" data-act="more"><b>ⓘ</b>More Info</button></div>' +
+        '<div class="jfh-actions"><button type="button" class="jfh-btn jfh-play" data-act="play">' + ICO.play + 'Play</button>' +
+        '<button type="button" class="jfh-btn jfh-more" data-act="more">' + ICO.info + 'More Info</button></div>' +
         "</div></div>" +
         (it.OfficialRating ? '<div class="jfh-age">' + esc(it.OfficialRating) + "</div>" : "") +
         "</div>";
@@ -184,11 +194,11 @@
     return "";
   }
   function card(it) {
-    var pct = it.UserData && it.UserData.PlayedPercentage;
+    var pct = it.UserData && it.UserData.PlayedPercentage, fav = it.UserData && it.UserData.IsFavorite;
     var u = thumbUrl(it, 480);
     var name = it.Type === "Episode" && it.SeriesName ? it.SeriesName : it.Name;
     var meta = [];
-    if (it.CommunityRating) meta.push('<b class="jfr-rate">★ ' + it.CommunityRating.toFixed(1) + "</b>");
+    if (it.CommunityRating) meta.push('<b class="jfr-rate">' + ICO.star + it.CommunityRating.toFixed(1) + "</b>");
     if (it.OfficialRating) meta.push('<span class="jfr-age">' + esc(it.OfficialRating) + "</span>");
     if (it.ProductionYear) meta.push("<span>" + it.ProductionYear + "</span>");
     var sub = subtitle(it);
@@ -196,8 +206,9 @@
       '<span class="jfr-thumb">' + (u ? '<img loading="lazy" decoding="async" alt="" src="' + u + '">' : "") +
       '<span class="jfr-name">' + esc(name) + "</span>" +
       (pct ? '<span class="jfr-prog"><i style="width:' + Math.min(100, Math.round(pct)) + '%"></i></span>' : "") + "</span>" +
-      '<span class="jfr-pop"><span class="jfr-btns"><button type="button" class="jfr-play" data-act="play" aria-label="Play ' + esc(it.Name) + '">▶</button>' +
-      '<button type="button" class="jfr-more" data-act="more" aria-label="More info">⌄</button></span>' +
+      '<span class="jfr-pop"><span class="jfr-btns"><button type="button" class="jfr-play" data-act="play" aria-label="Play ' + esc(it.Name) + '" title="Play">' + ICO.play + '</button>' +
+      '<button type="button" class="jfr-list' + (fav ? " on" : "") + '" data-act="fav" aria-label="My list" title="My list">' + (fav ? ICO.check : ICO.plus) + '</button>' +
+      '<button type="button" class="jfr-more" data-act="more" aria-label="More info" title="More info">' + ICO.down + '</button></span>' +
       (sub ? '<span class="jfr-sub">' + sub + "</span>" : "") +
       '<span class="jfr-meta">' + meta.join("") + "</span>" +
       (it.Genres && it.Genres.length ? '<span class="jfr-genres">' + it.Genres.slice(0, 3).map(esc).join(" · ") + "</span>" : "") +
@@ -325,8 +336,15 @@
     }
     var b = e.target.closest("button[data-act]");
     if (b) {
-      e.preventDefault(); var card = b.closest(".jfr-card");
-      if (b.dataset.act === "play") play(card.dataset.id, card.dataset.server); else openModal(card.dataset.id);
+      e.preventDefault(); e.stopPropagation(); var card = b.closest(".jfr-card");
+      if (b.dataset.act === "play") play(card.dataset.id, card.dataset.server);
+      else if (b.dataset.act === "fav") {
+        var on = !b.classList.contains("on"), cc = client(), uu = userId();
+        cc.updateFavouriteStatus(uu, card.dataset.id, on).then(function () {
+          b.classList.toggle("on", on); b.innerHTML = on ? ICO.check : ICO.plus;
+          try { sessionStorage.removeItem("jfRows3:" + uu); } catch (x) {}
+        });
+      } else openModal(card.dataset.id);
       return;
     }
     var k = e.target.closest(".jfr-card");
@@ -362,7 +380,7 @@
     if (heroStop) { heroStop(); heroStop = null; } clearTimeout(heroTimer); state.previewing = false;      // the banner behind the panel stops its own preview
     var token = ++modal.token;
     var back = document.createElement("div"); back.className = "jfm-back"; back.setAttribute("role", "dialog"); back.setAttribute("aria-modal", "true");
-    back.innerHTML = '<div class="jfm-panel"><button type="button" class="jfm-close" aria-label="Close">✕</button><div class="jfm-loading">Loading…</div></div>';
+    back.innerHTML = '<div class="jfm-panel"><button type="button" class="jfm-close" aria-label="Close">' + ICO.close + '</button><div class="jfm-loading">Loading…</div></div>';
     document.body.appendChild(back); modal.el = back; document.documentElement.classList.add("jfm-open");
     requestAnimationFrame(function () { back.classList.add("on"); });
     back.addEventListener("mousedown", function (e) { if (e.target === back) closeModal(); });
@@ -381,7 +399,7 @@
     var head = tags.Logo ? '<img class="jfm-logo" alt="' + esc(item.Name) + '" src="' + img(item.Id, "Logo", tags.Logo, 600) + '">' : '<h2 class="jfm-title">' + esc(item.Name) + "</h2>";
     var ud = item.UserData || {}, resume = ud.PlaybackPositionTicks > 0 || (ud.UnplayedItemCount != null && ud.UnplayedItemCount < (item.RecursiveItemCount || 1e9) && item.Type === "Series");
     var meta = [];
-    if (item.CommunityRating) meta.push('<b class="jfm-rate">★ ' + item.CommunityRating.toFixed(1) + "</b>");
+    if (item.CommunityRating) meta.push('<b class="jfm-rate">' + ICO.star + item.CommunityRating.toFixed(1) + "</b>");
     if (item.ProductionYear) meta.push("<span>" + item.ProductionYear + (item.Type === "Series" ? (item.EndDate ? " – " + new Date(item.EndDate).getFullYear() : " – now") : "") + "</span>");
     var rt = fmtMin(item.RunTimeTicks); if (rt && item.Type !== "Series") meta.push("<span>" + rt + "</span>");
     if (item.OfficialRating) meta.push('<span class="jfm-age">' + esc(item.OfficialRating) + "</span>");
@@ -395,12 +413,12 @@
     var fav = ud.IsFavorite;
     var trailerUrl = ""; (item.RemoteTrailers || []).some(function (t) { if (t && /^https:\/\//.test(t.Url || "")) { trailerUrl = t.Url; return true; } return false; });
     back.querySelector(".jfm-panel").innerHTML =
-      '<button type="button" class="jfm-close" aria-label="Close">✕</button>' +
+      '<button type="button" class="jfm-close" aria-label="Close">' + ICO.close + '</button>' +
       '<div class="jfm-hero"><div class="jfm-bg"' + (bgUrl ? ' style="background-image:url(\'' + bgUrl + '\')"' : "") + '></div><div class="jfm-grad"></div>' +
-      '<div class="jfm-head">' + head + '<div class="jfm-actions"><button type="button" class="jfm-play"><b>▶</b>' + (resume ? "Resume" : "Play") + '</button>' +
-      '<button type="button" class="jfm-round jfm-fav' + (fav ? " on" : "") + '" aria-label="My list" title="My list">' + (fav ? "✓" : "＋") + '</button>' +
+      '<div class="jfm-head">' + head + '<div class="jfm-actions"><button type="button" class="jfm-play">' + ICO.play + (resume ? "Resume" : "Play") + '</button>' +
+      '<button type="button" class="jfm-round jfm-fav' + (fav ? " on" : "") + '" aria-label="My list" title="My list">' + (fav ? ICO.check : ICO.plus) + '</button>' +
       (trailerUrl ? '<a class="jfm-trailer" href="' + esc(trailerUrl) + '" target="_blank" rel="noopener noreferrer" title="Opens the trailer on the web (new tab)">Trailer</a>' : "") +
-      '<a class="jfm-round jfm-open-page" href="#/details?id=' + item.Id + '" title="Open the full page" aria-label="Open the full page">⤢</a></div></div></div>' +
+      '<a class="jfm-round jfm-open-page" href="#/details?id=' + item.Id + '" title="Open the full page" aria-label="Open the full page">' + ICO.full + '</a></div></div></div>' +
       '<div class="jfm-body"><div class="jfm-main"><div class="jfm-meta">' + meta.join("") + "</div>" +
       (item.Taglines && item.Taglines[0] ? '<p class="jfm-tag">' + esc(item.Taglines[0]) + "</p>" : "") +
       '<p class="jfm-over">' + esc(item.Overview || "No description yet.") + '</p></div><div class="jfm-side">' + side + "</div></div>" +
@@ -412,7 +430,7 @@
     panel.querySelector(".jfm-open-page").addEventListener("click", function () { closeModal(); });
     panel.querySelector(".jfm-fav").addEventListener("click", function (e) {
       var b = e.currentTarget, on = !b.classList.contains("on");
-      c.updateFavouriteStatus(uid, item.Id, on).then(function () { b.classList.toggle("on", on); b.textContent = on ? "✓" : "＋"; try { sessionStorage.removeItem("jfRows3:" + uid); } catch (x) {} });
+      c.updateFavouriteStatus(uid, item.Id, on).then(function () { b.classList.toggle("on", on); b.innerHTML = on ? ICO.check : ICO.plus; try { sessionStorage.removeItem("jfRows3:" + uid); } catch (x) {} });
     });
     // silent preview behind the top picture
     if (!reduceMotion) setTimeout(function () {

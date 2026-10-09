@@ -78,10 +78,7 @@
 #jfRows .jfr-btns button:hover { border-color: #fff; }
 #jfRows .jfr-btns .jfr-play { background: #fff; color: #000; border-color: #fff; }
 #jfRows .jfr-btns .jfr-play:hover { background: rgba(255,255,255,.75); }
-#jfRows .jfr-btns .jfr-more { margin-left: auto; font-size: 0; }
-#jfRows .jfr-btns .jfr-more::before { content: ""; width: .5rem; height: .5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-.12rem) rotate(45deg); }
-#jfRows .jfr-btns .jfr-play { font-size: 0; }
-#jfRows .jfr-btns .jfr-play::before { content: ""; border-style: solid; border-width: .42rem 0 .42rem .7rem; border-color: transparent transparent transparent currentColor; margin-left: .15rem; }
+#jfRows .jfr-btns .jfr-more { margin-left: auto; }
 #jfRows .jfr-sub { display: block; font-weight: 600; margin-bottom: .3em; color: #d2d2d2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #jfRows .jfr-meta { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; font-weight: 600; color: #bcbcbc; }
 #jfRows .jfr-rate { color: #46d369; }
@@ -196,3 +193,21 @@ html.jfm-open, html.jfm-open body { overflow: hidden !important; }
 .jfm-mute:hover { border-color: #fff; background: rgba(60,60,60,.85); }
 .jfm-trailer { display: inline-flex; align-items: center; height: 2.6rem; padding: 0 1.1rem; border-radius: 4px; background: rgba(109,109,110,.7); color: #fff; font-weight: 600; text-decoration: none; }
 .jfm-trailer:hover { background: rgba(109,109,110,.45); }
+
+/* icons: one inline-SVG set, sized by the button that holds them */
+.jfh-btn svg, .jfm-play svg { width: 1.35em; height: 1.35em; flex: none; }
+.jfr-btns button svg { width: 1.25rem; height: 1.25rem; }
+.jfm-round svg, .jfm-close svg { width: 1.3rem; height: 1.3rem; }
+.jfh-star svg, .jfr-rate svg, .jfm-rate svg { width: .95em; height: .95em; vertical-align: -.1em; margin-right: .2em; }
+#jfRows .jfr-btns .jfr-list.on { border-color: #46d369; color: #46d369; }
+#jfRows .jfr-btns .jfr-play { padding-left: .1rem; }
+.jfm-fav.on { border-color: #46d369; color: #46d369; }
+
+/* billboard: when the slide changes the old text leaves quickly and the new text arrives after the picture has cross-faded (no overlapping titles) */
+#jfHero .jfh-slide .jfh-inner, #jfHero .jfh-slide .jfh-age { opacity: 0; transition: opacity .2s ease; }
+#jfHero .jfh-slide.on .jfh-inner, #jfHero .jfh-slide.on .jfh-age { opacity: 1; transition: opacity .45s ease .4s; }
+
+/* row arrows: centred on the pictures, not on the whole row */
+:root { --jfr-w: clamp(150px, 17.2vw, 340px); }
+#jfRows .jfr-arrow { top: calc(1.6em + var(--jfr-w) * 9 / 32) !important; }
+#jfRows .jfr-toprow .jfr-arrow { top: calc(1.6em + 8.1vw) !important; }
