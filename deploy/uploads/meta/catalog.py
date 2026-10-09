@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 11      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 12      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -129,7 +129,6 @@ def _rules(kind, this):
         R.append({"id": id_, "name": name, "fn": fn, "sort": sort, "home": home, "pool": pool})
     add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True, "all")
     add("fresh", "Just released", lambda i: i["y"] == this, V, True, "all")
-    add("newanime", "Latest anime", lambda i: i["y"] and i["y"] >= this - 1 and i["id"] in _anime_set(), "ap", True, "all")
     add("top", "Top rated", lambda i: True, W, True)
     add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True, "all")
     add("anime", "Anime", lambda i: i["id"] in _anime_set(), "ap", True, "all")
