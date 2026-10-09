@@ -414,6 +414,61 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .pill2 svg{width:.9em;height:.9em}
 #luckyBtn .lt{white-space:nowrap}
 @media (max-width:860px){#luckyBtn .lt{display:none}#luckyBtn{flex:none!important}.chip.filt-chip{margin-left:0}}
+
+/* episode numbers instead of a repeated poster */
+.row .th.epth{background:linear-gradient(135deg,var(--card2),#2b2b36)}
+.row .th .epn{font-weight:800;font-size:1.1rem;color:var(--muted);letter-spacing:.04em}
+/* lucky pick */
+.dlg.lucky{position:relative;max-width:900px;padding:0;overflow:hidden;border-radius:28px;border:1px solid rgba(255,255,255,.1);background:#101014}
+.lucky .lbg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(46px) saturate(1.4) brightness(.38);transform:scale(1.15);transition:background-image .4s}
+.lucky::after{content:"";position:absolute;inset:0;background:radial-gradient(700px 360px at 18% 0,rgba(229,9,20,.22),transparent 70%),linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.45));pointer-events:none}
+.lucky .lbody{position:relative;z-index:2;display:flex;gap:34px;padding:34px}
+.lucky .lleft{flex:none;width:250px;perspective:900px}
+.lucky .lcard{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.lucky .lpst{position:relative;aspect-ratio:2/3;border-radius:18px;overflow:hidden;background:var(--card2);box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.12),0 0 80px rgba(229,9,20,.25)}
+.lucky .lpst img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.lucky .lpst .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:3.4rem;font-weight:800;color:rgba(255,255,255,.6)}
+.lucky .lbadge{position:absolute;left:-10px;top:18px;background:linear-gradient(135deg,#ffcf5a,#f5a524);color:#1b1204;font-weight:800;font-size:.78rem;padding:5px 12px;border-radius:0 10px 10px 0;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.lucky .lright{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.lucky .ltags{display:flex;gap:8px;flex-wrap:wrap}
+.lucky .ltags .tag{background:rgba(255,255,255,.12);color:#fff}
+.lucky .ltitle{margin:0;font-size:2.1rem;line-height:1.1;font-weight:800;text-shadow:0 2px 20px rgba(0,0,0,.5)}
+.lucky .lmeta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.lucky .lrate{position:relative;width:54px;height:54px;display:grid;place-items:center}
+.lucky .ringg{position:absolute;inset:0;width:100%;height:100%}
+.lucky .lrate b{position:relative;font-size:1rem}
+.lucky .lbits{display:flex;gap:14px;color:rgba(255,255,255,.75);flex-wrap:wrap}
+.lucky .lbits span+span::before{content:"·";margin-right:14px;opacity:.6}
+.lucky .lplot{margin:0;color:rgba(255,255,255,.82);line-height:1.55;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.lucky .lact{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.lucky .btn.big{padding:12px 20px;border-radius:14px;font-size:1rem}
+.lucky .btn.ghost{background:transparent;border-color:rgba(255,255,255,.25)}
+.lucky .btn.primary.done{background:rgba(255,255,255,.14);border-color:transparent;color:#fff}
+.lucky a.btn{text-decoration:none;color:#fff}
+.lucky .roll{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;margin-top:6px;padding:15px 22px;border-radius:16px;font-weight:800;font-size:1.1rem;color:#1b1204;background:linear-gradient(135deg,#ffd76a,#f5a524 60%,#ef8a1b);box-shadow:0 12px 34px rgba(245,165,36,.35);transition:transform .15s,box-shadow .15s}
+.lucky .roll:hover,.lucky .roll:focus-visible{transform:translateY(-2px);box-shadow:0 18px 42px rgba(245,165,36,.5)}
+.lucky .roll:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.lucky .roll svg.die{width:1.5em;height:1.5em}
+.lucky .roll kbd{font:inherit;font-size:.75rem;background:rgba(0,0,0,.18);border-radius:6px;padding:1px 7px;font-weight:700}
+.lucky .lnote{margin:0;color:rgba(255,255,255,.6);font-size:.85rem}
+.lucky .lx{all:unset;position:absolute;right:16px;top:16px;z-index:5;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:rgba(0,0,0,.4);color:#fff}
+.lucky .lx:hover{background:rgba(0,0,0,.65)}
+.lucky.roll .roll svg.die{animation:dicespin .75s cubic-bezier(.3,.1,.2,1)}
+.lucky.roll .lcard{transform:rotateY(90deg) scale(.9)}
+.lucky.roll .lright>*:not(.roll){opacity:.25;transition:opacity .2s}
+.lucky.in .lcard{animation:cardin .6s cubic-bezier(.2,.8,.2,1)}
+.lucky.in .lright>*:not(.roll){animation:fadeup .5s both}
+.lucky.in .lright>*:nth-child(2){animation-delay:.05s}.lucky.in .lright>*:nth-child(3){animation-delay:.1s}.lucky.in .lright>*:nth-child(4){animation-delay:.15s}.lucky.in .lright>*:nth-child(5){animation-delay:.2s}
+@keyframes dicespin{0%{transform:rotate(0)}60%{transform:rotate(540deg) scale(1.25)}100%{transform:rotate(720deg) scale(1)}}
+@keyframes cardin{0%{transform:rotateY(-90deg) scale(.9);opacity:0}100%{transform:rotateY(0) scale(1);opacity:1}}
+@keyframes fadeup{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.lucky *{animation:none!important;transition:none!important}}
+@media (max-width:860px){
+  .lucky .lbody{flex-direction:column;gap:20px;padding:22px 18px;align-items:stretch;max-height:92vh;overflow:auto}
+  .lucky .lleft{width:150px;align-self:center}
+  .lucky .ltitle{font-size:1.6rem}
+  .lucky .btn.big{flex:1;justify-content:center}
+}
 </style>
 </head>
 <body>
@@ -790,10 +845,12 @@ function fileIcon(name){return /\.(mp3|flac|m4a|m4b|ogg|opus|wav|aac)$/i.test(na
 function row(x){
   var path=cwd+"/"+x.name,m=x.partial?null:metaOf(path);
   var r=el("div","row"),th=el("div","th");th.appendChild(svg(fileIcon(x.name)));
-  var pp=poster(m,220)||(libKind()?parentPoster(220):null);
+  var pp=poster(m,220)||(libKind()==="movie"?parentPoster(220):null);
+  var epm=libKind()==="series"&&x.name.match(/S(\d{1,2})E(\d{1,3})/i);
+  if(!pp&&epm&&VIDEO.test(x.name)){th.classList.add("epth");th.innerHTML="";th.appendChild(el("span","epn","E"+pad2(+epm[2])));}
   if(pp)cover(th,pp);
   else if(IMAGE.test(x.name)&&!x.partial&&x.size<4000000)cover(th,enc(path));      // a picture: show the picture itself
-  else if(libKind()&&VIDEO.test(x.name)){var tf=cleanFolder(cwd.split("/")[1]||"");guessPoster(libKind(),tf.title,tf.year,th);}   // not scanned by Jellyfin yet: guess from the folder name
+  else if(libKind()==="movie"&&VIDEO.test(x.name)){var tf=cleanFolder(cwd.split("/")[1]||"");guessPoster(libKind(),tf.title,tf.year,th);}   // not scanned by Jellyfin yet: guess from the folder name
   r.appendChild(th);
   var nm=el("div","nm"),a=el("a","");
   var label=m&&m.n?(m.t==="Episode"&&m.s!=null&&m.i!=null?"S"+pad2(m.s)+"E"+pad2(m.i)+" · "+m.n:m.n):pretty(x.name);
@@ -821,6 +878,25 @@ function cleanSuggestion(name,isDir){
   if(isDir){var c=cleanFolder(name),t=safeName(c.title);return t&&(t+(c.year?" ("+c.year+")":""));}
   var ext=extOf(name),c2=cleanFolder(name.slice(0,name.length-ext.length)),t2=safeName(c2.title);return t2&&(t2+(c2.year?" ("+c2.year+")":"")+ext);
 }
+var wmTimer=0;
+function missingMeta(){
+  if(cwd==="requests"||cwd==="profiles"||cwd==="settings"||!listing.length)return false;
+  return listing.some(function(p){
+    var name=p.name.replace(/\/$/,"").replace(/\.uploading$/,"");
+    if(/\.uploading$/.test(p.name))return false;
+    if(/Dir/.test(p.path_type))return cwd.split("/").length===1&&!UTIL.test(name)&&!metaOf(cwd+"/"+name);
+    return VIDEO.test(name)&&!metaOf(cwd+"/"+name);
+  });
+}
+function watchMeta(){      // Jellyfin needs a minute to read new or renamed files: refresh the pictures and details when they arrive
+  clearInterval(wmTimer);var n=0;
+  wmTimer=setInterval(async function(){
+    n++;if(n>40||GUEST){clearInterval(wmTimer);return;}
+    metaT=0;var fresh=await loadMeta();
+    if(fresh&&cwd!=="requests"&&cwd!=="profiles"&&cwd!=="settings"){renderCrumbs();drawListing();}
+    if(!missingMeta())clearInterval(wmTimer);
+  },6000);
+}
 async function renameItem(name,isDir,label){
   var sug=cleanSuggestion(name,isDir);
   var nn=await dialog({title:"Rename",text:"Rename “"+label+"”. The picture and details follow the name, so a clean name like Title (Year) works best.",input:{value:name,max:150,placeholder:"New name"},suggest:sug&&sug!==name?sug:"",ok:"Rename"});
@@ -829,8 +905,9 @@ async function renameItem(name,isDir,label){
   if(!clean||clean[0]==="."){toast("That name can’t be used");return;}
   if(await pathExists(cwd+"/"+clean)){toast("Something with that name already exists here");return;}
   try{await movePath(cwd+"/"+name,cwd+"/"+clean);}catch(e){toast("Could not rename ("+(e.message||e)+")");return;}
-  metaT=0;toast("Renamed");listDir();
+  metaT=0;toast("Renamed. Jellyfin is updating the details…");listDir();
   try{api("POST","/_meta/refresh",{});}catch(e){}
+  watchMeta();
 }
 var JUNK=/(yts|yify|rarbg|torrent|\bwww\.|\.com\b|\.org\b|\.net\b|official site|status)/i, JUNKEXT=/\.(txt|nfo|url|html?|jpe?g|png)$/i;
 async function tidyPlan(){
@@ -916,9 +993,10 @@ async function tidyUp(){
       try{if(await pathExists(plan.folderOp.to))failed++;else{await movePath(plan.folderOp.from,plan.folderOp.to);dest=plan.folderOp.to;}}catch(e){failed++;}
     }
     close();metaT=0;
-    toast(failed?"Done, but "+failed+" change"+(failed>1?"s":"")+" were skipped (name already taken)":"Tidied up");
+    toast(failed?"Done, but "+failed+" change"+(failed>1?"s":"")+" were skipped (name already taken)":"Tidied up. Jellyfin is updating the details…");
     try{api("POST","/_meta/refresh",{});}catch(e){}
     if(dest!==cwd)go(dest);else listDir();
+    watchMeta();
   };
   acts.appendChild(cn);acts.appendChild(ap);d.appendChild(acts);m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
   document.addEventListener("keydown",key,true);ap.focus();
@@ -1243,9 +1321,66 @@ async function luckyPick(again){
     return d;
   }catch(e){toast("Nothing to suggest right now");return null;}
 }
+function filterSummary(){
+  var out=[];
+  if(reqF.country&&FINFO[reqKind]){var c=FINFO[reqKind].countries.filter(function(x){return x.id===reqF.country;})[0];out.push(c?c.name:reqF.country);}
+  if(reqF.genre)out.push(reqF.genre);if(reqF.decade)out.push(reqF.decade+"s");if(reqF.min)out.push(reqF.min+"+ rating");
+  return out.join(" · ");
+}
+function ring(r){      // rating as a ring
+  var NS="http://www.w3.org/2000/svg",svg1=document.createElementNS(NS,"svg");svg1.setAttribute("viewBox","0 0 36 36");svg1.setAttribute("class","ringg");
+  var bg=document.createElementNS(NS,"circle"),fg=document.createElementNS(NS,"circle");
+  [bg,fg].forEach(function(c){c.setAttribute("cx","18");c.setAttribute("cy","18");c.setAttribute("r","15.5");c.setAttribute("fill","none");c.setAttribute("stroke-width","3");});
+  bg.setAttribute("stroke","rgba(255,255,255,.14)");fg.setAttribute("stroke","#f5c518");fg.setAttribute("stroke-linecap","round");
+  var C=2*Math.PI*15.5;fg.setAttribute("stroke-dasharray",(C*(r/10))+" "+C);fg.setAttribute("transform","rotate(-90 18 18)");
+  svg1.appendChild(bg);svg1.appendChild(fg);return svg1;
+}
 async function feelingLucky(){
-  var b=$("luckyBtn");b.disabled=true;var it=await luckyPick();b.disabled=false;
-  if(it)showTitle(it,{lucky:true});
+  var b=$("luckyBtn");b.disabled=true;var first=await luckyPick();b.disabled=false;
+  if(!first)return;
+  var m=$("modal"),prev=document.activeElement,it=first,rolls=1;m.innerHTML="";
+  var d=el("div","dlg lucky");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");d.setAttribute("aria-label","Lucky pick");
+  var bgi=el("div","lbg");d.appendChild(bgi);var body=el("div","lbody");d.appendChild(body);
+  function close(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
+  function key(e){if(e.key==="Escape"){e.stopPropagation();close();}else if((e.key==="r"||e.key==="R"||e.key===" ")&&document.activeElement===document.body){e.preventDefault();roll();}}
+  var rolling=false;
+  function paint(){
+    var u=rimg(it.img,500);bgi.style.backgroundImage=u?"url("+u+")":"none";
+    body.innerHTML="";
+    var left=el("div","lleft"),card=el("div","lcard"),pz=el("div","lpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,u);card.appendChild(pz);
+    card.appendChild(el("span","lbadge","Lucky pick #"+rolls));left.appendChild(card);body.appendChild(left);
+    var r=el("div","lright"),tags=el("div","ltags");(it.g||[]).slice(0,3).forEach(function(g){tags.appendChild(el("span","tag",g));});r.appendChild(tags);
+    r.appendChild(el("h2","ltitle",it.n));
+    var meta=el("div","lmeta");
+    if(it.r){var rw=el("div","lrate");rw.appendChild(ring(it.r));rw.appendChild(el("b","",it.r.toFixed(1)));meta.appendChild(rw);}
+    var bits=el("div","lbits");
+    if(it.y)bits.appendChild(el("span","",String(it.y)));if(it.rt)bits.appendChild(el("span","",it.rt+" min"));if(it.v)bits.appendChild(el("span","",fmtVotes(it.v)+" votes"));
+    meta.appendChild(bits);r.appendChild(meta);
+    r.appendChild(el("p","lplot",it.o||"No description yet."));
+    var st=stateOf(it),act=el("div","lact");
+    var rq=el("button","btn primary big"+(st?" done":""));rq.type="button";rq.disabled=!!st;rq.appendChild(svg(st==="have"?"check":st==="asked"?"clock":"add"));
+    rq.appendChild(el("span","",st==="have"?"Already in the library":st==="asked"?"Requested":"Request this"));
+    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it))paint();else rq.disabled=false;};
+    var tr=el("a","btn big");tr.href=ytLink(it);tr.target="_blank";tr.rel="noopener noreferrer";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));
+    act.appendChild(rq);act.appendChild(tr);
+    if(it.id){var im=el("a","btn big ghost");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";im.appendChild(el("span","","IMDb"));act.appendChild(im);}
+    r.appendChild(act);
+    var rl=el("button","roll");rl.type="button";rl.id="rollBtn";rl.appendChild(svg("dice","die"));rl.appendChild(el("span","","Roll again"));rl.appendChild(el("kbd","","R"));
+    rl.onclick=roll;r.appendChild(rl);
+    var fs=filterSummary();if(fs)r.appendChild(el("p","lnote","Picking from: "+fs));
+    body.appendChild(r);
+    var x=el("button","lx");x.type="button";x.setAttribute("aria-label","Close");x.appendChild(svg("x"));x.onclick=close;body.appendChild(x);
+    d.classList.remove("roll");void d.offsetWidth;d.classList.add("in");
+  }
+  async function roll(){
+    if(rolling)return;rolling=true;d.classList.add("roll");
+    var t0=Date.now(),n=await luckyPick();
+    var wait=Math.max(0,750-(Date.now()-t0));await sleep(wait);
+    if(n){it=n;it._loaded=1;rolls++;paint();}else d.classList.remove("roll");
+    rolling=false;
+  }
+  paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
+  document.addEventListener("keydown",key,true);var rb=$("rollBtn");if(rb)rb.focus();
 }
 async function drawRow(kind,row,sort){
   var box=$("reqCat");if(!box)return;
@@ -1510,7 +1645,7 @@ async function pump(){
     }
     settleBatches();
   }
-  running=false;window.onbeforeunload=null;updateSummary();listDir();toast(jobs.some(function(j){return j.state==="fail";})?"Some files failed. Use Retry failed.":"Uploads finished. Jellyfin adds new files to the library in about a minute.");
+  running=false;window.onbeforeunload=null;updateSummary();listDir();watchMeta();toast(jobs.some(function(j){return j.state==="fail";})?"Some files failed. Use Retry failed.":"Uploads finished. Jellyfin adds new files to the library in about a minute.");
 }
 function enqueue(items,opts){   // items: [{file, rel}] rel relative to the folder (opts.cwd, default: the open one)
   if(!running&&jobs.every(function(j){return j.state==="done";}))clearJobs();   // a finished batch makes room for the next one
