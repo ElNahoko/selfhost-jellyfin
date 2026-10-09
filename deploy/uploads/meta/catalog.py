@@ -17,7 +17,9 @@ _state = {"building": False, "error": ""}
 _lock = threading.Lock()
 _mem = {"t": 0, "cat": None, "titles": {}}
 _pending = set()
+_failed = {}
 _resolver = None
+_bulk = {"running": False, "t": 0}
 
 KINDS = {"movie": ("movie",), "series": ("tvSeries", "tvMiniSeries")}
 MIN_VOTES = {"movie": 60000, "series": 30000}
@@ -151,6 +153,7 @@ def _background():
             _mem["cat"] = _read(); _mem["t"] = time.time()
         cat = _mem["cat"]
         if cat:
+            ensure_all()
             first = {}
             for kind in KINDS:
                 for r in cat["rows"][kind]:
@@ -167,7 +170,8 @@ def set_resolver(fn):
 
 def queue_resolve(items):
     """Fetch posters/plots for titles we don't have yet, in the background (never blocks a page load)."""
-    todo = [i for i in items if i["id"] not in _mem["titles"] and i["id"] not in _pending]
+    now = time.time()
+    todo = [i for i in items if i["id"] not in _mem["titles"] and i["id"] not in _pending and now - _failed.get(i["id"], 0) > 1800]
     if not todo or not _resolver: return
     for i in todo: _pending.add(i["id"])
     def run():
@@ -175,6 +179,50 @@ def queue_resolve(items):
         finally:
             for i in todo: _pending.discard(i["id"])
     threading.Thread(target=run, daemon=True).start()
+
+def _bulk_run():
+    try:
+        try: os.nice(10)
+        except OSError: pass
+        cat = _mem["cat"]
+        if not cat: return
+        order, seen = [], set()
+        def add(i):
+            if i not in seen: seen.add(i); order.append(cat["items"][i])
+        for kind in KINDS:                                   # first what the home screen shows, then every category in turn
+            for r in cat["rows"][kind]:
+                if r["home"]:
+                    for i in r["ids"][:HOME_N]: add(i)
+        for kind in KINDS:
+            for r in cat["rows"][kind]:
+                for i in r["ids"]: add(i)
+        for k in range(0, len(order), 40):
+            chunk = [i for i in order[k:k + 40] if i["id"] not in _mem["titles"] and time.time() - _failed.get(i["id"], 0) > 1800]
+            if chunk and _resolver: _resolver(chunk)
+    finally:
+        _bulk["running"] = False
+
+def ensure_all():
+    """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
+    if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
+    _bulk["t"] = time.time()
+    if all(i in _mem["titles"] for i in _mem["cat"]["items"]): return
+    _bulk["running"] = True
+    threading.Thread(target=_bulk_run, daemon=True).start()
+
+def save_guess(key, img):
+    with _titles() as c:
+        c.execute("CREATE TABLE IF NOT EXISTS guesses(key TEXT PRIMARY KEY, img TEXT)")
+        c.execute("INSERT OR REPLACE INTO guesses VALUES(?,?)", (key, img or ""))
+
+def get_guess(key):
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS guesses(key TEXT PRIMARY KEY, img TEXT)")
+            r = c.execute("SELECT img FROM guesses WHERE key=?", (key,)).fetchone()
+            return None if r is None else r[0]
+    except Exception:
+        return None
 
 def save_title(i, img, overview):
     with _titles() as c: c.execute("INSERT OR REPLACE INTO titles VALUES(?,?,?)", (i, img or "", overview or ""))
@@ -196,6 +244,7 @@ def _ordered(cat, ids, sort):
 
 def view(kind, row=None, sort=None, offset=0, limit=40):
     cat = load()
+    ensure_all()
     if not cat:
         return {"building": True, "error": _state["error"], "rows": [], "chips": []}
     rows = cat["rows"][kind]

@@ -128,11 +128,11 @@ def resolve_one(it):
                 try: fetch_poster(img, "185")
                 except Exception: pass
                 return
-    catalog.save_title(it["id"], "", "")
+    catalog._failed[it["id"]] = time.time()      # try again later, never block on it
 
 def resolve_many(items):
     todo = [i for i in items if catalog.known(i["id"]) is None]
-    with ThreadPoolExecutor(3) as ex:
+    with ThreadPoolExecutor(5) as ex:
         list(ex.map(resolve_one, todo))
 catalog.set_resolver(resolve_many)
 
@@ -252,6 +252,22 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/space":
                 du = shutil.disk_usage(DATA); return self.js({"used": du.used, "total": du.total})
             if path == "/_meta/stats": return self.js(_stats)
+            if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
+                kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
+                q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
+                if len(q) < 2 or limited(s["user"], "guess", 240): return self.js({"img": ""})
+                key = "%s|%s|%s" % (kind, q.lower(), yr)
+                img = catalog.get_guess(key)
+                if img is None:
+                    img = ""
+                    try:
+                        res = search(kind, q)
+                        pick = next((x for x in res if x["img"] and yr and str(x["y"]) == yr), None) or next((x for x in res if x["img"]), None)
+                        img = pick["img"] if pick else ""
+                    except Exception:
+                        pass
+                    catalog.save_guess(key, img)
+                return self.send(200, json.dumps({"img": img}).encode(), cache="private, max-age=3600")
             if path == "/_meta/users": return self.js(auth.list_users())
             if path == "/_meta/have": return self.send(200, json.dumps(have_keys()).encode(), cache="private, max-age=30")
             if path == "/_meta/search":
