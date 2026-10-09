@@ -12,11 +12,11 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 8      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 9      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
-_mem = {"t": 0, "cat": None, "titles": {}}
+_mem = {"t": 0, "cat": None, "titles": set()}
 _pending = set()
 _failed = {}
 _resolver = None
@@ -89,7 +89,13 @@ def _anime_job():
         os.remove(ap)
         tmp = ANIME_F + ".tmp"
         json.dump(sorted(found), open(tmp, "w")); os.replace(tmp, ANIME_F)
-        if found != _anime["s"]: _anime["mt"] = 0; _anime_set(); refresh_rows()
+        _anime["mt"] = 0; _anime_set()
+        cat = _mem["cat"]
+        if cat:
+            with _lock:
+                for i in [i for i, it in cat["items"].items() if it.get("la") and i not in found]: del cat["items"][i]
+                for it in cat["items"].values(): it.pop("la", None)
+        refresh_rows()
     except Exception as e:
         _state["error"] = ("anime: " + str(e))[:200]
     finally:
@@ -169,7 +175,8 @@ def _make_rows(items, this):
     """The shelves: every rule applied to the titles of its kind (the "main" pool needs many votes, "all" takes everything)."""
     rows, rowids = {"movie": [], "series": []}, []
     for kind in KINDS:
-        everyone = [i for i in items.values() if i["k"] == kind]
+        an = _anime_set()
+        everyone = [i for i in items.values() if i["k"] == kind and (not i.get("la") or i["id"] in an)]
         main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
         for rule in _rules(kind, this):
             pool = everyone if rule["pool"] == "all" else main
@@ -190,39 +197,62 @@ def refresh_rows():
         os.replace(tmp, CAT)
     _cnt["t"] = 0
 
+ANIME_MIN = 100     # animated titles enter from this many votes; the anime job keeps the Japanese ones and drops the rest
+
+def _need(kind, anim, recent):
+    if kind == "movie": return (500 if anim else 1000) if recent else (2000 if anim else 5000)
+    return (200 if anim else 400) if recent else (800 if anim else 2000)
+
 def _build():
+    """IMDb ratings + basics -> catalogue. Both files are streamed into a scratch SQLite file and joined there,
+    so the build needs a few MB of memory instead of holding every rated title in a dictionary."""
     os.makedirs(DBDIR, exist_ok=True)
-    rp, bp = os.path.join(DBDIR, "ratings.tsv.gz"), os.path.join(DBDIR, "basics.tsv.gz")
+    rp, bp, sp = os.path.join(DBDIR, "ratings.tsv.gz"), os.path.join(DBDIR, "basics.tsv.gz"), os.path.join(DBDIR, "build.db")
+    for q in (sp, sp + "-journal"):
+        try: os.remove(q)
+        except OSError: pass
+    db = sqlite3.connect(sp); db.execute("PRAGMA temp_store=MEMORY"); db.execute("PRAGMA journal_mode=OFF"); db.execute("PRAGMA synchronous=OFF")
+    db.execute("CREATE TABLE r(id TEXT PRIMARY KEY, rating REAL, votes INTEGER)")
+    db.execute("CREATE TABLE b(id TEXT PRIMARY KEY, tt TEXT, name TEXT, year INTEGER, rt INTEGER, genres TEXT)")
     _download("title.ratings.tsv.gz", rp)
-    ratings = {}
+    batch = []
     for r in _rows(rp):
-        try:
-            v = int(r[2])
-        except ValueError:
-            continue
-        if v >= 500: ratings[r[0]] = (float(r[1]), v)
+        if r[2].isdigit() and int(r[2]) >= ANIME_MIN:
+            batch.append((r[0], float(r[1]), int(r[2])))
+            if len(batch) >= 20000: db.executemany("INSERT INTO r VALUES(?,?,?)", batch); batch = []
+    if batch: db.executemany("INSERT INTO r VALUES(?,?,?)", batch)
+    db.commit(); os.remove(rp)
     _download("title.basics.tsv.gz", bp)
-    items = {}
     want = {t: k for k, ts in KINDS.items() for t in ts}
-    this = date.today().year
+    batch = []
     for r in _rows(bp):
-        if r[0] in ratings and r[1] in want and r[4] == "0":
-            rt, v = ratings[r[0]]
-            anim, recent = "Animation" in r[8], r[5].isdigit() and int(r[5]) >= this - 1
-            if want[r[1]] == "movie": need = (500 if anim else 1000) if recent else (2000 if anim else 5000)
-            else: need = (200 if anim else 400) if recent else (800 if anim else 2000)
-            if v < need: continue
-            items[r[0]] = {"id": r[0], "k": want[r[1]], "tt": r[1], "n": r[2], "y": int(r[5]) if r[5].isdigit() else None,
-                           "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
-    os.remove(bp); os.remove(rp)
+        if r[1] in want and r[4] == "0":
+            batch.append((r[0], r[1], r[2], int(r[5]) if r[5].isdigit() else None, int(r[7]) if r[7].isdigit() else None, "" if r[8] == "\\N" else r[8]))
+            if len(batch) >= 20000: db.executemany("INSERT INTO b VALUES(?,?,?,?,?,?)", batch); batch = []
+    if batch: db.executemany("INSERT INTO b VALUES(?,?,?,?,?,?)", batch)
+    db.commit(); os.remove(bp)
+    this = date.today().year
+    items = {}
+    for i, tt, name, year, rt, genres, rating, votes in db.execute("SELECT b.id, tt, name, year, rt, genres, rating, votes FROM b JOIN r ON r.id = b.id"):
+        kind = want[tt]; g = genres.split(",") if genres else []
+        anim, recent = "Animation" in g, bool(year and year >= this - 1)
+        need = _need(kind, anim, recent)
+        if votes < need and not anim: continue
+        it = {"id": i, "k": kind, "tt": tt, "n": name, "y": year, "rt": rt, "g": g, "r": rating, "v": votes}
+        if votes < need: it["la"] = 1          # a low-vote animated title: kept only if it turns out to be anime
+        items[i] = it
+    db.close()
+    for q in (sp, sp + "-journal"):
+        try: os.remove(q)
+        except OSError: pass
     out = {"built": int(time.time()), "schema": SCHEMA, "items": {}, "rows": {"movie": [], "series": []}, "rowids": []}
     for kind in KINDS:
-        everyone = [i for i in items.values() if i["k"] == kind]
         C, m = 6.8, MIN_VOTES[kind] * 2
-        for i in everyone: i["w"] = (i["v"] / (i["v"] + m)) * i["r"] + (m / (i["v"] + m)) * C
+        for it in items.values():
+            if it["k"] == kind: it["w"] = (it["v"] / (it["v"] + m)) * it["r"] + (m / (it["v"] + m)) * C
     out["rows"], out["rowids"] = _make_rows(items, this)
-    for i in items.values():
-        if "w" in i: out["items"][i["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in i.items()}
+    for it in items.values():
+        out["items"][it["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in it.items()}
     tmp = CAT + ".tmp"
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
     os.replace(tmp, CAT)
@@ -759,7 +789,7 @@ def load():
             if mt != _mem.get("mt") or _mem["cat"] is None:      # re-read the (large) catalogue file only when it changed
                 _mem["cat"] = _read(); _mem["mt"] = mt
             try:
-                with _titles() as c: _mem["titles"] = {r[0]: (r[1], r[2]) for r in c.execute("SELECT id,img,overview FROM titles")}
+                with _titles() as c: _mem["titles"] = {r[0] for r in c.execute("SELECT id FROM titles")}     # ids only
             except Exception:
                 pass
             _mem["t"] = time.time()
@@ -875,10 +905,15 @@ def get_guess(key):
 
 def save_title(i, img, overview):
     with _titles() as c: c.execute("INSERT OR REPLACE INTO titles VALUES(?,?,?)", (i, img or "", overview or ""))
-    _mem["titles"][i] = (img or "", overview or "")
+    _mem["titles"].add(i)
 
 def known(i):
-    return _mem["titles"].get(i)
+    if i not in _mem["titles"]: return None
+    try:
+        c = _titles(); r = c.execute("SELECT img, overview FROM titles WHERE id=?", (i,)).fetchone(); c.close()
+        return (r[0], r[1]) if r else None
+    except Exception:
+        return None
 
 def _dress(cat, i):
     it = dict(cat["items"][i]); k = known(i)
