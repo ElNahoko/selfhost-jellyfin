@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#141414">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Nahoko">
 <title>Nahoko</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3b3b'/%3E%3Cstop offset='1' stop-color='%23c10f1d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url%28%23g%29'/%3E%3Cpath d='M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
@@ -815,7 +821,16 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .fixedeps .epsticky{position:static;flex:none;box-shadow:none;padding-top:4px}
 .fixedeps .heat{max-height:300px}
 .fixedeps .eplist{flex:1;min-height:240px;overflow:auto;scrollbar-width:thin;padding-bottom:12px}
-@media (max-width:860px){.dcast{grid-column:1/-1}.srow1{flex-wrap:wrap}.srow1 b,.rbadge2{white-space:nowrap}.heat table{table-layout:fixed}.heat td{min-width:0;font-size:0;height:14px;border-radius:3px}.heat th:not(.s0):not(.s){font-size:0;height:0}.heat th.s0{width:64px}.heat th.s{font-size:.72rem;height:14px;padding:0 6px;line-height:14px}.heat table{border-spacing:2px}}
+@media (max-width:860px){.dcast{grid-column:1/-1}.srow1{flex-wrap:wrap}.srow1 b,.rbadge2{white-space:nowrap}.heat table{table-layout:fixed}.heat td{min-width:0;font-size:0;height:14px;border-radius:3px}.heat th:not(.s0):not(.s){font-size:0;height:0}.heat th.s0{width:64px}.heat th.s{font-size:.72rem;height:14px;padding:0 6px;line-height:14px}.heat table{border-spacing:2px}
+  .epsticky{position:static;box-shadow:none}
+  .heat.tight td,.heat.dense td,.heat td{font-size:.7rem;height:28px;border-radius:6px;min-width:0}
+  .heat th:not(.s0):not(.s){font-size:.62rem;height:16px}
+  .heat th.s,.heat.tight th.s,.heat.dense th.s{height:28px;line-height:28px;font-size:.74rem}
+  .heat.many td,.heat.many.tight td,.heat.many.dense td{font-size:0;height:16px;border-radius:3px}
+  .heat.many th:not(.s0):not(.s){font-size:0;height:0}
+  .heat.many th.s,.heat.many.tight th.s,.heat.many.dense th.s{height:16px;line-height:16px;font-size:.7rem;border-radius:5px}
+  .heat{max-height:none}
+}
 .chip .ci{width:15px;height:15px;flex:none}
 h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
 .mgrid .chip .ci{width:14px;height:14px}
@@ -903,9 +918,40 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:7px}
 @keyframes lspin{to{transform:rotate(360deg)}}
 .lucky .lact .btn{white-space:nowrap}
 @media (max-width:860px){.lucky .lact .btn.big{padding:12px 14px;font-size:.98rem;flex:1 1 auto;justify-content:center}}
+.imdbtag{font-style:normal;background:#f5c518;color:#000;font-weight:900;font-size:.68rem;letter-spacing:-.01em;padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:1px}
+a.dbig,a.imdblink{text-decoration:none;color:inherit;cursor:pointer}
+a.dbig span,a.imdblink{display:inline-flex;align-items:center}
+a.dbig:hover b{text-decoration:underline}a.dbig:hover span,a.imdblink:hover{color:#f5c518}
+@media (max-width:860px){      /* phones: the shelves are one row you swipe, not half the screen */
+  #reqChips.chips{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:0 16px 10px;margin:0 -16px 4px;scroll-padding:0 16px;-webkit-overflow-scrolling:touch;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 28px),transparent)}
+  #reqChips .chip{padding:6px 12px;font-size:.84rem;gap:6px}
+  #reqChips .chip .ci{width:14px;height:14px}
+  #reqChips .filt-chip{order:-1}
+}
+@media (max-width:860px){.dlg .acts.wrap{flex-wrap:nowrap;gap:8px}.dlg .acts.wrap .btn{flex:1 1 0;min-width:0;justify-content:center;padding-left:8px;padding-right:8px;white-space:nowrap}}
+#boot{display:none}
+#boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
+#boot.out{opacity:0;pointer-events:none}
+.bootlogo{display:flex;align-items:center;gap:10px;animation:bootin .6s cubic-bezier(.2,.9,.3,1.2) both}
+.bootlogo svg{width:56px;height:56px;filter:drop-shadow(0 8px 24px rgba(229,9,20,.45))}
+.bootlogo b{font-size:2rem;font-weight:900;letter-spacing:.14em;color:#fff}
+.bootbar{display:block;width:120px;height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+.bootbar::after{content:"";position:absolute;inset:0;width:40%;background:#e50914;border-radius:3px;animation:bootbar 1s ease-in-out infinite}
+@keyframes bootin{from{opacity:0;transform:scale(.85)}}
+@keyframes bootbar{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
 </style>
 </head>
 <body>
+<div id="boot" aria-hidden="true"><div class="bootlogo"><svg viewBox="0 0 64 64"><defs><linearGradient id="gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#gb)"/><path d="M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z" fill="#fff"/></svg><b>AHOKO</b></div><i class="bootbar"></i></div>
+<script>
+/* launch screen: shown when opened from the home screen, gone as soon as the first posters are on the page */
+(function(){var b=document.getElementById("boot"),app=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  if(!app){b.remove();return;}b.className="on";var t0=Date.now();
+  var iv=setInterval(function(){if(document.querySelector(".tile,.tgrid,.card,.fgrid")||Date.now()-t0>6000){clearInterval(iv);
+    setTimeout(function(){b.className="on out";setTimeout(function(){b.remove();},450);},Math.max(0,500-(Date.now()-t0)));}},80);})();
+if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});
+</script>
 <div class="app">
   <aside class="side">
     <div class="brand"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g)'/><path d='M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z' fill='#fff'/></svg></span><span class="wm">AHOKO</span><button class="stog" id="sideToggle" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"></button></div>
@@ -1667,6 +1713,7 @@ function tile(it){
 /* ---------- title details: hero, overview, seasons and episodes ---------- */
 var EPC={},CASTC={};
 function rcls(r){return r>=9?"r9":r>=8?"r8":r>=7?"r7":r>=6?"r6":"r5";}
+function imdbUrl(it){return "https://www.imdb.com/title/"+it.id+"/";}
 function plural(n,w){return n+" "+w+(n===1?"":"s");}
 function fmtRt(rt){var h=Math.floor(rt/60),mm=rt%60;return (h?h+" h ":"")+(mm?mm+" min":"");}
 async function loadEpisodes(id){
@@ -1693,7 +1740,7 @@ function renderEpisodes(d,host,it){
   var maxE=Math.max.apply(null,d.seasons.map(function(x){return Math.max.apply(null,x.eps.map(function(e){return e[0]||0;}));}));
   var vert=false;      // one layout for every show: a row per season, like the series everyone knows
   if(d.seasons.length>1&&maxE<=40&&d.seasons.length<=40){      // the rating map; long seasons run downwards (a column per season), short ones across
-    hw=el("div","heat"+(vert?" vert":"")+(maxE>26?" dense":maxE>16?" tight":""));var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s0",""));
+    hw=el("div","heat"+(vert?" vert":"")+(maxE>26?" dense":maxE>16?" tight":"")+(maxE>10?" many":""));var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s0",""));
     var cells=d.seasons.map(function(){return [];});
     if(vert){
       d.seasons.forEach(function(sn,si){var th=el("th","sc",sn.n===0?"Sp":"S"+sn.n);th.onclick=function(){show(si);};hr.appendChild(th);cells[si].push(th);});tb.appendChild(hr);
@@ -1784,7 +1831,8 @@ async function showTitle(it0,opts){
     if(it.rt)meta.appendChild(el("span","",isSeries()?it.rt+" min per episode":fmtRt(it.rt)));
     b.appendChild(meta);
     var rrow=el("div","drate");
-    if(it.r){var big=el("div","dbig");big.appendChild(el("b","","★ "+it.r.toFixed(1)));big.appendChild(el("span","",(it.v?fmtVotes(it.v)+" votes · ":"")+"IMDb"));rrow.appendChild(big);}
+    if(it.r){var big=el(it.id?"a":"div","dbig");if(it.id){big.href=imdbUrl(it);big.target="_blank";big.rel="noopener noreferrer";big.title="Open on IMDb";}
+      big.appendChild(el("b","","★ "+it.r.toFixed(1)));var vs=el("span","");vs.appendChild(el("i","imdbtag","IMDb"));if(it.v)vs.appendChild(document.createTextNode(fmtVotes(it.v)+" votes"));big.appendChild(vs);rrow.appendChild(big);}
     if(it.g&&it.g.length){var tg=el("div","dtags");it.g.slice(0,4).forEach(function(g){tg.appendChild(el("span","tag",g));});rrow.appendChild(tg);}
     if(rrow.childNodes.length)b.appendChild(rrow);
     var acts=el("div","acts wrap"),s=stateOf(it);
@@ -1808,7 +1856,6 @@ async function showTitle(it0,opts){
     acts.appendChild(rq);acts.appendChild(fb);acts.appendChild(tr);
     if(opts&&opts.lucky){var an=el("button","btn");an.type="button";an.appendChild(svg("dice"));an.appendChild(el("span","","Another one"));
       an.onclick=async function(){an.disabled=true;var n=await luckyPick();if(n){it=n;it._loaded=1;paint();fetchEps();}else an.disabled=false;};acts.insertBefore(an,acts.firstChild);}
-    if(it.id){var im=el("a","btn","IMDb");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";acts.appendChild(im);}
     b.appendChild(acts);
     var ov=el("p","ov clamp",it.o||(it.id&&!it._loaded?"Loading…":"No description available."));b.appendChild(ov);
     var mb=el("button","ovmore","More");mb.type="button";mb.hidden=true;mb.onclick=function(){var c=ov.classList.toggle("clamp");mb.textContent=c?"More":"Less";};b.appendChild(mb);
@@ -1835,9 +1882,9 @@ async function showTitle(it0,opts){
     function got(x,again){
       if(!(x&&(x.cast||x.directors||x.writers)))return;if(!x.pending)CASTC[id]=x;
       if(alive()&&it.id===id){castd=x;var b=d.querySelector(".dinfo");if(b){var old=b.querySelector(".castline");if(old)old.remove();castLine(x,b);}}
-      if(x.pending&&!again)setTimeout(function(){api("GET","/_meta/cast?id="+id).then(function(y){got(y,true);}).catch(function(){});},3500);
+      if(x.pending&&(again||0)<4)setTimeout(function(){api("GET","/_meta/cast?id="+id+"&_="+Date.now()).then(function(y){got(y,(again||0)+1);}).catch(function(){});},3000);
     }
-    api("GET","/_meta/cast?id="+id).then(function(x){got(x,false);}).catch(function(){});
+    api("GET","/_meta/cast?id="+id).then(function(x){got(x,0);}).catch(function(){});
   }
   function fetchEps(){
     epd=null;fetchCast();if(!(it.id&&isSeries()))return;var id=it.id;
@@ -2307,7 +2354,7 @@ async function feelingLucky(){
     var meta=el("div","lmeta");
     if(it.r){var rw=el("div","lrate");rw.appendChild(ring(it.r));rw.appendChild(el("b","",it.r.toFixed(1)));meta.appendChild(rw);}
     var bits=el("div","lbits");
-    if(it.y)bits.appendChild(el("span","",String(it.y)));if(it.rt)bits.appendChild(el("span","",it.rt+" min"));if(it.v)bits.appendChild(el("span","",fmtVotes(it.v)+" votes"));
+    if(it.y)bits.appendChild(el("span","",String(it.y)));if(it.rt)bits.appendChild(el("span","",it.rt+" min"));if(it.v||it.id){var vl=el(it.id?"a":"span","imdblink");if(it.id){vl.href=imdbUrl(it);vl.target="_blank";vl.rel="noopener noreferrer";}if(it.id)vl.appendChild(el("i","imdbtag","IMDb"));if(it.v)vl.appendChild(document.createTextNode(fmtVotes(it.v)+" votes"));bits.appendChild(vl);}
     meta.appendChild(bits);r.appendChild(meta);
     r.appendChild(el("p","lplot",it.o||"No description yet."));
     var st=stateOf(it),act=el("div","lact");
@@ -2316,7 +2363,6 @@ async function feelingLucky(){
     rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){var y=d.scrollTop;paint(true);}else rq.disabled=false;};
     var tr=el("button","btn big");tr.type="button";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));tr.onclick=function(){playTrailer(it);};
     act.appendChild(rq);act.appendChild(tr);
-    if(it.id){var im=el("a","btn big ghost");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";im.appendChild(el("span","","IMDb"));act.appendChild(im);}
     r.appendChild(act);
     var rl=el("button","roll");rl.type="button";rl.id="rollBtn";rl.appendChild(svg("dice","die"));rl.appendChild(el("span","","Roll again"));rl.appendChild(el("kbd","","R"));
     rl.onclick=roll;r.appendChild(rl);
@@ -2861,7 +2907,7 @@ if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
   if(PUBLICV){var si=el("button","btn primary","Sign in");si.type="button";si.onclick=function(){signInDialog();};acc.appendChild(si);}
-  else{if(APPROVED){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
+  else{{var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
     acc.appendChild(el("span","gme",ME));var so=el("button","btn sm","Sign out");so.type="button";so.onclick=signOut;acc.appendChild(so);}
   if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});mt.appendChild(acc);}
   document.title=BRAND+" · films and series";

@@ -682,7 +682,8 @@ def _photos(tid, cast):
     if not cast: return
     names = [c["n"] for c in cast]
     c = _castdb()
-    have = {r[0]: r[1] for r in c.execute("SELECT name, url FROM photo WHERE name IN (%s)" % ",".join("?" * len(names)), names)}
+    old = int(time.time()) - 14 * 86400      # a portrait not found is looked for again after two weeks
+    have = {r[0]: r[1] for r in c.execute("SELECT name, url FROM photo WHERE name IN (%s) AND (url != '' OR t > ?)" % ",".join("?" * len(names)), names + [old])}
     c.close()
     for x in cast:
         if have.get(x["n"]): x["p"] = have[x["n"]]
@@ -693,6 +694,7 @@ def _photos(tid, cast):
     return True
 
 _photo_busy = set()
+person_lookup = None      # set by meta.py: name -> portrait url (TMDB, through Jellyfin's own metadata search)
 
 def _photo_fetch(tid, todo):
     try:
@@ -708,12 +710,18 @@ def _photo_fetch(tid, todo):
                     p = x.get("person") or {}
                     if p.get("name") in todo and p.get("image"): found[p["name"]] = p["image"].get("medium") or ""
             for n in todo:
-                if n in found or time.time() - t0 > 20: continue
+                if n in found or not person_lookup or time.time() - t0 > 25: continue
+                try: u = person_lookup(n)
+                except Exception: u = None
+                if u: found[n] = u
+            for n in todo:
+                if n in found or time.time() - t0 > 30: continue
                 tried.add(n)
                 for x in _tvmaze(TVMAZE + "/search/people?q=" + urllib.parse.quote(n)):
                     p = x.get("person") or {}
                     if p.get("name", "").lower() == n.lower():
-                        found[n] = (p.get("image") or {}).get("medium") or ""; break
+                        if (p.get("image") or {}).get("medium"): found[n] = p["image"]["medium"]
+                        break
         except Exception:
             pass
         now = int(time.time())

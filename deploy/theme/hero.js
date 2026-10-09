@@ -28,7 +28,25 @@
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); if (m < 1) return ""; return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
   function details(id, server) { window.location.hash = "#/details?id=" + id + (server ? "&serverId=" + server : ""); }
-  function play(id, server) { try { sessionStorage.setItem("jfHeroPlay", id); } catch (x) {} details(id, server); }
+  function play(id, server) { try { sessionStorage.setItem("jfHeroPlay", id); } catch (x) {} veil(true); details(id, server); }
+  // While "Play" goes through the details page, a black loading screen hides it: the player appears straight away.
+  var veilT = null;
+  function veil(on) {
+    var v = document.getElementById("jfh-veil");
+    clearInterval(veilT); veilT = null;
+    if (!on) { if (v) { v.classList.add("out"); setTimeout(function () { if (v.parentNode) v.remove(); }, 300); } return; }
+    if (!v) {
+      v = document.createElement("div"); v.id = "jfh-veil";
+      v.innerHTML = '<style>#jfh-veil{position:fixed;inset:0;z-index:2147483000;background:#000;display:grid;place-items:center;transition:opacity .25s}#jfh-veil.out{opacity:0;pointer-events:none}' +
+        '#jfh-veil i{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#e50914;animation:jfhv .8s linear infinite}@keyframes jfhv{to{transform:rotate(360deg)}}</style><i></i>';
+      document.body.appendChild(v);
+    }
+    var t0 = Date.now();
+    veilT = setInterval(function () {      // gone once the video is up, or if nothing happened after 12 s
+      var playing = location.hash.indexOf("#/video") === 0 || document.querySelector(".videoPlayerContainer:not(.hide) video");
+      if (playing || Date.now() - t0 > 12000) veil(false);
+    }, 150);
+  }
   function href(it) { return "#/details?id=" + it.Id + (it.ServerId ? "&serverId=" + it.ServerId : ""); }
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var canHover = !(window.matchMedia && window.matchMedia("(hover: none)").matches);
@@ -177,7 +195,7 @@
     if (!id || location.hash.indexOf("id=" + id) < 0) return;
     var tries = 0, t = setInterval(function () {
       var btn = document.querySelector(".itemDetailPage:not(.hide) .btnPlay:not(.hide)");
-      if (btn || ++tries > 30) { clearInterval(t); try { sessionStorage.removeItem("jfHeroPlay"); } catch (x) {} if (btn) btn.click(); }
+      if (btn || ++tries > 30) { clearInterval(t); try { sessionStorage.removeItem("jfHeroPlay"); } catch (x) {} if (btn) btn.click(); else veil(false); }
     }, 200);
   }
 

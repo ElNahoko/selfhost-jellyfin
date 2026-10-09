@@ -13,7 +13,7 @@ FILES_DOMAIN_PLACEHOLDER {
 	}
 	# Public: the catalogue app (meta tells the page who is looking: public, member, uploader, admin), its API, sign-in, SEO files.
 	# Only the file server (dufs: listings, uploads, downloads) stays behind the staff sign-in.
-	@public path /login /auth/* /_lib/* /robots.txt /sitemap.xml /sitemap-*.xml /llms.txt /favicon.ico
+	@public path /login /auth/* /_lib/* /robots.txt /sitemap.xml /sitemap-*.xml /llms.txt /favicon.ico /manifest.webmanifest /sw.js /pwa/*
 	handle @public {
 		reverse_proxy uploads-meta:8000
 	}

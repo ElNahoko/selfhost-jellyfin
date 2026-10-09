@@ -140,6 +140,16 @@ def resolve_many(items):
         list(ex.map(resolve_one, todo))
 catalog.set_resolver(resolve_many)
 
+def person_photo(name):
+    """A portrait from TMDB, through Jellyfin's person search (only an exact name match counts)."""
+    r = json.load(jf("/Items/RemoteSearch/Person", {"SearchInfo": {"Name": name}, "IncludeDisabledProviders": False}, timeout=15))
+    for x in r:
+        u = x.get("ImageUrl") or ""
+        if (x.get("Name") or "").lower() == name.lower() and urlparse(u).hostname == "image.tmdb.org":
+            return u.replace("/t/p/original/", "/t/p/w185/")
+    return None
+catalog.person_lookup = person_photo
+
 # ---------- server stats ----------
 _stats = {"cpu": 0.0, "mem_used": 0, "mem_total": 0, "load": 0.0}
 _net = {"t": 0, "d": None}
@@ -209,7 +219,7 @@ def staff(s): return s["role"] in ("admin", "uploader")
 
 # answers that are the same for everyone, kept a short while (the catalogue changes slowly; computing a view walks 30,000 titles)
 _rc = {}
-CACHED = {"/_meta/catalog": 60, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
+CACHED = {"/_meta/catalog": 60, "/_meta/search": 600, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
           "/_meta/episodes": 600, "/_meta/cast": 3600}
 def rc_get(key):
     v = _rc.get(key)
@@ -289,6 +299,7 @@ def have_keys():
 
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"        # keep-alive: Caddy reuses its connections instead of opening one per request
+    disable_nagle_algorithm = True       # a small answer leaves at once (no 40 ms wait for the TCP ack)
     timeout = 60                         # an idle kept-alive connection is closed after a minute (no thread waits forever)
     def log_message(self, *a): pass
     def send(self, code, body, ctype="application/json", cache="no-store", headers=None):
@@ -303,7 +314,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         for k, v in (headers or {}).items(): self.send_header(k, v)
-        self.end_headers(); self.wfile.write(body)
+        self._headers_buffer.append(b"\r\n" + body); self.flush_headers()      # headers and body in one packet
     def js(self, obj, code=200, headers=None): self.send(code, json.dumps(obj).encode(), headers=headers)
     def redirect(self, loc):
         self.send_response(302); self.send_header("Location", loc); self.send_header("Cache-Control", "no-store")
@@ -335,6 +346,15 @@ class H(BaseHTTPRequestHandler):
                 except OSError:
                     return self.send(404, b"{}")
                 return self.send(200, data, "application/javascript", "public, max-age=31536000, immutable")
+            if path in ("/manifest.webmanifest", "/sw.js") or re.fullmatch(r"/pwa/[a-z0-9-]+\.png", path):      # the installable app (phone home screen)
+                name = os.path.basename(path)
+                try:
+                    with open(os.path.join(ASSETS, "pwa", name), "rb") as f: data = f.read()
+                except OSError:
+                    return self.send(404, b"{}")
+                ct = {"webmanifest": "application/manifest+json", "js": "text/javascript", "png": "image/png"}[name.rsplit(".", 1)[1]]
+                return self.send(200, data, ct, "no-cache" if not name.endswith(".png") else "public, max-age=604800",
+                                 headers={"Service-Worker-Allowed": "/"} if name == "sw.js" else None)
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
