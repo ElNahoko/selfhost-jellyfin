@@ -344,6 +344,10 @@ class H(BaseHTTPRequestHandler):
                 lim = (qs.get("limit") or ["24"])[0]
                 body = json.dumps(catalog.find(kind, clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode()
                 return self.send(200, body, cache="private, max-age=60")
+            if path == "/_meta/cast":
+                tid = (qs.get("id") or [""])[0]
+                d = catalog.cast_for(tid) if re.fullmatch(r"tt\d{6,10}", tid) else None
+                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=86400" if d else "no-store")
             if path == "/_meta/episodes":
                 sid = (qs.get("id") or [""])[0]
                 d = catalog.episodes_for(sid) if re.fullmatch(r"tt\d{6,10}", sid) else None

@@ -504,6 +504,86 @@ def find(kind, q, limit=24):
     queue_resolve(res)
     return [_dress(cat, it["id"]) for it in res]
 
+# ---------- cast and directors (IMDb principals + names), kept in cast.db, rebuilt with the catalogue ----------
+CAST_DB = os.path.join(DBDIR, "cast.db")
+_cast = {"building": False, "t": 0}
+
+def _castdb(path=CAST_DB):
+    c = sqlite3.connect(path, timeout=30)
+    c.execute("CREATE TABLE IF NOT EXISTS cast(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
+    c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
+    return c
+
+def _build_cast(ids):
+    """The first people billed on every catalogue title (actors, director, writer), streamed from IMDb's files into SQLite."""
+    wanted = set(ids)
+    pp, npath = os.path.join(DBDIR, "principals.tsv.gz"), os.path.join(DBDIR, "names.tsv.gz")
+    new = CAST_DB + ".new"
+    for q in (new, new + "-journal"):
+        try: os.remove(q)
+        except OSError: pass
+    c = _castdb(new); c.execute("CREATE TABLE nm(nconst TEXT PRIMARY KEY, name TEXT)")
+    _download("title.principals.tsv.gz", pp)
+    batch, need = [], set()
+    for r in _rows(pp):
+        if r[0] in wanted and r[3] in ("actor", "actress", "director", "writer", "creator") and r[1].isdigit() and int(r[1]) <= 10:
+            ch = ""
+            if r[5] != "\\N":
+                try: ch = ", ".join(json.loads(r[5])[:2])
+                except ValueError: ch = ""
+            batch.append((r[0], int(r[1]), r[2], r[3], ch[:80])); need.add(r[2])
+            if len(batch) >= 5000:
+                c.executemany("INSERT OR REPLACE INTO cast(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch); batch = []
+    if batch: c.executemany("INSERT OR REPLACE INTO cast(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch)
+    c.commit(); os.remove(pp)
+    _download("name.basics.tsv.gz", npath)
+    batch = []
+    for r in _rows(npath):
+        if r[0] in need:
+            batch.append((r[0], r[1]))
+            if len(batch) >= 5000:
+                c.executemany("INSERT OR REPLACE INTO nm VALUES(?,?)", batch); batch = []
+    if batch: c.executemany("INSERT OR REPLACE INTO nm VALUES(?,?)", batch)
+    os.remove(npath)
+    c.execute("UPDATE cast SET name=(SELECT name FROM nm WHERE nm.nconst=cast.nconst)")
+    c.execute("DELETE FROM cast WHERE name IS NULL"); c.execute("DROP TABLE nm")
+    c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
+    c.commit(); c.execute("VACUUM"); c.close()
+    os.replace(new, CAST_DB)
+
+def _cast_job():
+    try:
+        try: os.nice(10)
+        except OSError: pass
+        cat = _mem["cat"] or _read()
+        if cat: _build_cast(cat["items"].keys())
+    except Exception as e:
+        _state["error"] = ("cast: " + str(e))[:200]
+    finally:
+        _cast["building"] = False
+
+def ensure_cast():
+    cat = _mem["cat"]
+    if _cast["building"] or _eps["building"] or time.time() - _cast["t"] < 600 or not cat: return
+    _cast["t"] = time.time()
+    try:
+        c = _castdb(); r = c.execute("SELECT v FROM info WHERE k='built'").fetchone(); c.close()
+        if r and time.time() - int(r[0]) < MAXAGE and int(r[0]) >= cat["built"]: return
+    except Exception:
+        pass
+    _cast["building"] = True
+    threading.Thread(target=_cast_job, daemon=True).start()
+
+def cast_for(tid):
+    try:
+        c = _castdb(); rows = c.execute("SELECT name, cat, chars FROM cast WHERE tconst=? ORDER BY ord", (tid,)).fetchall(); c.close()
+    except Exception:
+        return None
+    if not rows: return None
+    return {"directors": [n for n, k, _ in rows if k == "director"][:3],
+            "writers": [n for n, k, _ in rows if k in ("writer", "creator")][:3],
+            "cast": [{"n": n, "c": ch} for n, k, ch in rows if k in ("actor", "actress")][:8]}
+
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)
     c.execute("CREATE TABLE IF NOT EXISTS titles(id TEXT PRIMARY KEY, img TEXT, overview TEXT)")
@@ -601,6 +681,7 @@ def _bulk_run():
 def ensure_all():
     ensure_anime()
     ensure_episodes()
+    ensure_cast()
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
     _bulk["t"] = time.time()
