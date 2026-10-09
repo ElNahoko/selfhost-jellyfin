@@ -612,6 +612,17 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .rwant.on{background:rgba(245,165,36,.16);border-color:var(--amber);color:var(--amber)}
 .rwant:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .rwant[disabled]{opacity:.6}
+
+/* filters panel, tidy: labelled fields in a grid, no placeholder messages */
+.fpanel{padding:16px 18px!important}
+.fhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 14px}
+.ffield{display:flex;flex-direction:column;gap:6px;min-width:0}
+.flab{font-size:.74rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:650}
+.dd.full{width:100%}
+.dd.full .ddb{width:100%;justify-content:flex-start}
+.dd.full .ddb .dv{flex:1;text-align:left}
+.dd.full .ddm{left:0;right:0;min-width:0;max-height:46vh;overflow:auto}
 </style>
 </head>
 <body>
@@ -1428,12 +1439,12 @@ function fillRail(rail,items,all){
 var CHIPS={},rowSeq=0,rowState=null;
 var SORTS=[["rating","Rating","star"],["votes","Popularity","flame"],["newest","Newest","cal"],["name","A to Z","az"]];
 var FSORTS=[["best","Best match","award"]].concat(SORTS);
-function makeDD(label,opts,cur,onPick){      // a small dropdown whose entries carry icons; opts: [[value,text,icon],...]
-  var wrap=el("div","dd"),btn=el("button","ddb");btn.type="button";btn.setAttribute("aria-haspopup","listbox");
+function makeDD(label,opts,cur,onPick,plain){      // a small dropdown whose entries carry icons; opts: [[value,text,icon],...]
+  var wrap=el("div","dd"+(plain?" full":"")),btn=el("button","ddb");btn.type="button";btn.setAttribute("aria-haspopup","listbox");
   var menu=el("div","ddm");menu.hidden=true;menu.setAttribute("role","listbox");
   function paint(){
     btn.innerHTML="";var o=opts.filter(function(x){return String(x[0])===String(cur);})[0]||opts[0];
-    btn.appendChild(el("span","dl",label));if(o[2])btn.appendChild(svg(o[2]));btn.appendChild(el("span","dv",o[1]));btn.appendChild(svg("chev"));
+    if(!plain)btn.appendChild(el("span","dl",label));if(o[2])btn.appendChild(svg(o[2]));btn.appendChild(el("span","dv",o[1]));btn.appendChild(svg("chev"));
     menu.innerHTML="";
     opts.forEach(function(x){
       var on=String(x[0])===String(cur),it=el("button","ddi"+(on?" on":""));it.type="button";it.setAttribute("role","option");
@@ -1464,21 +1475,23 @@ async function drawFilters(){
   var fb=el("button","chip filt-chip"+(n?" on":""));fb.type="button";fb.appendChild(svg("sliders"));fb.appendChild(el("span","","Filters"));
   if(n)fb.appendChild(el("span","fcnt",String(n)));
   fb.setAttribute("aria-expanded",String(!panel.hidden));
-  fb.onclick=function(e){e.stopPropagation();panel.hidden=!panel.hidden;fb.setAttribute("aria-expanded",String(!panel.hidden));};
+  fb.onclick=function(e){e.stopPropagation();panel.hidden=!panel.hidden;fb.setAttribute("aria-expanded",String(!panel.hidden));
+    if(!panel.hidden&&(!FINFO[reqKind]||!FINFO[reqKind].countries.length)){delete FINFO[reqKind];drawFilters().then(function(){panel.hidden=false;});}};
   btnBox.appendChild(fb);
   var kind=reqKind,fi=await loadFinfo(kind);if(kind!==reqKind||!$("reqFilt"))return;
   panel.innerHTML="";
-  var row=el("div","frow");
   function apply(){reqRow="";panel.hidden=true;drawFilters();filtersOn()?drawRow(reqKind,"__f"):drawCatalog();}
-  row.appendChild(makeDD("Country",[["","Any country","globe"]].concat(fi.countries.map(function(c){return [c.id,c.name,"globe"];})),reqF.country,function(v){reqF.country=v;apply();}).el);
-  row.appendChild(makeDD("Genre",[["","Any genre","tag"]].concat(fi.genres.map(function(g){return [g,g,"tag"];})),reqF.genre,function(v){reqF.genre=v;apply();}).el);
-  row.appendChild(makeDD("Decade",[["","Any decade","cal"]].concat(fi.decades.map(function(d){return [d,d+"s","cal"];})),reqF.decade,function(v){reqF.decade=v;apply();}).el);
-  row.appendChild(makeDD("Rating",[["","Any rating","star"],[6,"6 and up","star"],[7,"7 and up","star"],[8,"8 and up","star"]],reqF.min,function(v){reqF.min=v;apply();}).el);
-  panel.appendChild(row);
-  if(!fi.countries.length)panel.appendChild(el("p","fnote","Country lists (French, Spanish, Italian cinema and more) are still being collected the first time. Check back in a few minutes."));
-  if(n){var cl=el("button","btn sm","Clear filters");cl.type="button";cl.onclick=function(){clearFilters();apply();};panel.appendChild(cl);}
+  var head=el("div","fhead");head.appendChild(el("b","","Filter the catalogue"));
+  if(n){var cl=el("button","btn sm","Clear all");cl.type="button";cl.onclick=function(){clearFilters();apply();};head.appendChild(cl);}
+  panel.appendChild(head);
+  var grid=el("div","fgrid");
+  function field(label,dd){var f=el("div","ffield");f.appendChild(el("span","flab",label));f.appendChild(dd);grid.appendChild(f);}
+  if(fi.countries.length)field("Country",makeDD("Country",[["","Any country","globe"]].concat(fi.countries.map(function(c){return [c.id,c.name,"globe"];})),reqF.country,function(v){reqF.country=v;apply();},true).el);
+  field("Genre",makeDD("Genre",[["","Any genre","tag"]].concat(fi.genres.map(function(g){return [g,g,"tag"];})),reqF.genre,function(v){reqF.genre=v;apply();},true).el);
+  field("Decade",makeDD("Decade",[["","Any decade","cal"]].concat(fi.decades.map(function(d){return [d,d+"s","cal"];})),reqF.decade,function(v){reqF.decade=v;apply();},true).el);
+  field("Rating",makeDD("Rating",[["","Any rating","star"],[6,"6 and up","star"],[7,"7 and up","star"],[8,"8 and up","star"]],reqF.min,function(v){reqF.min=v;apply();},true).el);
+  panel.appendChild(grid);
 }
-var luckySeen=[],luckyFresh=true;
 async function luckyPick(again){
   try{
     var d=await api("GET","/_meta/lucky?type="+reqKind+filterQuery()+"&seen="+luckySeen.slice(-60).join(",")+(luckyFresh?"":"&fresh=0"));

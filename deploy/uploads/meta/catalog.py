@@ -150,7 +150,7 @@ def _wikidata_pair(spec):
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(8):
-        req = urllib.request.Request(url, headers={"User-Agent": "lumio-catalogue/1.0 (self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
+        req = urllib.request.Request(url, headers={"User-Agent": "LumioCatalogue/1.1 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
         try:
             with urllib.request.urlopen(req, timeout=170) as r:
                 d = json.load(r)
