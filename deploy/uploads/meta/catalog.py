@@ -319,6 +319,7 @@ _eps = {"building": False, "t": 0}
 
 def _epdb(path=EPS_DB):
     c = sqlite3.connect(path, timeout=30)
+    c.execute("PRAGMA temp_store=MEMORY")
     c.execute("CREATE TABLE IF NOT EXISTS ep(tconst TEXT PRIMARY KEY, series TEXT, season INTEGER, ep INTEGER, rating REAL, votes INTEGER, title TEXT)")
     c.execute("CREATE INDEX IF NOT EXISTS ep_series ON ep(series)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
@@ -516,6 +517,7 @@ _cast = {"building": False, "t": 0}
 
 def _castdb(path=CAST_DB):
     c = sqlite3.connect(path, timeout=30)
+    c.execute("PRAGMA temp_store=MEMORY")          # the container has no writable /tmp
     c.execute("CREATE TABLE IF NOT EXISTS people(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     return c
@@ -554,7 +556,7 @@ def _build_cast(ids):
     c.execute("UPDATE people SET name=(SELECT name FROM nm WHERE nm.nconst=people.nconst)")
     c.execute("DELETE FROM people WHERE name IS NULL"); c.execute("DROP TABLE nm")
     c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
-    c.commit(); c.execute("VACUUM"); c.close()
+    c.commit(); c.close()
     os.replace(new, CAST_DB)
 
 def _cast_job():
