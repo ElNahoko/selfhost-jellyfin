@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OPTIONAL: set up the upload + catalogue site (LUMIO) on top of the running stack.
+# OPTIONAL: set up the upload + catalogue site (Nahoko) on top of the running stack.
 # Run on the server after the main stack works, with a hostname that already points at the server:
 #
 #   sudo JELLYFIN_API_KEY=<admin key> bash scripts/05-setup-uploads.sh files.example.com

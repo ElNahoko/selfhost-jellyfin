@@ -60,7 +60,7 @@ What the optional [theme](docs/12-theme.md) looks like (a "Netflix-style" skin; 
 | ![Movie page](docs/img/screens/05-details-page.jpg) **Movie page** | ![Movies category page](docs/img/screens/06-category-movies.jpg) **Category page: billboard, rows, full list** |
 | ![Phone layout](docs/img/screens/07-phone.jpg) **Phone** | ![Login page](docs/img/screens/08-login.jpg) **Login (logo, two fields, one button)** |
 
-The screenshots were made on a throw-away demo server that contained only openly licensed films from the Blender Foundation (Sintel, Tears of Steel, Big Buck Bunny, Elephants Dream, Spring, Cosmos Laundromat, Coffee Run, Sprite Fright; Creative Commons CC BY, artwork via TMDb). The demo files were tiny placeholders, so nothing here shows real playback quality. The demo has since been deleted. The name "Lumio" is just an example: the server name and brand text are yours to change.
+The screenshots were made on a throw-away demo server that contained only openly licensed films from the Blender Foundation (Sintel, Tears of Steel, Big Buck Bunny, Elephants Dream, Spring, Cosmos Laundromat, Coffee Run, Sprite Fright; Creative Commons CC BY, artwork via TMDb). The demo files were tiny placeholders, so nothing here shows real playback quality. The demo has since been deleted. The name "Nahoko" is just an example: the server name and brand text are yours to change.
 
 ## Architecture
 
@@ -170,7 +170,7 @@ use the whole allowance.
 
 ## Upload page, catalogue and guest profiles (optional)
 
-![The LUMIO catalogue: shelves, ratings, one tap to request](docs/img/lumio/03-catalogue.jpg)
+![The Nahoko catalogue: shelves, ratings, one tap to request](docs/img/lumio/03-catalogue.jpg)
 
 One branded site on its own HTTPS hostname:
 

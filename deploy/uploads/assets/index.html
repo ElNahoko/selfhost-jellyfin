@@ -504,7 +504,7 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 @keyframes fadeup{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.lucky *{animation:none!important;transition:none!important}}
 @media (max-width:860px){
-  .lucky .lbody{flex-direction:column;gap:20px;padding:22px 18px;align-items:stretch;max-height:92vh;overflow:auto}
+  .lucky .lbody{flex-direction:column;gap:20px;padding:22px 18px;align-items:stretch;max-height:92vh;max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}
   .lucky .lleft{width:150px;align-self:center}
   .lucky .ltitle{font-size:1.6rem}
   .lucky .btn.big{flex:1;justify-content:center}
@@ -898,6 +898,11 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:7px}
   #luckyBtn{order:2;flex:none!important;width:48px;height:46px;padding:0!important}
 }
 @media (hover:none){#rollBtn kbd{display:none}}
+#luckyBtn.busy #luckyIc svg{animation:lspin .7s linear infinite}
+#luckyBtn.busy .lt::after{content:"…"}
+@keyframes lspin{to{transform:rotate(360deg)}}
+.lucky .lact .btn{white-space:nowrap}
+@media (max-width:860px){.lucky .lact .btn.big{padding:12px 14px;font-size:.98rem;flex:1 1 auto;justify-content:center}}
 </style>
 </head>
 <body>
@@ -1650,7 +1655,7 @@ function tile(it){
   t.appendChild(p);t.appendChild(el("div","tt",it.n));t.appendChild(el("div","ty",it.y?String(it.y):""));
   function upd(){
     var s=stateOf(it);add.className="add"+(s?" "+s:"");add.innerHTML="";add.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
-    add.title=s==="have"?"Already in the library":s==="asked"?"Already requested":"Request";add.setAttribute("aria-label",add.title);
+    add.title=s==="have"?"Already in the library":s==="asked"?"Already asked for":"I want it";add.setAttribute("aria-label",add.title);
     var f=isFav(it.id);fv.className="fav"+(f?" on":"");fv.innerHTML="";fv.appendChild(svg("heart"));fv.title=f?"In your favorites":"Save to favorites";fv.setAttribute("aria-pressed",String(f));fv.setAttribute("aria-label",fv.title);
   }
   t._upd=upd;upd();
@@ -1729,7 +1734,7 @@ function renderEpisodes(d,host,it){
     if(!it||!it.n||!(sn.n>0)){reqb.hidden=true;return;}
     var stt=seasonState(it,sn.n);reqb.hidden=false;reqb.disabled=!!stt;reqb.className="btn sm sreq"+(stt?"":" primary");reqb.innerHTML="";
     reqb.appendChild(svg(stt==="have"?"check":stt==="asked"?"clock":"add"));
-    reqb.appendChild(el("span","",stt==="have"?"In the library":stt==="asked"?"Requested":"Request this season"));
+    reqb.appendChild(el("span","",stt==="have"?"In the library":stt==="asked"?"Asked for":"I want this season"));
     reqb.onclick=async function(){reqb.disabled=true;if(await sendRequest(it,sn.n))updReq(sn);else reqb.disabled=false;};
   }
   function show(i){
@@ -1786,7 +1791,7 @@ async function showTitle(it0,opts){
     var rq=el("button","btn "+(s?"":"primary"));rq.type="button";rq.disabled=s==="have";
     var rr=s==="asked"?findReq(it):null,nv=rr?(rr.votes||1):0,mine=rr?iWant(rr):false;
     if(MEMBER&&!APPROVED&&s!=="have"){      // signed in, not allowed yet: a grey, locked button that says why
-      rq.className="btn locked";rq.appendChild(svg("lock"));rq.appendChild(el("span","","Request"));rq.title="Requests are for accounts the owner allows";
+      rq.className="btn locked";rq.appendChild(svg("lock"));rq.appendChild(el("span","","I want it"));rq.title="Requests are for accounts the owner allows";
       rq.onclick=function(){dialog({title:"Requests are locked",text:"Only accounts the owner allows can ask for films and series. Ask the owner to allow yours ("+ME+"). Meanwhile, save titles to your favorites.",ok:"OK"});};
     }else if(rr){      // someone already asked: show how many want it, and let me add my voice
       rq.className="btn wantb"+(mine?" on":"");rq.appendChild(svg(mine?"check":"thumb"));
@@ -1794,7 +1799,7 @@ async function showTitle(it0,opts){
       rq.title=mine?"Take my vote back":"Add my vote: I want it too";
       rq.onclick=async function(){rq.disabled=true;try{var who=await whoAmI();await api("POST","/_meta/requests/"+rr.id+"/vote",{who:who});await loadRequests();refreshTiles();}catch(e){toast("Could not vote");}paint();};
     }else{
-      rq.appendChild(svg(s==="have"?"check":"add"));rq.appendChild(el("span","",s==="have"?"In the library":"Request"));
+      rq.appendChild(svg(s==="have"?"check":"add"));rq.appendChild(el("span","",s==="have"?"In the library":"I want it"));
       rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=false;};
     }
     var fb=el("button","btn"+(isFav(it.id)?" favon":""));fb.type="button";fb.hidden=!it.id;fb.appendChild(svg("heart"));fb.appendChild(el("span","",isFav(it.id)?"Saved":"Save"));
@@ -2089,6 +2094,7 @@ function renderRequests(){
   var cat=el("div");cat.id="reqCat";c.appendChild(cat);
   loadRequests().then(refreshTiles);
   drawCatalog();
+  setTimeout(function(){if(cwd==="requests"&&reqTab==="browse"){loadGsap();luckyPrefetch();}},2500);
 }
 var CATIC={"":["star","#d9b45a"],new:["sparkles","#e8b75a"],fresh:["cal","#f08a5d"],top:["trophy","#d9b45a"],popular:["flame","#e57a50"],anime:["torii","#e0706a"],
   gems:["gem","#4fb3a5"],mind:["brain","#9a8fd6"],feel:["smile","#e8b75a"],edge:["heartpulse","#e0706a"],binge:["popcorn","#e8b75a"],mini:["clapper","#6c9be0"],
@@ -2229,12 +2235,21 @@ async function drawFilters(){
   field("Rating",makeDD("Rating",[["","Any rating","star"],[6,"6 and up","star"],[7,"7 and up","star"],[8,"8 and up","star"]],reqF.min,function(v){reqF.min=v;apply();},true).el);
   panel.appendChild(grid);
 }
-var luckySeen=[];      // titles already suggested in this visit, so "Another one" never repeats
+var luckySeen=[],luckyNext=null;      // titles already suggested in this visit (never repeated); the next pick, fetched in advance
+function luckyKey(){return reqKind+filterQuery();}
+function luckyFetch(){
+  var key=luckyKey(),p=api("GET","/_meta/lucky?type="+reqKind+filterQuery()+"&seen="+luckySeen.slice(-60).join(",")).then(function(d){
+    if(d&&d.id){luckySeen.push(d.id);if(d.img){var im=new Image();im.src=rimg(d.img,500);}}      // warm the poster too
+    return d;});
+  p.catch(function(){});return {key:key,p:p};
+}
+function luckyPrefetch(){if(!luckyNext||luckyNext.key!==luckyKey())luckyNext=luckyFetch();}
 async function luckyPick(again){
+  var job=luckyNext&&luckyNext.key===luckyKey()?luckyNext:luckyFetch();luckyNext=null;
   try{
-    var d=await api("GET","/_meta/lucky?type="+reqKind+filterQuery()+"&seen="+luckySeen.slice(-60).join(","));
+    var d=await job.p;
     if(!d||!d.id){toast("Nothing matches those filters");return null;}
-    luckySeen.push(d.id);
+    setTimeout(luckyPrefetch,300);      // the one after this is fetched while you read this one
     return d;
   }catch(e){toast(e.message==="HTTP 404"?(filtersOn()?"Nothing matches those filters":"You have seen every suggestion for now"):"Could not reach the server, try again");return null;}
 }
@@ -2270,9 +2285,9 @@ function confetti(g,host){
   g.delayedCall(1.8,function(){layer.remove();});
 }
 async function feelingLucky(){
-  var b=$("luckyBtn");b.disabled=true;
+  var b=$("luckyBtn");if(b.classList.contains("busy"))return;b.classList.add("busy");b.disabled=true;
   var both=await Promise.all([luckyPick(),loadGsap()]),first=both[0],g=both[1];
-  b.disabled=false;
+  b.disabled=false;b.classList.remove("busy");
   if(!first)return;
   var m=$("modal"),prev=document.activeElement,it=first,rolls=1,rolling=false,tilt=null;m.innerHTML="";
   var d=el("div","dlg lucky"+(g?" g":""));d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");d.setAttribute("aria-label","Lucky pick");
@@ -2297,7 +2312,7 @@ async function feelingLucky(){
     r.appendChild(el("p","lplot",it.o||"No description yet."));
     var st=stateOf(it),act=el("div","lact");
     var rq=el("button","btn primary big"+(st?" done":""));rq.type="button";rq.disabled=!!st;rq.appendChild(svg(st==="have"?"check":st==="asked"?"clock":"add"));
-    rq.appendChild(el("span","",st==="have"?"Already in the library":st==="asked"?"Requested":"Request"));
+    rq.appendChild(el("span","",st==="have"?"Already in the library":st==="asked"?"Asked for":"I want it"));
     rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){var y=d.scrollTop;paint(true);}else rq.disabled=false;};
     var tr=el("button","btn big");tr.type="button";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));tr.onclick=function(){playTrailer(it);};
     act.appendChild(rq);act.appendChild(tr);
@@ -2314,14 +2329,15 @@ async function feelingLucky(){
     var card=d.querySelector(".lcard"),rights=d.querySelectorAll(".lright > *:not(.roll)"),roll=d.querySelector(".roll");
     var tl=g.timeline({defaults:{ease:"power3.out"}});
     if(!quiet)tl.from(d,{opacity:0,scale:.93,y:26,duration:.5,ease:"back.out(1.6)"},0);
-    tl.from(card,{rotateY:-85,x:-70,opacity:0,transformPerspective:900,duration:.9,ease:"back.out(1.35)"},quiet?0:.1)
+    var small=window.innerWidth<=860;
+    tl.from(card,small?{y:24,opacity:0,scale:.94,duration:.5,ease:"back.out(1.4)"}:{rotateY:-85,x:-70,opacity:0,transformPerspective:900,duration:.9,ease:"back.out(1.35)"},quiet?0:.1)
       .from(rights,{y:20,opacity:0,stagger:.07,duration:.55},.25)
       .from(roll,{y:22,opacity:0,scale:.94,duration:.6,ease:"back.out(2.2)"},.55);
     var fg=d.querySelector(".ringg circle:last-child"),num=d.querySelector(".lrate b");
     if(fg&&it.r){var C=2*Math.PI*15.5,o={v:0};g.fromTo(fg,{attr:{"stroke-dasharray":"0 "+C}},{attr:{"stroke-dasharray":(C*it.r/10)+" "+C},duration:1.2,delay:.45,ease:"power3.out"});
       g.to(o,{v:it.r,duration:1.2,delay:.45,ease:"power3.out",onUpdate:function(){num.textContent=o.v.toFixed(1);}});}
     var host=d.querySelector(".lleft"),pst=d.querySelector(".lpst");
-    host.onpointermove=function(e){var bx=host.getBoundingClientRect(),px=(e.clientX-bx.left)/bx.width-.5,py=(e.clientY-bx.top)/bx.height-.5;
+    host.onpointermove=function(e){if(e.pointerType!=="mouse")return;var bx=host.getBoundingClientRect(),px=(e.clientX-bx.left)/bx.width-.5,py=(e.clientY-bx.top)/bx.height-.5;
       g.to(card,{rotateY:px*16,rotateX:-py*16,transformPerspective:900,duration:.45,ease:"power2.out",overwrite:"auto"});
       pst.style.setProperty("--mx",(px+.5)*100+"%");pst.style.setProperty("--my",(py+.5)*100+"%");};
     host.onpointerleave=function(){g.to(card,{rotateY:0,rotateX:0,duration:.9,ease:"elastic.out(1,.55)",overwrite:"auto"});};

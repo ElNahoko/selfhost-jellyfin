@@ -7,7 +7,7 @@
   if (window.__jfHeroLoaded) return;
   window.__jfHeroLoaded = true;
 
-  var BRAND = "Lumio", COUNT = 6, INTERVAL = 10000, REFRESH_MS = 3 * 60 * 1000, MAX_ROWS = 7;
+  var BRAND = "Nahoko", COUNT = 6, INTERVAL = 10000, REFRESH_MS = 3 * 60 * 1000, MAX_ROWS = 7;
 
   /* ======================================================= helpers ======================================================= */
   function client() { return window.ApiClient; }
