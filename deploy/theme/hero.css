@@ -242,3 +242,11 @@ html.jfm-open, html.jfm-open body { overflow: hidden !important; }
 .jfc-block .jfh-root { margin-top: 0; height: clamp(320px, 54vh, 620px); margin-bottom: -1.5vw; }
 .jfc-block .jfh-root .jfh-inner { bottom: 22%; }
 .jfc-all { margin: 1.2rem var(--nf-side) .4rem; font-size: clamp(1.05rem, 1.45vw, 1.55rem); font-weight: 700; color: #e5e5e5; }
+
+/* Each row reserves extra room below its pictures for the hover panel. That empty room must not catch the mouse, otherwise
+   it sits on top of the NEXT row and swallows the hover (rows only reacted on their top part). Only the pictures, titles
+   and arrows take the pointer; scrolling with the wheel still works because events bubble up to the scroller. */
+@media (hover: hover) {
+  .jfr-root .jfr-row, .jfr-root .jfr-wrap, .jfr-root .jfr-scroller { pointer-events: none; }
+  .jfr-root .jfr-card, .jfr-root .jfr-arrow, .jfr-root .jfr-title { pointer-events: auto; }
+}
