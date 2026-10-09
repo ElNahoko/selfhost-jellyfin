@@ -374,6 +374,8 @@ class H(BaseHTTPRequestHandler):
                 if limited(s["user"], "search", 40): return self.js({"error": "slow down"}, 429)
                 kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
                 return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
+            if path == "/_meta/status" and s["role"] == "admin":
+                return self.js(catalog.status())
             if path == "/_meta/filters":
                 return self.send(200, json.dumps(catalog.filters_info("series" if (qs.get("type") or [""])[0] == "series" else "movie")).encode(), cache="private, max-age=60")
             if path in ("/_meta/lucky",):

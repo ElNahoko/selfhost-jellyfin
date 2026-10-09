@@ -584,6 +584,17 @@ def cast_for(tid):
             "writers": [n for n, k, _ in rows if k in ("writer", "creator")][:3],
             "cast": [{"n": n, "c": ch} for n, k, ch in rows if k in ("actor", "actress")][:8]}
 
+def status():
+    """What the background jobs are doing (admin only)."""
+    cat = _mem["cat"]
+    def built(path):
+        try:
+            c = sqlite3.connect(path); r = c.execute("SELECT v FROM info WHERE k='built'").fetchone(); c.close(); return int(r[0]) if r else None
+        except Exception: return None
+    return {"error": _state["error"], "catalog": {"building": _state["building"], "built": cat and cat["built"], "titles": cat and len(cat["items"])},
+            "episodes": {"building": _eps["building"], "built": built(EPS_DB)}, "cast": {"building": _cast["building"], "built": built(CAST_DB)},
+            "anime": {"building": _anime["building"], "count": len(_anime_set())}, "countries": {"complete": bool((_cty.get("d") or {})), "fail": _cty.get("fail")}}
+
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)
     c.execute("CREATE TABLE IF NOT EXISTS titles(id TEXT PRIMARY KEY, img TEXT, overview TEXT)")
