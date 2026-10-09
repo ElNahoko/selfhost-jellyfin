@@ -220,6 +220,41 @@ def sync_subtitles(hosts, made):
     return created
 
 
+def prune_missing(lid, name, hosts):
+    """Remove library entries whose file or folder no longer exists on disk.
+
+    Why: Jellyfin refuses to remove anything when a library folder has become completely EMPTY (it cannot tell "you
+    deleted everything" from "the disk is not mounted"), so deleted movies stay in the library as ghosts. We can tell the
+    difference: the data disk must be a real mount point and the library folder must exist. Entries are removed in
+    Jellyfin's database only (the media is mounted read-only inside the container and the files are already gone).
+    """
+    import json
+    if os.environ.get("PRUNE", "1") == "0":
+        return
+    if os.environ.get("PRUNE_REQUIRE_MOUNT", "1") == "1" and not os.path.ismount(WATCH):
+        log("prune skipped: %s is not a mount point (disk missing?)" % WATCH)
+        return
+    if not hosts or not all(os.path.isdir(h) for h in hosts):
+        log("prune skipped for %s: library folder missing" % name)
+        return
+    txt = api("GET", "/Items?ParentId=%s&Recursive=true&Fields=Path&EnableTotalRecordCount=false" % lid)
+    if txt is None:
+        return
+    gone = 0
+    for it in json.loads(txt).get("Items", []):
+        path = it.get("Path") or ""
+        if not (path == CONTAINER_ROOT or path.startswith(CONTAINER_ROOT + "/")):
+            continue
+        if it.get("LocationType") == "Virtual" or it.get("IsFolder") and it.get("Type") in ("CollectionFolder", "UserView"):
+            continue
+        if not os.path.exists(WATCH + path[len(CONTAINER_ROOT):]):
+            if api("DELETE", "/Items/%s" % it["Id"]) is not None:
+                gone += 1
+                log("removed from library (file is gone): %s" % (it.get("Name") or path))
+    if gone:
+        log("%d missing entr%s removed from %s" % (gone, "y" if gone == 1 else "ies", name))
+
+
 def marker(lid):
     return os.path.join(STATE, lid + ".marker")
 
@@ -337,6 +372,7 @@ def main():
                 os.utime(marker(lid), (started, started))
                 pending.discard(lid)
                 log("refresh requested for library: %s" % name)
+                prune_missing(lid, name, hosts)
             else:
                 log("refresh FAILED for %s (Jellyfin not answering?), will retry" % name)
 

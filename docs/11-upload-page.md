@@ -28,3 +28,8 @@ A small web page where you drag and drop movies, shows, music and audiobooks str
 - Why not File Browser? It was a popular choice but the project is archived with no further security fixes, so this guide does not use it.
 
 If you edit `deploy/uploads/assets/index.html`, run `sudo docker compose restart uploads`: the file server keeps the page in memory.
+
+## Deleting titles (do it here, not in Jellyfin)
+- Delete files with the 🗑 button **on this upload page**. Jellyfin only has a read-only view of the media folder, so its own "Delete media" command cannot remove files.
+- About a minute after the last change the auto-scan service refreshes the library and also removes the entries whose files are gone. This includes the case where you delete the **last** title of a library, which Jellyfin alone would never clean up (it keeps everything when a library folder is completely empty, in case the disk is missing). The service only does this when the data disk is a real mount point.
+- A browser tab that was already open can show the old row for up to three minutes; reload the page.
