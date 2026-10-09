@@ -50,7 +50,7 @@ def _rules(kind, this):
             add("g-" + gname.lower(), label, (lambda gn: lambda i: gn in i["g"])(gname))
     else:
         add("binge", "Binge-worthy", lambda i: i["r"] >= 8.2 and i["v"] >= 100000, V, True)
-        add("mini", "Miniseries", lambda i: i["tt"] == "tvMiniSeries", W, True)
+        add("mini", "Miniseries", lambda i: i.get("tt") == "tvMiniSeries", W, True)
         add("mind", "Mind-bending", lambda i: i["r"] >= 7.8 and g(i, "Sci-Fi", "Mystery", "Fantasy"), W, True)
         add("sitcom", "Sitcoms", lambda i: i["rt"] and i["rt"] <= 35 and a(i, "Comedy"))
         add("prestige", "Prestige drama", lambda i: i["r"] >= 8.3 and a(i, "Drama"))
@@ -114,7 +114,7 @@ def _build():
             out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
             out["rowids"].extend(i["id"] for i in lst)
     for i in items.values():
-        if "w" in i: out["items"][i["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in i.items() if k != "tt"}
+        if "w" in i: out["items"][i["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in i.items()}
     out["rowids"] = list(dict.fromkeys(out["rowids"]))
     tmp = CAT + ".tmp"
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
@@ -367,7 +367,67 @@ SORTS = {"rating": lambda i: (-i["r"], -i["v"]), "votes": lambda i: (-i["v"], -i
 def _ordered(cat, ids, sort):
     return sorted((cat["items"][i] for i in ids), key=SORTS[sort])
 
-def view(kind, row=None, sort=None, offset=0, limit=40):
+def _scoped_rules(kind):
+    this = date.today().year
+    return {r["id"]: r for r in _rules(kind, this)}
+
+def _genre_rows(pool, limit=5):
+    cnt = {}
+    for it in pool:
+        for g in it["g"]: cnt[g] = cnt.get(g, 0) + 1
+    return [g for g, n in sorted(cnt.items(), key=lambda x: -x[1]) if n >= 10][:limit]
+
+def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
+    """The same shelves and categories, but computed only on titles that match the chosen filters (e.g. Korean cinema):
+    "Top rated" becomes Korean top rated, and shelves for the genres this country is known for are added."""
+    cat, pool = _filter_pool(kind, f)
+    if cat is None: return {"building": True, "rows": [], "chips": []}
+    rules = _scoped_rules(kind)
+    chips = [{"id": r["id"], "name": r["name"], "home": r["home"]} for r in rules.values()]
+    gnames = _genre_rows(pool)
+    chips += [{"id": "gx-" + g.lower(), "name": g, "home": True} for g in gnames if "g-" + g.lower() not in rules]
+    def members(rid):
+        if rid in ("new", "popular") and f.get("decade"):      # "recent" makes no sense inside a chosen decade: show that decade's most voted
+            return pool, "votes"
+        if rid in rules:
+            r = rules[rid]
+            return [i for i in pool if r["fn"](i)], ("rating" if r["sort"] == "w" else "votes")
+        if rid.startswith("gx-") or rid.startswith("g-"):
+            g = next((x for x in {g for it in pool for g in it["g"]} if x.lower() == rid.split("-", 1)[1]), None)
+            return ([i for i in pool if g in i["g"]] if g else []), "rating"
+        return pool, "best"
+    if row:
+        its, by = members(row)
+        fs = dict(FSORTS); sort = sort if sort in fs else by
+        its = sorted(its, key=fs[sort]) if sort != "rating" else sorted(its, key=lambda i: (-i["r"], -i["v"]))
+        page = its[offset:offset + limit]
+        queue_resolve(page)
+        d = [_dress(cat, i["id"]) for i in page]
+        nm = next((c["name"] for c in chips if c["id"] == row), "Results")
+        return {"rows": [{"id": row, "name": nm, "items": d}], "chips": chips, "total": len(its), "offset": offset, "sort": sort, "default": by,
+                "ready": all("img" in x for x in d)}
+    out = []
+    for r in rules.values():
+        if not r["home"]: continue
+        its, by = members(r["id"])
+        if len(its) < 6: continue
+        its = sorted(its, key=lambda i: (-i["r"], -i["v"])) if by == "rating" else sorted(its, key=lambda i: (-i["v"], -i["r"]))
+        out.append({"id": r["id"], "name": r["name"], "items": its[:HOME_N]})
+    for g in gnames:
+        its, by = members("gx-" + g.lower())
+        if len(its) < 8: continue
+        its = sorted(its, key=lambda i: (-i.get("w", 0), -i["v"]))
+        out.append({"id": "gx-" + g.lower(), "name": g, "items": its[:HOME_N]})
+    seen = set()
+    for r in out:
+        r["items"] = [it for it in r["items"]]
+    queue_resolve([it for r in out for it in r["items"]])
+    d_out = [{"id": r["id"], "name": r["name"], "items": [_dress(cat, it["id"]) for it in r["items"]]} for r in out]
+    total = sum(len(r["items"]) for r in d_out)
+    return {"ready": sum(1 for r in d_out for x in r["items"] if "img" in x) >= total * 0.95, "rows": d_out, "chips": chips, "total_titles": len(pool)}
+
+def view(kind, row=None, sort=None, offset=0, limit=40, flt=None):
+    if flt: return view_scoped(kind, flt, row, sort, offset, limit)
     cat = load()
     ensure_all()
     if not cat:

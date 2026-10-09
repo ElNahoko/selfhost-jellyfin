@@ -382,12 +382,15 @@ class H(BaseHTTPRequestHandler):
                     resolve_one(it); it = catalog.item(tid)
                 if it: it = dict(it, why=why)
                 return self.js(it or {}, 200 if it else 404)
-            if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")):
+            if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")) and not (qs.get("row") or [""])[0]:
                 def num2(k, d, hi):
                     try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
                     except ValueError: return d
-                body = json.dumps(catalog.view_filter("series" if (qs.get("type") or [""])[0] == "series" else "movie", filt(qs),
-                                                      (qs.get("sort") or [""])[0], num2("offset", 0, 8000), max(1, num2("limit", 40, 60)))).encode()
+                kind2 = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
+                if (qs.get("all") or [""])[0] == "1":      # the flat list of every match
+                    body = json.dumps(catalog.view_filter(kind2, filt(qs), (qs.get("sort") or [""])[0], num2("offset", 0, 8000), max(1, num2("limit", 40, 60)))).encode()
+                else:                                       # shelves computed inside the filters
+                    body = json.dumps(catalog.view(kind2, None, None, 0, 40, filt(qs))).encode()
                 return self.send(200, body, cache="private, max-age=20")
             if path == "/_meta/catalog":
                 row = re.sub(r"[^a-z0-9-]", "", (qs.get("row") or [""])[0]) or None
@@ -395,7 +398,7 @@ class H(BaseHTTPRequestHandler):
                     try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
                     except ValueError: return d
                 body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row,
-                                               (qs.get("sort") or [""])[0], num("offset", 0, 5000), max(1, num("limit", 40, 60)))).encode()
+                                               (qs.get("sort") or [""])[0], num("offset", 0, 5000), max(1, num("limit", 40, 60)), filt(qs) or None)).encode()
                 return self.send(200, body, cache="private, max-age=20")
             if path == "/_meta/title":
                 tid = (qs.get("id") or [""])[0]
