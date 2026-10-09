@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#141414">
 <title>Nahoko</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2064%2064%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%23ff3b3b%27/%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%23c10f1d%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2716%27%20fill%3D%27url%28%23g%29%27/%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%2717%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%275%27/%3E%3Cpath%20d%3D%27M28%2024.5%2041%2032%2028%2039.5z%27%20fill%3D%27%23fff%27%20stroke%3D%27%23fff%27%20stroke-width%3D%272%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff3b3b'/%3E%3Cstop offset='1' stop-color='%23c10f1d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url%28%23g%29'/%3E%3Cpath d='M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
 :root{
   color-scheme:dark;
@@ -24,7 +24,7 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;st
 
 .app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
 .side{background:var(--side);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh}
-.brand{display:flex;align-items:center;gap:12px;padding:0 8px}
+.brand{display:flex;align-items:center;gap:7px;padding:0 8px}
 .stog{all:unset;cursor:pointer;margin-left:auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
 .stog:hover{background:var(--card2);color:var(--ink)}.stog svg{width:16px;height:16px;transition:transform .25s;transform:rotate(90deg)}
 .app{transition:grid-template-columns .25s}
@@ -262,11 +262,11 @@ h2.sec{font-size:.8rem;text-transform:uppercase;letter-spacing:.09em;color:var(-
 .dlg.wide{max-width:920px;padding:0;overflow:hidden;display:block;max-height:92vh;max-height:92dvh;border-radius:22px;position:relative}
 .dscroll{max-height:92vh;max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
 .dscroll::-webkit-scrollbar{width:8px}.dscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:8px}
-.dclose{position:absolute;top:14px;right:14px;z-index:3;width:38px;height:38px;border-radius:50%;background:rgba(20,20,20,.72);border:1px solid rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(8px);transition:background .15s,transform .15s}
+.dclose{position:absolute;top:14px;right:14px;z-index:3;width:38px;height:38px;border-radius:50%;background:rgba(20,20,20,.72);border:1px solid rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer;transition:background .15s,transform .15s}
 .dclose:hover{background:rgba(255,255,255,.18);transform:scale(1.06)}
 .dhead{position:relative;display:grid;grid-template-columns:168px minmax(0,1fr);gap:28px;padding:30px 30px 22px;overflow:hidden;isolation:isolate}
 .dbg{position:absolute;inset:0;z-index:-1;background:var(--card2)}
-.dbg img{position:absolute;inset:-12%;width:124%;height:124%;object-fit:cover;filter:blur(40px) saturate(1.25) brightness(.5)}
+.dbg{contain:paint}.dbg img{position:absolute;inset:-12%;width:124%;height:124%;object-fit:cover;filter:blur(26px) saturate(1.25) brightness(.5);transform:translateZ(0);will-change:transform}
 .dbg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,20,20,.25) 0%,rgba(20,20,20,.6) 55%,var(--card) 100%)}
 .dhead>*:not(.dbg){position:relative;z-index:1}
 .dpst{position:relative;width:168px;aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:var(--card2);box-shadow:0 22px 44px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);align-self:start}
@@ -830,7 +830,7 @@ h2.sec .ci{width:15px;height:15px;margin-right:8px;vertical-align:-2px}
 .subrow .sl{display:flex;align-items:center;gap:12px;flex:1;min-width:0}.subrow .sl svg{width:18px;height:18px;color:var(--muted);flex:none}
 .subrow .sl b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subrow .sl span{display:block;color:var(--muted);font-size:.8rem}
 .subok{color:#5fb88a;font-size:.84rem;font-weight:650;white-space:nowrap}
-.fav{position:absolute;right:8px;top:8px;z-index:3;width:32px;height:32px;border-radius:50%;border:0;background:rgba(10,10,14,.55);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);opacity:0;transition:opacity .15s,transform .15s}
+.fav{position:absolute;right:8px;top:8px;z-index:3;width:32px;height:32px;border-radius:50%;border:0;background:rgba(10,10,14,.55);color:#fff;display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s,transform .15s}
 .fav svg{width:16px;height:16px}
 .tile:hover .fav,.tile:focus-within .fav,.fav.on{opacity:1}
 .fav.on{color:#ff5470}.fav.on svg path{fill:currentColor}
@@ -852,7 +852,7 @@ body.guest .side{display:none}
 body.guest .app{grid-template-columns:minmax(0,1fr)}
 body.guest main{width:100%;max-width:1560px;margin:0 auto}
 body.guest .mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 0}
-body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
+body.guest .mtop .brandm{display:flex;align-items:center;gap:7px}
 .gacct{display:flex;align-items:center;gap:10px;min-width:0}
 .gacct .gme{color:var(--muted);font-size:.86rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:860px){.gacct .gme{display:none}}
@@ -861,17 +861,31 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
 .lockcard .lockic svg{width:30px;height:30px}.lockcard .lockic svg path{fill:currentColor}
 .lockcard b{font-size:1.2rem}.lockcard span{color:var(--muted);line-height:1.5}.lockcard .btn{margin-top:10px;padding:10px 26px}
 .rempty span{display:block;max-width:440px;margin:0 auto}.rempty .btn{margin-top:14px}
+#luckyBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+#luckyIc{display:grid;place-items:center;line-height:0}#luckyIc svg{display:block}
+.brandm{gap:4px!important}.brand{gap:4px!important}
+.lv.clk{cursor:pointer;border-radius:6px}.lv.clk:hover b{color:var(--accent)}
+.dlg.usage{max-width:620px}
+.ulist{display:flex;flex-direction:column;gap:2px;margin:6px 0 4px}
+.urow{display:grid;grid-template-columns:1fr 170px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.urow .ul b{display:block}.urow .ul span{display:block;color:var(--muted);font-size:.82rem;line-height:1.4}
+.urow .uv span{display:block;font-size:.8rem;color:var(--muted);margin-top:5px;text-align:right}
+.ubar{height:6px;border-radius:6px;background:var(--card2);overflow:hidden}.ubar i{display:block;height:100%;background:#5fb88a}.ubar i.hot{background:#e0706a}
+.usub{margin:16px 0 6px}.uplay{padding:8px 0;border-top:1px solid var(--line)}.uplay b{display:block}.uplay span{color:var(--muted);font-size:.84rem}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:18px;align-items:start}
+.setgrid>.panel{margin:0}
+@media (max-width:640px){.urow{grid-template-columns:1fr}.urow .uv span{text-align:left}}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">NAHO<i>KO</i></span><button class="stog" id="sideToggle" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"></button></div>
+    <div class="brand"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g)'/><path d='M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z' fill='#fff'/></svg></span><span class="wm">AHOKO</span><button class="stog" id="sideToggle" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"></button></div>
     <nav class="libs" id="libs" aria-label="Sections"></nav>
     <div class="space" id="space" hidden>
       <div class="lv"><span>Disk</span><b id="spT">–</b></div><div class="meter"><i id="spB"></i></div>
-      <div class="lv"><span>CPU</span><b id="cpuV">–</b></div><div class="meter"><i id="cpuB"></i></div>
-      <div class="lv"><span>RAM</span><b id="ramV">–</b></div><div class="meter"><i id="ramB"></i></div>
+      <div class="lv clk" id="cpuL" title="What uses the server?"><span>CPU</span><b id="cpuV">–</b></div><div class="meter"><i id="cpuB"></i></div>
+      <div class="lv clk" id="ramL" title="What uses the server?"><span>RAM</span><b id="ramV">–</b></div><div class="meter"><i id="ramB"></i></div>
       <div class="sgrid">
         <div class="sg" id="netL" hidden><span class="sgl">Sent</span><b id="netUp">–</b></div><div class="sg" id="netL2" hidden><span class="sgl">Received</span><b id="netDn">–</b></div>
         <div class="sg" id="catL" hidden><span class="sgl">Films</span><b id="catF">–</b></div><div class="sg" id="catL2" hidden><span class="sgl">Series</span><b id="catS">–</b></div>
@@ -882,7 +896,7 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
   </aside>
 
   <main>
-    <div class="mtop"><span class="brandm"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g2)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">NAHO<i>KO</i></span></span><span class="wb"><button id="settingsBtn2" type="button" aria-label="Settings"></button><button id="signout2" type="button" aria-label="Sign out"></button></span></div>
+    <div class="mtop"><span class="brandm"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g2)'/><path d='M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z' fill='#fff'/></svg></span><span class="wm">AHOKO</span></span><span class="wb"><button id="settingsBtn2" type="button" aria-label="Settings"></button><button id="signout2" type="button" aria-label="Sign out"></button></span></div>
     <div class="top">
       <div class="crumbs" id="crumbs" aria-label="Current folder"></div>
       <div class="tools" id="tools">
@@ -1067,6 +1081,38 @@ async function loadSpace(){
   try{var r=await fetch("/_meta/space",{credentials:"same-origin",cache:"no-store"});if(!r.ok)return;var d=await r.json();
     $("space").hidden=false;$("spT").textContent=fmtSize(d.used)+" / "+fmtSize(d.total);
     $("spB").style.width=Math.min(100,d.used*100/d.total)+"%";$("spS").textContent=fmtSize(d.total-d.used)+" free on disk";}catch(e){}
+}
+var SVC={jellyfin:["Jellyfin","plays your films; converts video when a screen cannot play the file as is"],subocr:["Subtitle converter","turns Blu-ray picture subtitles into text, once per file"],
+  "uploads-meta":["Nahoko app","this site, the catalogue and its background jobs (posters, episodes, cast)"],uploads:["File server","receives uploads, lists folders"],caddy:["Web server","HTTPS for every site"]};
+var REASONS={SubtitleCodecNotSupported:"picture subtitles are on: the screen cannot draw them, so they are burned into the video",VideoCodecNotSupported:"this screen cannot play the video format (x265 / HEVC)",
+  AudioCodecNotSupported:"this screen cannot play the sound format",ContainerNotSupported:"this screen cannot open the file type",VideoBitDepthNotSupported:"10-bit video is not supported by this screen",
+  VideoBitrateNotSupported:"the file is too heavy for this connection or screen",AudioChannelsNotSupported:"surround sound converted to stereo",VideoLevelNotSupported:"video level not supported",VideoProfileNotSupported:"video profile not supported"};
+async function showUsage(){
+  var m=$("modal"),prev=document.activeElement;m.innerHTML="";
+  var d=el("div","dlg usage");d.appendChild(el("h3","","What uses the server"));var body=el("div","");body.appendChild(el("p","hint left","Loading…"));d.appendChild(body);
+  var cl=el("button","btn","Close");cl.type="button";var ac=el("div","acts");ac.appendChild(cl);d.appendChild(ac);
+  function close(){m.hidden=true;m.innerHTML="";if(prev&&prev.focus)prev.focus();}
+  cl.onclick=close;m.onmousedown=function(e){if(e.target===m)close();};m.appendChild(d);m.hidden=false;
+  var u;try{u=await api("GET","/_meta/usage");}catch(e){body.textContent="Not available.";return;}
+  body.innerHTML="";
+  if(u.t)body.appendChild(el("p","hint left",(u.cpus||1)+" CPU · load "+(u.load||[]).join(" / ")+" · "+(Math.round((u.mem_total_mb-u.mem_available_mb)/102.4)/10)+" GB of "+(Math.round(u.mem_total_mb/102.4)/10)+" GB RAM in use · measured "+ago(u.t)));
+  var list=el("div","ulist");
+  (u.containers||[]).forEach(function(c){
+    var info=SVC[c.name]||[c.name,""],row=el("div","urow");
+    var l=el("div","ul");l.appendChild(el("b","",info[0]));var why=info[1];
+    if(c.name==="subocr"&&u.subocr)why="first pass through your library: "+u.subocr.done+" files done, "+u.subocr.todo+" to go"+(u.subocr.current?" · now: "+u.subocr.current:"")+". Lowest priority; stops when done.";
+    if(c.name==="jellyfin"&&(u.plays||[]).length){var tr=u.plays.filter(function(p){return p.method==="Transcode";}).length;why=u.plays.length+" playing now"+(tr?", "+tr+" being converted (see below)":", all playing directly (light)");}
+    l.appendChild(el("span","",why));row.appendChild(l);
+    var v=el("div","uv"),bar=el("div","ubar"),bi=el("i","");bi.style.width=Math.min(100,c.cpu)+"%";if(c.cpu>60)bi.className="hot";bar.appendChild(bi);v.appendChild(bar);
+    v.appendChild(el("span","",Math.round(c.cpu)+"% CPU · "+(c.mem_mb>=1024?(c.mem_mb/1024).toFixed(1)+" GB":c.mem_mb+" MB")));row.appendChild(v);list.appendChild(row);
+  });
+  if(!(u.containers||[]).length)list.appendChild(el("p","hint left","No measurements yet (they arrive every minute)."));
+  body.appendChild(list);
+  if((u.plays||[]).length){body.appendChild(el("h4","usub","Playing now"));
+    u.plays.forEach(function(p){var r=el("div","uplay");r.appendChild(el("b","",p.title+(p.paused?" (paused)":"")));
+      var rs=(p.reasons||[]).map(function(x){return REASONS[x]||x;});
+      r.appendChild(el("span","",(p.user||"")+" on "+(p.device||p.client||"")+" · "+(p.method==="Transcode"?"converted by the server: "+(rs.join("; ")||"format"):p.method==="DirectStream"?"repackaged on the fly (light)":"played directly (no work for the server)")));
+      body.appendChild(r);});}
 }
 async function loadStats(){
   try{var r=await fetch("/_meta/stats",{credentials:"same-origin",cache:"no-store"});if(!r.ok)return;var d=await r.json(),rp=d.mem_total?d.mem_used*100/d.mem_total:0;
@@ -1580,7 +1626,7 @@ function tile(it){
   return t;
 }
 /* ---------- title details: hero, overview, seasons and episodes ---------- */
-var EPC={};
+var EPC={},CASTC={};
 function rcls(r){return r>=9?"r9":r>=8?"r8":r>=7?"r7":r>=6?"r6":"r5";}
 function plural(n,w){return n+" "+w+(n===1?"":"s");}
 function fmtRt(rt){var h=Math.floor(rt/60),mm=rt%60;return (h?h+" h ":"")+(mm?mm+" min":"");}
@@ -1687,7 +1733,7 @@ async function showTitle(it0,opts){
     d.innerHTML="";
     var x=el("button","dclose");x.type="button";x.appendChild(svg("x"));x.title="Close";x.setAttribute("aria-label","Close");x.onclick=close;d.appendChild(x);
     var sc=el("div","dscroll");d.appendChild(sc);
-    var head=el("div","dhead"),bg=el("div","dbg");if(it.img)cover(bg,rimg(it.img,342));head.appendChild(bg);
+    var head=el("div","dhead"),bg=el("div","dbg");if(it.img)cover(bg,rimg(it.img,185));head.appendChild(bg);
     var pz=el("div","dpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,rimg(it.img,500));head.appendChild(pz);
     var b=el("div","dinfo");b.appendChild(el("h3","",it.n));
     var meta=el("div","dmeta");
@@ -1717,23 +1763,26 @@ async function showTitle(it0,opts){
     var ov=el("p","ov clamp",it.o||(it.id&&!it._loaded?"Loading…":"No description available."));b.appendChild(ov);
     var mb=el("button","ovmore","More");mb.type="button";mb.hidden=true;mb.onclick=function(){var c=ov.classList.toggle("clamp");mb.textContent=c?"More":"Less";};b.appendChild(mb);
     requestAnimationFrame(function(){mb.hidden=!(ov.scrollHeight>ov.clientHeight+2);});
-    if(castd&&((castd.directors||[]).length||(castd.writers||[]).length||(castd.cast||[]).length)){
-      var cl=el("div","castline");
-      if((castd.cast||[]).length){var seenC={},list=[];castd.cast.forEach(function(c){var key=(c.c||c.n).split(" / ")[0].toLowerCase();if(seenC[key])return;seenC[key]=1;list.push(c);});
-        var stack=el("div","cstack");list.slice(0,8).forEach(function(c){var bub=el("span","cbub");bub.title=c.n+(c.c?" as "+c.c.split(" / ")[0]:"");bub.setAttribute("aria-label",bub.title);
-          if(c.p)cover(bub,rimg(c.p,185));else bub.appendChild(el("i","",c.n.split(" ").map(function(w){return w.charAt(0);}).slice(0,2).join("")));stack.appendChild(bub);});
-        cl.appendChild(stack);}
-      var who=(castd.directors||[]).length?[isSeries()?"Director":"Directed by",castd.directors.join(", ")]:(castd.writers||[]).length?[isSeries()?"Created by":"Written by",castd.writers.join(", ")]:null;
-      if(who){var dr=el("span","cdir");dr.appendChild(el("span","klab",who[0]));dr.appendChild(el("span","",who[1]));cl.appendChild(dr);}
-      b.appendChild(cl);
-    }
+    if(castd)castLine(castd,b);
     head.appendChild(b);sc.appendChild(head);
     var eh=el("div","epshost");sc.appendChild(eh);
     if(epd)renderEpisodes(epd,eh,it);
   }
+  function castLine(cd,b){
+    if(!((cd.directors||[]).length||(cd.writers||[]).length||(cd.cast||[]).length)||b.querySelector(".castline"))return;
+      var cl=el("div","castline");
+      if((cd.cast||[]).length){var seenC={},list=[];cd.cast.forEach(function(c){var key=(c.c||c.n).split(" / ")[0].toLowerCase();if(seenC[key])return;seenC[key]=1;list.push(c);});
+        var stack=el("div","cstack");list.slice(0,8).forEach(function(c){var bub=el("span","cbub");bub.title=c.n+(c.c?" as "+c.c.split(" / ")[0]:"");bub.setAttribute("aria-label",bub.title);
+          if(c.p)cover(bub,rimg(c.p,185));else bub.appendChild(el("i","",c.n.split(" ").map(function(w){return w.charAt(0);}).slice(0,2).join("")));stack.appendChild(bub);});
+        cl.appendChild(stack);}
+      var who=(cd.directors||[]).length?[isSeries()?"Director":"Directed by",cd.directors.join(", ")]:(cd.writers||[]).length?[isSeries()?"Created by":"Written by",cd.writers.join(", ")]:null;
+      if(who){var dr=el("span","cdir");dr.appendChild(el("span","klab",who[0]));dr.appendChild(el("span","",who[1]));cl.appendChild(dr);}
+      b.appendChild(cl);
+      }
   function fetchCast(){
     castd=null;if(!it.id)return;var id=it.id;
-    api("GET","/_meta/cast?id="+id).then(function(x){if(x&&alive()&&it.id===id&&(x.cast||x.directors||x.writers)){castd=x;paint();}}).catch(function(){});
+    if(CASTC[id]){castd=CASTC[id];return;}
+    api("GET","/_meta/cast?id="+id).then(function(x){if(x&&(x.cast||x.directors||x.writers)){CASTC[id]=x;if(alive()&&it.id===id){castd=x;var b=d.querySelector(".dinfo");if(b)castLine(x,b);}}}).catch(function(){});
   }
   function fetchEps(){
     epd=null;fetchCast();if(!(it.id&&isSeries()))return;var id=it.id;
@@ -1766,7 +1815,7 @@ async function credDialog(title,name,pw){
 }
 async function renderSettings(){
   if(!ME){try{var me0=await api("GET","/_meta/me");ME=me0.user;paintWho();}catch(e){}}
-  var c=$("content");c.innerHTML="";$("hero").hidden=true;
+  var c0=$("content");c0.innerHTML="";$("hero").hidden=true;var c=el("div","setgrid");c0.appendChild(c);
   // password
   var card=el("section","panel");card.appendChild(el("h2","sec","Your password"));
   card.appendChild(el("p","hint left","Signed in as "+(ME||"admin")+". Other devices signed in with this account will be signed out."));
@@ -2731,6 +2780,7 @@ window.addEventListener("drop",async function(e){
   if(out.length)enqueue(out,{cwd:where});
 });
 
+$("cpuL").onclick=$("ramL").onclick=showUsage;
 function paintWho(){var w=$("whoT");if(w)w.textContent=PUBLICV?"Not signed in":(ME||"admin");}
 function signOut(){fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",credentials:"same-origin"}).finally(function(){location.href=STAFF?"/login":"/";});}
 $("signout").onclick=signOut;$("signout2").onclick=PUBLICV?function(){signInDialog();}:signOut;

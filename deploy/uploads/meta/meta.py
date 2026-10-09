@@ -187,7 +187,7 @@ def clip(v, n):
 ASSETS = os.environ.get("ASSETS_DIR", "/assets")
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
-ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
+ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/usage", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
 STAFF_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/have", "/_meta/match", "/_meta/guess")      # admin and uploaders
 APPROVED_ONLY = ("/_meta/requests",)
 SITE = os.environ.get("SITE_URL", "https://files.x0w1v75.com")
@@ -289,6 +289,7 @@ def have_keys():
 
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"        # keep-alive: Caddy reuses its connections instead of opening one per request
+    timeout = 60                         # an idle kept-alive connection is closed after a minute (no thread waits forever)
     def log_message(self, *a): pass
     def send(self, code, body, ctype="application/json", cache="no-store", headers=None):
         k = getattr(self, "_rc_key", None)
@@ -365,6 +366,31 @@ class H(BaseHTTPRequestHandler):
                 ids = re.findall(r"tt\d{6,10}", (qs.get("ids") or [""])[0])[:200]
                 return self.js([x for x in (catalog.item(i) for i in ids) if x])
             if path == "/_meta/members": return self.js(auth.list_members())
+            if path == "/_meta/usage":         # what uses the server: per service (written each minute by scripts/usage.py) + what plays now
+                try:
+                    with open("/db/usage.json") as f: u = json.load(f)
+                except (OSError, ValueError):
+                    u = {}
+                plays = []
+                try:
+                    for x in json.load(jf("/Sessions?ActiveWithinSeconds=300", timeout=8)):
+                        n = x.get("NowPlayingItem")
+                        if not n: continue
+                        t = x.get("TranscodingInfo") or {}
+                        plays.append({"user": x.get("UserName"), "client": x.get("Client"), "device": x.get("DeviceName"),
+                                      "title": (n.get("SeriesName") + " · " if n.get("SeriesName") else "") + (n.get("Name") or ""),
+                                      "method": (x.get("PlayState") or {}).get("PlayMethod"), "reasons": t.get("TranscodeReasons") or [],
+                                      "paused": (x.get("PlayState") or {}).get("IsPaused")})
+                except Exception:
+                    pass
+                u["plays"] = plays
+                try:
+                    with open("/db/subocr.json") as f: so = json.load(f)
+                    u["subocr"] = {"running": so.get("running"), "current": (so.get("current") or "").split("/")[-1],
+                                   "done": sum(1 for x in so.get("files", []) if x["state"] == "done"), "todo": sum(1 for x in so.get("files", []) if x["state"] == "todo")}
+                except (OSError, ValueError):
+                    pass
+                return self.js(u)
             if path == "/_meta/items": return self.send(200, cached(_items, build_items, 20))
             if path == "/_meta/sizes": return self.send(200, cached(_sizes, build_sizes, 60))
             if path == "/_meta/space":
