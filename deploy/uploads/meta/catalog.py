@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 7      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 8      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -209,8 +209,8 @@ def _build():
         if r[0] in ratings and r[1] in want and r[4] == "0":
             rt, v = ratings[r[0]]
             anim, recent = "Animation" in r[8], r[5].isdigit() and int(r[5]) >= this - 1
-            if want[r[1]] == "movie": need = (1000 if anim else 2000) if recent else (4000 if anim else 10000)
-            else: need = (400 if anim else 800) if recent else (1500 if anim else 4000)
+            if want[r[1]] == "movie": need = (500 if anim else 1000) if recent else (2000 if anim else 5000)
+            else: need = (200 if anim else 400) if recent else (800 if anim else 2000)
             if v < need: continue
             items[r[0]] = {"id": r[0], "k": want[r[1]], "tt": r[1], "n": r[2], "y": int(r[5]) if r[5].isdigit() else None,
                            "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
