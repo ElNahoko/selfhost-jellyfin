@@ -1,0 +1,9 @@
+[Unit]
+Description=Nahoko: measure server usage when the admin panel asks
+
+[Path]
+PathExists=/opt/jellyfin/uploads/data/usage-request
+Unit=nahoko-usage.service
+
+[Install]
+WantedBy=multi-user.target

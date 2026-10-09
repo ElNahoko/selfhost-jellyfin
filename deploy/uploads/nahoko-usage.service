@@ -1,0 +1,6 @@
+[Unit]
+Description=Nahoko: measure server usage (docker stats, top processes) once
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/jellyfin/scripts/usage.py

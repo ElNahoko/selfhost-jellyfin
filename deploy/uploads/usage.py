@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""What uses the server right now, for the admin panel (click CPU or RAM). Root cron, every minute:
-   * * * * * /usr/bin/python3 /opt/jellyfin/scripts/usage.py"""
+"""What uses the server right now, for the admin panel. Runs only when the admin clicks CPU or RAM:
+   the panel leaves data/usage-request, systemd (nahoko-usage.path, see docs/11-upload-page.md) starts this once."""
 import json, os, subprocess, time
 OUT = "/opt/jellyfin/uploads/data/usage.json"
+try: os.remove("/opt/jellyfin/uploads/data/usage-request")      # first: a failure must not re-trigger forever
+except OSError: pass
 
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=40).stdout

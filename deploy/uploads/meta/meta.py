@@ -583,6 +583,9 @@ class H(BaseHTTPRequestHandler):
                 with open(qf + ".tmp", "w") as f: json.dump(q, f)
                 os.replace(qf + ".tmp", qf)
                 return self.js({"ok": True})
+            if path == "/_meta/usage" and admin:      # ask the host to measure now (systemd watches this file)
+                open("/db/usage-request", "w").close()
+                return self.js({"ok": True, "t": int(time.time())})
             if path == "/_meta/admin/rebuild" and admin:
                 return self.js({"result": catalog.rebuild(clip(b.get("what"), 20))})
             if path == "/_meta/requests":

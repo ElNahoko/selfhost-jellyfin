@@ -875,6 +875,8 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:7px}
 .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:18px;align-items:start}
 .setgrid>.panel{margin:0}
 @media (max-width:640px){.urow{grid-template-columns:1fr}.urow .uv span{text-align:left}}
+.watchj{background:linear-gradient(135deg,#00a4dc,#aa5cc3);border:0;color:#fff;font-weight:700}.watchj svg{width:14px;height:14px}
+.lib[data-sec=watch]{--c:#00a4dc;text-decoration:none}
 </style>
 </head>
 <body>
@@ -940,6 +942,7 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:7px}
 "use strict";
 var ROLE=window.__ROLE||"public", ME=window.__ME||"", ADMIN=ROLE==="admin", STAFF=ADMIN||ROLE==="uploader", MEMBER=ROLE==="member",
     PUBLICV=ROLE==="public", APPROVED=STAFF||!!window.__APPROVED, GUEST=!STAFF, BRAND=window.__BRAND||"Nahoko";
+var JELLYFIN_URL="https://jellyfin.x0w1v75.com";
 if(GUEST)document.body.className+=" guest";
 var SECTIONS=[
   {id:"movies",label:"Movies",ic:"film"},
@@ -1093,9 +1096,14 @@ async function showUsage(){
   var cl=el("button","btn","Close");cl.type="button";var ac=el("div","acts");ac.appendChild(cl);d.appendChild(ac);
   function close(){m.hidden=true;m.innerHTML="";if(prev&&prev.focus)prev.focus();}
   cl.onclick=close;m.onmousedown=function(e){if(e.target===m)close();};m.appendChild(d);m.hidden=false;
-  var u;try{u=await api("GET","/_meta/usage");}catch(e){body.textContent="Not available.";return;}
+  var u,asked=0;try{asked=(await api("POST","/_meta/usage",{})).t;}catch(e){}
+  for(var tries=0;tries<12;tries++){      // measured on demand: wait until the fresh numbers are in (2-4 s)
+    try{u=await api("GET","/_meta/usage");}catch(e){body.textContent="Not available.";return;}
+    if(!asked||(u.t&&u.t>=asked-1)||!m.contains(d))break;
+    await new Promise(function(r){setTimeout(r,700);});
+  }
   body.innerHTML="";
-  if(u.t)body.appendChild(el("p","hint left",(u.cpus||1)+" CPU · load "+(u.load||[]).join(" / ")+" · "+(Math.round((u.mem_total_mb-u.mem_available_mb)/102.4)/10)+" GB of "+(Math.round(u.mem_total_mb/102.4)/10)+" GB RAM in use · measured "+ago(u.t)));
+  if(u.t)body.appendChild(el("p","hint left",(u.cpus||1)+" CPU · load "+(u.load||[]).join(" / ")+" · "+(Math.round((u.mem_total_mb-u.mem_available_mb)/102.4)/10)+" GB of "+(Math.round(u.mem_total_mb/102.4)/10)+" GB RAM in use"+(asked&&u.t<asked-1?" · could not measure now, showing "+ago(u.t):"")));
   var list=el("div","ulist");
   (u.containers||[]).forEach(function(c){
     var info=SVC[c.name]||[c.name,""],row=el("div","urow");
@@ -1160,6 +1168,8 @@ function renderNav(){
       if(on)b.setAttribute("aria-current","page");
       b.onclick=function(){go(l.id);};nav.appendChild(b);
     });
+    if(STAFF){var wj=el("a",(k?"":"lib ")+"watch");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.dataset.sec="watch";
+      if(k)wj.appendChild(svg("play"));else{var ib=el("span","ib");ib.appendChild(svg("play"));wj.appendChild(ib);}wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin";nav.appendChild(wj);}
   });
 }
 function crumbLabel(path,i,part){
@@ -2790,7 +2800,8 @@ if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
   if(PUBLICV){var si=el("button","btn primary","Sign in");si.type="button";si.onclick=function(){signInDialog();};acc.appendChild(si);}
-  else{acc.appendChild(el("span","gme",ME));var so=el("button","btn sm","Sign out");so.type="button";so.onclick=signOut;acc.appendChild(so);}
+  else{if(APPROVED){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
+    acc.appendChild(el("span","gme",ME));var so=el("button","btn sm","Sign out");so.type="button";so.onclick=signOut;acc.appendChild(so);}
   if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});mt.appendChild(acc);}
   document.title=BRAND+" · films and series";
 }
