@@ -1,17 +1,41 @@
 # Copied to /opt/jellyfin/sites/files.caddy by scripts/05-setup-uploads.sh (FILES_DOMAIN replaced).
 # Needs its own DNS name pointing at the server, e.g. files.example.com.
 FILES_DOMAIN_PLACEHOLDER {
+	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
 		-Server
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
-	# Big files: no body limit and long timeouts for slow connections (uploads are sent in 16 MB chunks).
-	reverse_proxy uploads:5000 {
-		transport http {
-			read_timeout 10m
-			write_timeout 10m
+	# Sign-in is our own page (uploads-meta). Everything else asks it "who is this?" first (forward_auth):
+	# admin -> the upload server (dufs, which has no login of its own and is reachable only through here),
+	# guest -> only the catalogue page and its API, served by uploads-meta. No session -> sign-in page.
+	@guest header X-Role guest
+	@public path /login /auth/login /auth/logout
+	handle @public {
+		reverse_proxy uploads-meta:8000
+	}
+	handle /_meta/* {
+		reverse_proxy uploads-meta:8000
+	}
+	handle {
+		route {
+			forward_auth uploads-meta:8000 {
+				uri /auth/check
+				copy_headers X-Role
+			}
+			reverse_proxy @guest uploads-meta:8000
+			# Big files: no body limit and long timeouts for slow connections (uploads are sent in 16 MB chunks).
+			reverse_proxy uploads:5000 {
+				transport http {
+					read_timeout 10m
+					write_timeout 10m
+				}
+			}
 		}
 	}
 }

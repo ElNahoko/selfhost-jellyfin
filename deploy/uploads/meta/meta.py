@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+"""Backend for the LUMIO upload and catalogue site (reachable only through Caddy). Sign-in lives in auth.py.
+Roles: admin = everything, guest = catalogue and request list only, enforced here on every call.
+  GET /login, POST /auth/login and /auth/logout, GET /auth/check (Caddy asks this before serving anything else)
+  GET  /_meta/items            library metadata from Jellyfin, keyed by upload-page path
+  GET  /_meta/img/<id>?w=      a library poster (proxied from Jellyfin)
+  GET  /_meta/space            disk usage
+  GET  /_meta/sizes            folder sizes {"/shows/Name": [bytes, files], ...}
+  GET  /_meta/search?type=movie|series&q=   title search through Jellyfin's TMDb provider
+  GET  /_meta/rimg?u=<tmdb url>             search-result poster (only image.tmdb.org is allowed)
+  GET  /_meta/catalog?type=movie|series     browse rows (top rated, popular, genres) from IMDb datasets
+  GET  /_meta/title?id=tt...                one catalogue title with plot + poster
+  GET  /_meta/stats                         server CPU and memory
+  GET/POST /_meta/requests, POST/DELETE /_meta/requests/<id>   the request list (SQLite file in /db)
+Writes need a JSON body and a same-site Origin, so another website cannot trigger them with the browser's saved login.
+"""
+import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
+import auth, catalog
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs, quote
+
+JF = os.environ.get("JELLYFIN_URL", "http://jellyfin:8096")
+KEY = os.environ["JELLYFIN_API_KEY"]
+DATA = os.environ.get("DATA_DIR", "/data")
+DB = os.environ.get("DB_PATH", "/db/requests.db")
+TYPES = "Movie,Series,Season,Episode,MusicAlbum,MusicArtist,AudioBook,Book"
+_lock = threading.Lock()
+_items = {"t": 0, "body": b"{}"}
+_sizes = {"t": 0, "body": b"{}"}
+
+def jf(path, data=None, timeout=30):
+    h = {"Authorization": 'MediaBrowser Token="%s"' % KEY}
+    if data is not None:
+        h["Content-Type"] = "application/json"
+        data = json.dumps(data).encode()
+    return urllib.request.urlopen(urllib.request.Request(JF + path, data=data, headers=h), timeout=timeout)
+
+# ---------- library metadata ----------
+def build_items():
+    d = json.load(jf("/Items?Recursive=true&IncludeItemTypes=%s&Fields=Path,Overview,ProductionYear,CommunityRating"
+                     "&Limit=20000&EnableTotalRecordCount=false" % TYPES))
+    out = {}
+    for it in d.get("Items", []):
+        p = it.get("Path") or ""
+        if not p.startswith("/media/"):
+            continue
+        p = p[len("/media"):]
+        t = it.get("Type", "")
+        has_img = bool((it.get("ImageTags") or {}).get("Primary"))
+        rec = {"id": it["Id"] if has_img else (it.get("SeriesId") if t == "Season" else None),
+               "n": it.get("Name", ""), "y": it.get("ProductionYear"), "r": it.get("CommunityRating"),
+               "o": (it.get("Overview") or "")[:500], "t": t,
+               "i": it.get("IndexNumber"), "s": it.get("ParentIndexNumber")}
+        out[p] = rec
+        if t == "Movie":                       # movies live in "Title (Year)/Title.mkv": the folder gets the card too
+            parent = p.rsplit("/", 1)[0]
+            if parent.count("/") >= 2:
+                out.setdefault(parent, rec)
+    return out
+
+def cached(store, build, ttl):
+    with _lock:
+        if time.time() - store["t"] > ttl:
+            try:
+                store["body"] = json.dumps(build(), separators=(",", ":")).encode()
+                store["t"] = time.time()
+            except Exception:
+                store["t"] = time.time() - ttl + 10     # retry soon, keep the last good copy
+        return store["body"]
+
+def build_sizes():
+    out = {}
+    def walk(path, rel, depth):
+        total = files = 0
+        try:
+            with os.scandir(path) as it:
+                for e in it:
+                    if e.is_dir(follow_symlinks=False):
+                        b, f = walk(e.path, rel + "/" + e.name, depth + 1)
+                        total += b; files += f
+                    elif e.is_file(follow_symlinks=False):
+                        total += e.stat().st_size; files += 1
+        except OSError:
+            pass
+        if depth >= 2:
+            out[rel] = [total, files]
+        return total, files
+    for lib in ("movies", "shows", "music", "audiobooks"):
+        walk(os.path.join(DATA, lib), "/" + lib, 1)
+    return out
+
+# ---------- title search (for requests) ----------
+def search(kind, q):
+    ep = "Movie" if kind == "movie" else "Series"
+    r = json.load(jf("/Items/RemoteSearch/" + ep, {"SearchInfo": {"Name": q}, "IncludeDisabledProviders": False}, timeout=25))
+    out = []
+    for x in r[:20]:
+        img = x.get("ImageUrl") or ""
+        if urlparse(img).hostname != "image.tmdb.org":
+            img = ""
+        out.append({"n": x.get("Name", ""), "y": x.get("ProductionYear"), "img": img, "o": (x.get("Overview") or "")[:300]})
+    return out
+
+def fetch_poster(src, w):
+    """TMDb poster at a given width, cached on disk (so a page never waits on TMDb for a title it has seen)."""
+    src = re.sub(r"/t/p/[^/]+/", "/t/p/w%s/" % w, src, 1)
+    fp = os.path.join("/db/img", hashlib.sha1(src.encode()).hexdigest() + ".jpg")
+    if not os.path.exists(fp):
+        os.makedirs("/db/img", exist_ok=True)
+        data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
+        with open(fp + ".tmp", "wb") as f: f.write(data)
+        os.replace(fp + ".tmp", fp)
+    return fp
+
+def resolve_one(it):
+    """Poster + plot for a catalogue title via Jellyfin's TMDb lookup (by IMDb id, else name+year)."""
+    ep = "Movie" if it["k"] == "movie" else "Series"
+    for info in ({"ProviderIds": {"Imdb": it["id"]}, "Name": it["n"], "Year": it["y"]}, {"Name": it["n"], "Year": it["y"]}):
+        try:
+            r = json.load(jf("/Items/RemoteSearch/" + ep, {"SearchInfo": info, "IncludeDisabledProviders": False}, timeout=25))
+        except Exception:
+            continue
+        for x in r:
+            img = x.get("ImageUrl") or ""
+            if urlparse(img).hostname == "image.tmdb.org":
+                catalog.save_title(it["id"], img, (x.get("Overview") or "")[:600])
+                try: fetch_poster(img, "185")
+                except Exception: pass
+                return
+    catalog.save_title(it["id"], "", "")
+
+def resolve_many(items):
+    todo = [i for i in items if catalog.known(i["id"]) is None]
+    with ThreadPoolExecutor(3) as ex:
+        list(ex.map(resolve_one, todo))
+catalog.set_resolver(resolve_many)
+
+# ---------- server stats ----------
+_stats = {"cpu": 0.0, "mem_used": 0, "mem_total": 0, "load": 0.0}
+def stats_loop():
+    prev = None
+    while True:
+        try:
+            a = [int(x) for x in open("/proc/stat").readline().split()[1:]]
+            idle, total = a[3] + a[4], sum(a)
+            if prev: _stats["cpu"] = round(100 * (1 - (idle - prev[0]) / max(total - prev[1], 1)), 1)
+            prev = (idle, total)
+            mi = {l.split(":")[0]: int(l.split()[1]) * 1024 for l in open("/proc/meminfo")}
+            _stats["mem_total"] = mi["MemTotal"]; _stats["mem_used"] = mi["MemTotal"] - mi["MemAvailable"]
+            _stats["load"] = float(open("/proc/loadavg").read().split()[0])
+        except Exception:
+            pass
+        time.sleep(2)
+
+# ---------- request list ----------
+def db():
+    c = sqlite3.connect(DB, timeout=10)
+    c.row_factory = sqlite3.Row
+    c.execute("""CREATE TABLE IF NOT EXISTS requests(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, title TEXT, year INTEGER,
+                 poster TEXT, note TEXT, who TEXT, status TEXT DEFAULT 'open', created INTEGER)""")
+    c.execute("CREATE TABLE IF NOT EXISTS request_votes(req_id INTEGER, who TEXT, PRIMARY KEY(req_id, who))")
+    return c
+
+def clip(v, n):
+    return re.sub(r"\s+", " ", str(v or "")).strip()[:n]
+
+ASSETS = os.environ.get("ASSETS_DIR", "/assets")
+HERE = os.path.dirname(os.path.abspath(__file__))
+LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
+ADMIN_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/space", "/_meta/stats")
+_page = {"m": 0, "html": ""}
+_rate = {}
+
+def guest_page(user):
+    p = os.path.join(ASSETS, "index.html")
+    m = os.path.getmtime(p)
+    if m != _page["m"]:
+        _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
+    inj = '<script>window.__ROLE="guest";window.__ME=%s;</script>' % json.dumps(user)
+    return _page["html"].replace("<head>", "<head>" + inj, 1).encode()
+
+def limited(user, key, per_min):
+    now = time.time(); k = (user, key)
+    with _lock:
+        ts = [t for t in _rate.get(k, []) if now - t < 60]
+        if len(ts) >= per_min: _rate[k] = ts; return True
+        ts.append(now); _rate[k] = ts
+    return False
+
+def have_keys():
+    try: d = json.loads(cached(_items, build_items, 20))
+    except Exception: return []
+    return sorted({"%s|%s|%s" % (v["t"], (v["n"] or "").lower(), v["y"] or "") for v in d.values() if v["t"] in ("Movie", "Series")})
+
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def send(self, code, body, ctype="application/json", cache="no-store", headers=None):
+        self.send_response(code); self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", cache)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for k, v in (headers or {}).items(): self.send_header(k, v)
+        self.end_headers(); self.wfile.write(body)
+    def js(self, obj, code=200, headers=None): self.send(code, json.dumps(obj).encode(), headers=headers)
+    def redirect(self, loc):
+        self.send_response(302); self.send_header("Location", loc); self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0"); self.end_headers()
+
+    def sess(self): return auth.session(self.headers.get("Cookie"))
+    def ip(self): return (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()[:64]
+    def body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > 8192: raise ValueError("too big")
+        return json.loads(self.rfile.read(n) or b"{}")
+    def origin_ok(self):
+        o = self.headers.get("Origin")
+        return (o is None or urlparse(o).netloc == self.headers.get("Host", "")) \
+            and self.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "none")
+    def same_site(self):
+        return self.origin_ok() and "application/json" in (self.headers.get("Content-Type") or "")
+
+    def do_HEAD(self): self.send(405, b"")
+
+    # ---------- GET ----------
+    def do_GET(self):
+        u = urlparse(self.path); qs = parse_qs(u.query); path = u.path
+        try:
+            if path == "/login":
+                if self.sess(): return self.redirect("/")
+                return self.send(200, LOGIN, "text/html; charset=utf-8")
+            if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
+                s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
+                if not s:
+                    if meth == "GET" and "text/html" in (self.headers.get("Accept") or "") and not uri.startswith("/_meta"):
+                        return self.redirect("/login?next=" + quote(uri, safe="/"))
+                    return self.js({"error": "sign in"}, 401)
+                if meth not in ("GET", "HEAD", "OPTIONS") and not self.origin_ok(): return self.js({"error": "forbidden"}, 403)
+                return self.send(200, b"{}", headers={"X-Role": s["role"]})
+            if path in ("/", "/index.html"):
+                s = self.sess()
+                if not s: return self.redirect("/login")
+                return self.send(200, guest_page(s["user"]), "text/html; charset=utf-8")
+            if not path.startswith("/_meta/"): return self.send(404, b"{}")
+            s = self.sess()
+            if not s: return self.js({"error": "sign in"}, 401)
+            admin = s["role"] == "admin"
+            if (path in ADMIN_ONLY or path.startswith("/_meta/img/") or path == "/_meta/users") and not admin:
+                return self.js({"error": "forbidden"}, 403)
+            if path == "/_meta/me": return self.js(s)
+            if path == "/_meta/items": return self.send(200, cached(_items, build_items, 20))
+            if path == "/_meta/sizes": return self.send(200, cached(_sizes, build_sizes, 60))
+            if path == "/_meta/space":
+                du = shutil.disk_usage(DATA); return self.js({"used": du.used, "total": du.total})
+            if path == "/_meta/stats": return self.js(_stats)
+            if path == "/_meta/users": return self.js(auth.list_users())
+            if path == "/_meta/have": return self.send(200, json.dumps(have_keys()).encode(), cache="private, max-age=30")
+            if path == "/_meta/search":
+                if limited(s["user"], "search", 40): return self.js({"error": "slow down"}, 429)
+                kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
+                return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
+            if path == "/_meta/catalog":
+                row = re.sub(r"[^a-z0-9-]", "", (qs.get("row") or [""])[0]) or None
+                body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row)).encode()
+                return self.send(200, body, cache="private, max-age=20")
+            if path == "/_meta/title":
+                tid = (qs.get("id") or [""])[0]
+                it = catalog.item(tid) if re.fullmatch(r"tt\d{6,10}", tid) else None
+                if it and catalog.known(tid) is None:
+                    resolve_one(it); it = catalog.item(tid)
+                return self.js(it or {}, 200 if it else 404)
+            if path == "/_meta/requests":
+                with db() as c:
+                    rows = [dict(r) for r in c.execute("SELECT r.*, (SELECT count(*) FROM request_votes v WHERE v.req_id=r.id) AS votes, (SELECT group_concat(who, ', ') FROM request_votes v WHERE v.req_id=r.id) AS voters FROM requests r ORDER BY (r.status='open') DESC, votes DESC, r.id DESC LIMIT 300")]
+                return self.js(rows)
+            m = re.fullmatch(r"/_meta/img/([0-9a-f]{32})", path)
+            if m:
+                w = max(60, min(int((qs.get("w") or ["320"])[0]), 800))
+                r = jf("/Items/%s/Images/Primary?maxWidth=%d&quality=82" % (m.group(1), w), timeout=20)
+                return self.send(200, r.read(), r.headers.get("Content-Type", "image/jpeg"), "private, max-age=86400")
+            if path == "/_meta/rimg":
+                src = (qs.get("u") or [""])[0]; pu = urlparse(src)
+                if pu.scheme != "https" or pu.hostname != "image.tmdb.org": return self.send(400, b"{}")
+                w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
+                with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "private, max-age=2592000, immutable")
+        except Exception:
+            return self.send(404, b"{}")
+        self.send(404, b"{}")
+
+    # ---------- POST ----------
+    def do_POST(self):
+        if not self.same_site(): return self.js({"error": "forbidden"}, 403)
+        path = urlparse(self.path).path
+        try:
+            b = self.body()
+            if path == "/auth/login":
+                tok, role = auth.login(b.get("user"), b.get("pass"), self.ip())
+                if not tok: return self.js({"error": role}, 429 if role == "locked" else 401)
+                return self.js({"ok": True, "role": role}, headers={"Set-Cookie": auth.cookie_value(tok)})
+            if path == "/auth/logout":
+                auth.logout(self.headers.get("Cookie"))
+                return self.js({"ok": True}, headers={"Set-Cookie": auth.cookie_value("", clear=True)})
+            s = self.sess()
+            if not s: return self.js({"error": "sign in"}, 401)
+            admin = s["role"] == "admin"
+            if path == "/_meta/requests":
+                kind = "series" if b.get("kind") == "series" else "movie"
+                title = clip(b.get("title"), 120)
+                if len(title) < 2: return self.js({"error": "title"}, 400)
+                year = int(b["year"]) if str(b.get("year") or "").isdigit() else None
+                poster = clip(b.get("poster"), 300)
+                if poster and urlparse(poster).hostname != "image.tmdb.org": poster = ""
+                who = s["user"] if not admin else (clip(b.get("who"), 40) or s["user"])
+                with db() as c:
+                    if c.execute("SELECT count(*) FROM requests WHERE who=? AND created>?", (who, int(time.time()) - 3600)).fetchone()[0] >= 40:
+                        return self.js({"error": "slow down"}, 429)
+                    ex = c.execute("SELECT id FROM requests WHERE kind=? AND lower(title)=lower(?) AND IFNULL(year,0)=IFNULL(?,0) AND status='open'", (kind, title, year)).fetchone()
+                    if ex:
+                        c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (ex["id"], who))
+                        return self.js({"id": ex["id"], "duplicate": True})
+                    cur = c.execute("INSERT INTO requests(kind,title,year,poster,note,who,created) VALUES(?,?,?,?,?,?,?)",
+                                    (kind, title, year, poster, clip(b.get("note"), 200), who, int(time.time())))
+                    c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (cur.lastrowid, who))
+                return self.js({"id": cur.lastrowid})
+            m = re.fullmatch(r"/_meta/requests/(\d+)/vote", path)
+            if m:
+                who = s["user"] if not admin else (clip(b.get("who"), 40) or s["user"])
+                with db() as c:
+                    had = c.execute("DELETE FROM request_votes WHERE req_id=? AND who=?", (int(m.group(1)), who)).rowcount
+                    if not had: c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (int(m.group(1)), who))
+                return self.js({"ok": True, "voted": not had})
+            if not admin: return self.js({"error": "forbidden"}, 403)
+            m = re.fullmatch(r"/_meta/requests/(\d+)", path)
+            if m:
+                st = "done" if b.get("status") == "done" else "open"
+                with db() as c: c.execute("UPDATE requests SET status=? WHERE id=?", (st, int(m.group(1))))
+                return self.js({"ok": True})
+            if path == "/_meta/password":
+                err = auth.change_password(s["user"], b.get("current"), b.get("new"), self.headers.get("Cookie"))
+                return self.js({"error": err}, 400) if err else self.js({"ok": True})
+            if path == "/_meta/users":
+                pw, err = auth.create_user(b.get("name"), b.get("role"))
+                return self.js({"error": err}, 400) if err else self.js({"name": str(b.get("name")).strip().lower(), "password": pw})
+            m = re.fullmatch(r"/_meta/users/([a-z0-9._-]{3,24})", path)
+            if m:
+                act, who = b.get("action"), m.group(1)
+                if act == "reset":
+                    if who == s["user"]: return self.js({"error": "Use Settings to change your own password."}, 400)
+                    pw = auth.reset_user(who); return self.js({"password": pw}) if pw else self.js({"error": "No such profile."}, 404)
+                if act in ("disable", "enable"):
+                    if act == "disable" and (who == s["user"] or (auth.get_role(who) == "admin" and auth.admin_count() <= 1)):
+                        return self.js({"error": "You can't disable yourself or the last admin."}, 400)
+                    auth.set_active(who, act == "enable"); return self.js({"ok": True})
+        except Exception:
+            return self.js({"error": "bad request"}, 400)
+        self.js({"error": "not found"}, 404)
+
+    # ---------- DELETE ----------
+    def do_DELETE(self):
+        if not self.origin_ok(): return self.js({"error": "forbidden"}, 403)
+        s = self.sess()
+        if not s: return self.js({"error": "sign in"}, 401)
+        if s["role"] != "admin": return self.js({"error": "forbidden"}, 403)
+        path = urlparse(self.path).path
+        m = re.fullmatch(r"/_meta/requests/(\d+)", path)
+        if m:
+            with db() as c:
+                c.execute("DELETE FROM requests WHERE id=?", (int(m.group(1)),)); c.execute("DELETE FROM request_votes WHERE req_id=?", (int(m.group(1)),))
+            return self.js({"ok": True})
+        m = re.fullmatch(r"/_meta/users/([a-z0-9._-]{3,24})", path)
+        if m:
+            who = m.group(1)
+            if who == s["user"] or who == auth.ADMIN_USER.lower() or (auth.get_role(who) == "admin" and auth.admin_count() <= 1):
+                return self.js({"error": "That account can't be deleted."}, 400)
+            auth.delete_user(who); return self.js({"ok": True})
+        self.js({"error": "not found"}, 404)
+
+if __name__ == "__main__":
+    threading.Thread(target=stats_loop, daemon=True).start()
+    ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()

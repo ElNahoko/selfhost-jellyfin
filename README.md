@@ -99,7 +99,7 @@ Read [`docs/`](docs) in order. Each page explains *why* before *how*:
 | 8 | [Add media and test](docs/08-first-media-and-testing.md) | Legal sample media, playback checks, four-stream test |
 | 9 | [Connect devices](docs/09-clients.md) | LG TV, phones, browsers, inviting family |
 | 10 | [Troubleshooting](docs/10-troubleshooting.md) | Symptom → cause → fix |
-| 11 | [Upload page](docs/11-upload-page.md) | Optional: drag-and-drop uploads from a browser |
+| 11 | [Upload page, catalogue and guest profiles](docs/11-upload-page.md) | Optional: uploads from a browser, a browsable catalogue with requests, guest profiles |
 | 12 | [Theme](docs/12-theme.md) | Optional: nicer look, colourful library tiles |
 
 ## Install flow
@@ -168,11 +168,20 @@ use the whole allowance.
 
 `scripts/stream-test.sh` measures your real path with a bounded, read-only multi-stream test (see [guide 8](docs/08-first-media-and-testing.md)).
 
-## Add media from a browser (optional)
+## Upload page, catalogue and guest profiles (optional)
 
-![Upload page: drag and drop into Movies, TV Shows, Music or Audiobooks](docs/img/uploads.jpg)
+![The LUMIO catalogue: shelves, ratings, one tap to request](docs/img/lumio/03-catalogue.jpg)
 
-A simple drag-and-drop page with progress bars, folders and resumable uploads, on its own HTTPS hostname with its own login. See [Upload page](docs/11-upload-page.md). Prefer the terminal? `rsync -avP --partial` works too.
+One branded site on its own HTTPS hostname:
+
+- **You (admin):** drag and drop movies, shows, music and audiobooks into the library from a browser. Uploads survive a lost connection and can be resumed after a refresh. You also see posters, folder sizes and server CPU/RAM.
+- **Guest profiles you create:** see only the **Catalogue** (browse, search, request, vote) from a phone or computer. No uploads, no folders, no admin.
+
+See [Upload page, catalogue and guest profiles](docs/11-upload-page.md) with screenshots. Prefer the terminal? `rsync -avP --partial` works too.
+
+| | |
+|---|---|
+| ![Library](docs/img/lumio/01-library.jpg) | ![Profiles](docs/img/lumio/06-profiles.jpg) |
 
 ## Direct Play: the one idea that matters
 
@@ -240,7 +249,7 @@ selfhost-jellyfin/
 ├── deploy/
 │   ├── compose.yaml          # Jellyfin + Caddy
 │   ├── compose.setup.yaml    # temporary override for the private first-run wizard
-│   ├── uploads/              # optional upload page (compose override, Caddy site, front-end)
+│   ├── uploads/              # optional upload + catalogue site (compose override, Caddy site, front-end, helper service)
 │   ├── Caddyfile             # HTTPS reverse proxy
 │   └── .env.example          # versions, hostname, user ids
 ├── scripts/
@@ -248,7 +257,7 @@ selfhost-jellyfin/
 │   ├── 02-lock-ssh.sh        # disable root + password logins (after you tested the key)
 │   ├── 03-install-docker.sh  # Docker Engine + Compose from the official repo
 │   ├── 04-mount-media.sh     # safe data-disk mounting
-│   ├── 05-setup-uploads.sh   # optional drag-and-drop upload page
+│   ├── 05-setup-uploads.sh   # optional upload + catalogue site with guest profiles
 │   ├── backup.sh             # config + database backup, keeps newest 7
 │   ├── disk-alert.sh         # warns when a filesystem is nearly full
 │   ├── verify.sh             # post-install health and exposure checks
@@ -265,7 +274,7 @@ selfhost-jellyfin/
 | `03-install-docker.sh` | root | Adds Docker repo, installs Docker, log rotation | Yes |
 | `04-mount-media.sh` | root | Mounts a disk at `/srv/media`, adds an `fstab` entry | Yes (never formats without `--format`) |
 | `07-enable-autoscan.sh` | root | Installs a service that asks Jellyfin to scan the affected library about a minute after media changes (one scan per upload batch) and copies `Subs/` subtitle files next to their videos (fixes uploads into empty libraries not appearing) | Yes |
-| `05-setup-uploads.sh` | root | Optional: starts the upload page container, adds its HTTPS site and one login | Yes (keeps the existing login) |
+| `05-setup-uploads.sh` | root | Optional: starts the upload + catalogue containers, adds the HTTPS site, creates the admin sign-in (guest profiles are made in the page) | Yes (keeps the existing admin) |
 | `backup.sh` | root | Stops Jellyfin briefly, writes a tarball, prunes old ones | Yes |
 | `disk-alert.sh` | root | Logs (and optionally pushes) when a disk is ≥ 85 % full | Yes |
 | `verify.sh` | root | Read-only checks | Yes |
@@ -304,7 +313,7 @@ reject self-signed certificates and bare IP addresses.
 
 **Why is Jellyfin run as my admin user's ID?** So the account you upload media with can also be read by Jellyfin without permission juggling. Media is read-only inside the container.
 
-**Can family members upload?** By design no. They watch; the admin uploads (`rsync`/SFTP). Keep it that way unless you add proper accounts and quotas.
+**Can family members upload?** By design no. They watch; the admin uploads. If you enable the [upload site](docs/11-upload-page.md), family get **guest profiles** that can only browse the catalogue and request titles, never upload or delete.
 
 **What about audiobooks?** Jellyfin has no first-class audiobook library; most people use a Music library (one folder per author, one subfolder per book) or the Books type. Test one title on every client first.
 

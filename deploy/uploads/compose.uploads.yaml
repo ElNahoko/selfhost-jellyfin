@@ -35,3 +35,26 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Read-only helper for the upload page: posters/titles from Jellyfin and disk usage. Needs a Jellyfin API key
+  # (created once as "upload-meta") in ./uploads-meta.env  ->  JELLYFIN_API_KEY=...  (mode 600).
+  uploads-meta:
+    image: python:3.12-alpine
+    container_name: uploads-meta
+    user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
+    restart: unless-stopped
+    networks: [web]
+    command: ["python", "/app/meta.py"]
+    env_file:
+      - ./uploads-meta.env
+    volumes:
+      - ./uploads/meta:/app:ro
+      - ./uploads/data:/db              # the request list (SQLite)
+      - ./uploads/assets:/assets:ro      # the page, also served to guest profiles
+      - /srv/media:/data:ro
+    mem_limit: 192m
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
