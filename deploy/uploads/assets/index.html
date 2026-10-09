@@ -469,6 +469,37 @@ details.extras>summary{font-weight:600;color:var(--muted)}
   .lucky .ltitle{font-size:1.6rem}
   .lucky .btn.big{flex:1;justify-content:center}
 }
+
+/* smoother dialogs everywhere */
+.modal:not([hidden]){animation:mfade .22s ease-out}
+.modal:not([hidden]) .dlg:not(.lucky){animation:dlgpop .32s cubic-bezier(.2,.9,.3,1.15)}
+@keyframes mfade{from{opacity:0}}
+@keyframes dlgpop{from{opacity:0;transform:translateY(16px) scale(.96)}}
+/* lucky button: living gradient border, dice that wiggles */
+@property --ang{syntax:"<angle>";initial-value:0deg;inherits:false}
+#luckyBtn{position:relative;border:2px solid transparent!important;padding:8px 18px;font-weight:700;background:linear-gradient(var(--card),var(--card)) padding-box,conic-gradient(from var(--ang),#e50914,#f5a524,#ffe38a,#e50914) border-box;animation:borderspin 5s linear infinite;transition:transform .25s cubic-bezier(.2,.9,.3,1.4),box-shadow .25s;box-shadow:0 0 0 rgba(245,165,36,0)}
+@keyframes borderspin{to{--ang:360deg}}
+#luckyBtn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 10px 30px rgba(245,165,36,.28),0 0 24px rgba(229,9,20,.25)}
+#luckyBtn:active{transform:scale(.96)}
+#luckyBtn svg{transition:transform .6s cubic-bezier(.2,.9,.3,1.5)}
+#luckyBtn:hover svg{transform:rotate(200deg) scale(1.15)}
+#luckyBtn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+/* lucky screen extras (GSAP drives the motion; these are only the looks) */
+.lucky .lshine{position:absolute;inset:0;background:radial-gradient(260px circle at var(--mx,50%) var(--my,30%),rgba(255,255,255,.32),transparent 55%);mix-blend-mode:soft-light;opacity:0;transition:opacity .3s;pointer-events:none;z-index:2}
+.lucky .lpst:hover .lshine{opacity:1}
+.lucky .lreel{position:absolute;inset:0;display:none;z-index:3;background:#111}
+.lucky .lreel img{width:100%;height:100%;object-fit:cover;display:block}
+.lucky .confetti{position:absolute;inset:0;pointer-events:none;z-index:7;overflow:visible}
+.lucky .confetti i{position:absolute;left:50%;top:45%;width:8px;height:14px;border-radius:2px}
+.lucky.g .lcard,.lucky.g.in .lcard{animation:none;transition:none}
+.lucky.g.roll .lcard{transform:none}
+.lucky.g .lright>*,.lucky.g.in .lright>*:not(.roll){animation:none}
+.lucky .roll{position:relative;overflow:hidden}
+.lucky .roll::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s ease}
+.lucky .roll:hover::after{transform:translateX(120%)}
+.lucky .btn.big{transition:transform .2s cubic-bezier(.2,.9,.3,1.4),background .2s,border-color .2s}
+.lucky .btn.big:hover{transform:translateY(-2px)}
+.lucky .btn.big:active{transform:scale(.97)}
 </style>
 </head>
 <body>
@@ -593,7 +624,7 @@ function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
 function pad2(n){return ("0"+n).slice(-2);}
 ["signout","signout2"].forEach(function(id){var b=document.getElementById(id);if(b)b.appendChild(svg("out"));});
-$("scanIc").appendChild(svg("refresh"));$("luckyIc").appendChild(svg("dice"));$("luckyBtn").onclick=feelingLucky;
+$("scanIc").appendChild(svg("refresh"));$("luckyIc").appendChild(svg("dice"));$("luckyBtn").onclick=feelingLucky;$("luckyBtn").addEventListener("pointerenter",loadGsap,{once:true});
 ["settingsBtn","settingsBtn2"].forEach(function(id){var b=document.getElementById(id);if(b)b.appendChild(svg("gear"));});
 document.querySelectorAll("[data-i]").forEach(function(s){s.appendChild(svg(s.getAttribute("data-i")));});
 $("upIc").appendChild(svg("up"));
@@ -1335,21 +1366,41 @@ function ring(r){      // rating as a ring
   var C=2*Math.PI*15.5;fg.setAttribute("stroke-dasharray",(C*(r/10))+" "+C);fg.setAttribute("transform","rotate(-90 18 18)");
   svg1.appendChild(bg);svg1.appendChild(fg);return svg1;
 }
+var GS=null;
+function loadGsap(){      // the animation library is a separate file, fetched only the first time it is wanted
+  if(window.gsap)return Promise.resolve(window.gsap);
+  if(GS)return GS;
+  GS=new Promise(function(res){var sc=document.createElement("script");sc.src="/_lib/gsap.min.js";sc.async=true;sc.onload=function(){res(window.gsap||null);};sc.onerror=function(){res(null);};document.head.appendChild(sc);setTimeout(function(){res(window.gsap||null);},4000);});
+  return GS;
+}
+function shuffleArr(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function confetti(g,host){
+  var layer=el("div","confetti"),cols=["#ffd76a","#f5a524","#e50914","#ffffff","#ff7b6b"];host.appendChild(layer);
+  for(var i=0;i<34;i++){
+    var c=el("i");c.style.background=cols[i%cols.length];layer.appendChild(c);
+    var ang=Math.random()*Math.PI*2,dist=90+Math.random()*190;
+    g.fromTo(c,{x:0,y:0,rotate:0,scale:.4,opacity:1},{x:Math.cos(ang)*dist,y:Math.sin(ang)*dist*0.8-40,rotate:Math.random()*720-360,scale:1,opacity:0,duration:1.1+Math.random()*.5,ease:"power3.out"});
+  }
+  g.delayedCall(1.8,function(){layer.remove();});
+}
 async function feelingLucky(){
-  var b=$("luckyBtn");b.disabled=true;var first=await luckyPick();b.disabled=false;
+  var b=$("luckyBtn");b.disabled=true;
+  var both=await Promise.all([luckyPick(),loadGsap()]),first=both[0],g=both[1];
+  b.disabled=false;
   if(!first)return;
-  var m=$("modal"),prev=document.activeElement,it=first,rolls=1;m.innerHTML="";
-  var d=el("div","dlg lucky");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");d.setAttribute("aria-label","Lucky pick");
+  var m=$("modal"),prev=document.activeElement,it=first,rolls=1,rolling=false,tilt=null;m.innerHTML="";
+  var d=el("div","dlg lucky"+(g?" g":""));d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");d.setAttribute("aria-label","Lucky pick");
   var bgi=el("div","lbg");d.appendChild(bgi);var body=el("div","lbody");d.appendChild(body);
-  function close(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
+  function done(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
+  function close(){if(g&&d.isConnected){g.to(d,{opacity:0,scale:.95,y:14,duration:.22,ease:"power2.in",onComplete:done});}else done();}
   function key(e){if(e.key==="Escape"){e.stopPropagation();close();}else if((e.key==="r"||e.key==="R"||e.key===" ")&&document.activeElement===document.body){e.preventDefault();roll();}}
-  var rolling=false;
   function paint(){
     var u=rimg(it.img,500);bgi.style.backgroundImage=u?"url("+u+")":"none";
     body.innerHTML="";
-    var left=el("div","lleft"),card=el("div","lcard"),pz=el("div","lpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,u);card.appendChild(pz);
-    card.appendChild(el("span","lbadge","Lucky pick #"+rolls));left.appendChild(card);body.appendChild(left);
-    var r=el("div","lright"),tags=el("div","ltags");(it.g||[]).slice(0,3).forEach(function(g){tags.appendChild(el("span","tag",g));});r.appendChild(tags);
+    var left=el("div","lleft"),card=el("div","lcard"),pz=el("div","lpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,u);
+    pz.appendChild(el("div","lshine"));var reel=el("div","lreel");reel.appendChild(el("img"));pz.appendChild(reel);
+    card.appendChild(pz);card.appendChild(el("span","lbadge","Lucky pick #"+rolls));left.appendChild(card);body.appendChild(left);
+    var r=el("div","lright"),tags=el("div","ltags");(it.g||[]).slice(0,3).forEach(function(gn){tags.appendChild(el("span","tag",gn));});r.appendChild(tags);
     r.appendChild(el("h2","ltitle",it.n));
     var meta=el("div","lmeta");
     if(it.r){var rw=el("div","lrate");rw.appendChild(ring(it.r));rw.appendChild(el("b","",it.r.toFixed(1)));meta.appendChild(rw);}
@@ -1360,7 +1411,7 @@ async function feelingLucky(){
     var st=stateOf(it),act=el("div","lact");
     var rq=el("button","btn primary big"+(st?" done":""));rq.type="button";rq.disabled=!!st;rq.appendChild(svg(st==="have"?"check":st==="asked"?"clock":"add"));
     rq.appendChild(el("span","",st==="have"?"Already in the library":st==="asked"?"Requested":"Request this"));
-    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it))paint();else rq.disabled=false;};
+    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){var y=d.scrollTop;paint(true);}else rq.disabled=false;};
     var tr=el("a","btn big");tr.href=ytLink(it);tr.target="_blank";tr.rel="noopener noreferrer";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));
     act.appendChild(rq);act.appendChild(tr);
     if(it.id){var im=el("a","btn big ghost");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";im.appendChild(el("span","","IMDb"));act.appendChild(im);}
@@ -1370,17 +1421,48 @@ async function feelingLucky(){
     var fs=filterSummary();if(fs)r.appendChild(el("p","lnote","Picking from: "+fs));
     body.appendChild(r);
     var x=el("button","lx");x.type="button";x.setAttribute("aria-label","Close");x.appendChild(svg("x"));x.onclick=close;body.appendChild(x);
-    d.classList.remove("roll");void d.offsetWidth;d.classList.add("in");
+    if(g)intro(arguments[0]===true);else{d.classList.remove("roll");void d.offsetWidth;d.classList.add("in");}
+  }
+  function intro(quiet){      // GSAP entrance: card flies in with a spring, details stagger up, the rating ring fills
+    var card=d.querySelector(".lcard"),rights=d.querySelectorAll(".lright > *:not(.roll)"),roll=d.querySelector(".roll");
+    var tl=g.timeline({defaults:{ease:"power3.out"}});
+    if(!quiet)tl.from(d,{opacity:0,scale:.93,y:26,duration:.5,ease:"back.out(1.6)"},0);
+    tl.from(card,{rotateY:-85,x:-70,opacity:0,transformPerspective:900,duration:.9,ease:"back.out(1.35)"},quiet?0:.1)
+      .from(rights,{y:20,opacity:0,stagger:.07,duration:.55},.25)
+      .from(roll,{y:22,opacity:0,scale:.94,duration:.6,ease:"back.out(2.2)"},.55);
+    var fg=d.querySelector(".ringg circle:last-child"),num=d.querySelector(".lrate b");
+    if(fg&&it.r){var C=2*Math.PI*15.5,o={v:0};g.fromTo(fg,{attr:{"stroke-dasharray":"0 "+C}},{attr:{"stroke-dasharray":(C*it.r/10)+" "+C},duration:1.2,delay:.45,ease:"power3.out"});
+      g.to(o,{v:it.r,duration:1.2,delay:.45,ease:"power3.out",onUpdate:function(){num.textContent=o.v.toFixed(1);}});}
+    var host=d.querySelector(".lleft"),pst=d.querySelector(".lpst");
+    host.onpointermove=function(e){var bx=host.getBoundingClientRect(),px=(e.clientX-bx.left)/bx.width-.5,py=(e.clientY-bx.top)/bx.height-.5;
+      g.to(card,{rotateY:px*16,rotateX:-py*16,transformPerspective:900,duration:.45,ease:"power2.out",overwrite:"auto"});
+      pst.style.setProperty("--mx",(px+.5)*100+"%");pst.style.setProperty("--my",(py+.5)*100+"%");};
+    host.onpointerleave=function(){g.to(card,{rotateY:0,rotateX:0,duration:.9,ease:"elastic.out(1,.55)",overwrite:"auto"});};
   }
   async function roll(){
-    if(rolling)return;rolling=true;d.classList.add("roll");
-    var t0=Date.now(),n=await luckyPick();
-    var wait=Math.max(0,750-(Date.now()-t0));await sleep(wait);
-    if(n){it=n;it._loaded=1;rolls++;paint();}else d.classList.remove("roll");
+    if(rolling)return;rolling=true;
+    var pn=luckyPick();
+    if(!g){d.classList.add("roll");var t0=Date.now(),n0=await pn;await sleep(Math.max(0,750-(Date.now()-t0)));
+      if(n0){it=n0;it._loaded=1;rolls++;paint();}else d.classList.remove("roll");rolling=false;return;}
+    var die=d.querySelector(".die"),rb=d.querySelector(".roll"),reel=d.querySelector(".lreel"),ri=reel&&reel.querySelector("img");
+    g.fromTo(die,{rotate:0},{rotate:720,duration:1.1,ease:"power3.inOut"});
+    g.fromTo(rb,{scale:.95},{scale:1,duration:.8,ease:"elastic.out(1,.45)"});
+    g.to(d.querySelectorAll(".lright > *:not(.roll)"),{opacity:.25,y:4,duration:.25,stagger:.02});
+    // slot-machine reel: posters flick past and slow down, then the real pick lands
+    var frames=shuffleArr([].map.call(document.querySelectorAll(".tile img"),function(i){return i.currentSrc||i.src;}).filter(Boolean)).slice(0,11);
+    if(frames.length<4)frames=[];
+    var delays=[50,50,55,65,80,100,125,155,195,250,320].slice(0,Math.max(frames.length,0));
+    g.to(d.querySelector(".lcard"),{scale:1.04,duration:.25,ease:"power2.out"});
+    if(frames.length){reel.style.display="block";
+      for(var k=0;k<frames.length;k++){ri.src=frames[k];g.fromTo(ri,{y:-26,filter:"blur(7px)"},{y:0,filter:"blur(0px)",duration:delays[k]/1000*0.9,ease:"none"});await sleep(delays[k]);}}
+    else await sleep(900);
+    var n=await pn;
+    if(n){it=n;it._loaded=1;rolls++;paint(true);var cd=d.querySelector(".lcard");if(cd)g.fromTo(cd,{scale:1.1},{scale:1,duration:.7,ease:"elastic.out(1,.5)"});confetti(g,d.querySelector(".lleft"));}
+    else{if(reel)reel.style.display="none";g.to(d.querySelectorAll(".lright > *"),{opacity:1,y:0,duration:.3});g.to(d.querySelector(".lcard"),{scale:1,duration:.3});toast("Nothing more to suggest right now");}
     rolling=false;
   }
   paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
-  document.addEventListener("keydown",key,true);var rb=$("rollBtn");if(rb)rb.focus();
+  document.addEventListener("keydown",key,true);var rb=$("rollBtn");if(rb)rb.focus({preventScroll:true});
 }
 async function drawRow(kind,row,sort){
   var box=$("reqCat");if(!box)return;

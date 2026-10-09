@@ -4,7 +4,7 @@ Everything lives in /db. Rebuilt weekly in the background at low priority.
 
 Shelves are rules over that data ("hidden gems", "mind-benders", "short and sweet", ...), shown on the home view; every
 shelf can also be opened on its own with up to 60 titles."""
-import gzip, json, os, random, sqlite3, threading, time, urllib.parse, urllib.request
+import gzip, json, os, random, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -126,39 +126,63 @@ GROUPS = [("FR", "French cinema", ["Q142"]), ("ES", "Spanish cinema", ["Q29", "Q
 COUNTRIES_F = os.path.join(DBDIR, "countries.json")
 _cty = {"t": 0, "d": None, "building": False, "fail": 0}
 
-def _wikidata(cls, qids):
-    q = "SELECT DISTINCT ?imdb WHERE { VALUES ?c { %s } ?f wdt:P31 wd:%s; wdt:P495 ?c; wdt:P345 ?imdb. }" % (" ".join("wd:" + x for x in qids), cls)
+def _wikidata_pair(qids):
+    """Films and series made in these countries (Wikidata, free). One request returns both kinds: {"movie": [...], "series": [...]}.
+    Wikidata allows about one request a minute for us, so a 429 is waited out (Retry-After) instead of hammered."""
+    q = ("SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?c { %s } VALUES ?cls { wd:Q11424 wd:Q5398426 } "
+         "?f wdt:P31 ?cls; wdt:P495 ?c; wdt:P345 ?imdb. }") % " ".join("wd:" + x for x in qids)
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
-    req = urllib.request.Request(url, headers={"User-Agent": "lumio-catalogue/1.0 (self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
-    with urllib.request.urlopen(req, timeout=150) as r:
-        d = json.load(r)
-    return [b["imdb"]["value"] for b in d["results"]["bindings"] if str(b["imdb"]["value"]).startswith("tt")]
+    last = None
+    for attempt in range(8):
+        req = urllib.request.Request(url, headers={"User-Agent": "lumio-catalogue/1.0 (self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
+        try:
+            with urllib.request.urlopen(req, timeout=170) as r:
+                d = json.load(r)
+            out = {"movie": [], "series": []}
+            for b in d["results"]["bindings"]:
+                i = b["imdb"]["value"]
+                if i.startswith("tt"): out["movie" if b["cls"]["value"].endswith("Q11424") else "series"].append(i)
+            return out
+        except urllib.error.HTTPError as e:
+            last = e
+            wait = 65
+            try: wait = max(wait, int(e.headers.get("Retry-After", "0")) + 5)
+            except ValueError: pass
+            time.sleep(wait if e.code in (429, 503) else 30)
+        except Exception as e:
+            last = e
+            time.sleep(30)
+    raise last
 
 def _build_countries():
     cat = _mem["cat"] or _read()
     if not cat: return
     have = set(cat["items"])
-    out = {"built": int(time.time())}
-    ok = tried = 0
-    for code, label, qids in GROUPS:
-        out[code] = {}
-        for kind, cls in (("movie", "Q11424"), ("series", "Q5398426")):
-            ids = []
-            tried += 1
-            for attempt in range(3):
-                try:
-                    ids = [i for i in _wikidata(cls, qids) if i in have]; ok += 1; break
-                except Exception:
-                    time.sleep(10 * (attempt + 1))
-            out[code][kind] = ids
-            time.sleep(3)
-    if ok < tried * 0.7:            # most queries failed (network, rate limit): keep the old file and try again later
-        _cty["fail"] = time.time()
-        return
-    tmp = COUNTRIES_F + ".tmp"
-    with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
-    os.replace(tmp, COUNTRIES_F)
-    _cty["t"] = 0
+    out = {"built": int(time.time()), "complete": False}
+    ok = 0
+    try:      # carry on from a run that was interrupted a short while ago (restart, rate limit)
+        with open(COUNTRIES_F) as f: prev = json.load(f)
+        if not prev.get("complete") and time.time() - prev.get("built", 0) < 3600:
+            out["built"] = prev["built"]
+            out.update({c: v for c, v in prev.items() if c not in ("built", "complete") and (v.get("movie") or v.get("series"))})
+    except Exception:
+        pass
+    for n, (code, label, qids) in enumerate(GROUPS):
+        if code in out:
+            ok += 1
+            continue
+        try:
+            pair = _wikidata_pair(qids)
+            out[code] = {k: [i for i in v if i in have] for k, v in pair.items()}
+            ok += 1
+        except Exception:
+            out[code] = {"movie": [], "series": []}
+        out["complete"] = (n == len(GROUPS) - 1) and ok == len(GROUPS)
+        tmp = COUNTRIES_F + ".tmp"      # saved after every country, so the first ones (French, Spanish) show up early
+        with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
+        os.replace(tmp, COUNTRIES_F); _cty["t"] = 0
+        time.sleep(62)
+    if not out["complete"]: _cty["fail"] = time.time()      # try again in 15 minutes
 
 def _countries_job():
     try:
@@ -174,8 +198,8 @@ def countries():
         _cty["t"] = time.time()
         try:
             with open(COUNTRIES_F) as f: raw = json.load(f)
-            _cty["d"] = {c: {k: set(v) for k, v in raw[c].items()} for c in raw if c != "built"}
-            old = time.time() - raw.get("built", 0) > MAXAGE
+            _cty["d"] = {c: {k: set(v) for k, v in raw[c].items()} for c in raw if c not in ("built", "complete")}
+            old = time.time() - raw.get("built", 0) > MAXAGE or not raw.get("complete", True)
         except Exception:
             _cty["d"] = None; old = True
         if old and not _cty["building"] and _mem["cat"] and time.time() - _cty["fail"] > 900:

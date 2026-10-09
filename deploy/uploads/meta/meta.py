@@ -244,6 +244,12 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path); qs = parse_qs(u.query); path = u.path
         try:
+            if path == "/_lib/gsap.min.js":         # the animation library (downloaded at setup, not shipped in the repo)
+                try:
+                    with open(os.path.join(HERE, "lib", "gsap.min.js"), "rb") as f: data = f.read()
+                except OSError:
+                    return self.send(404, b"{}")
+                return self.send(200, data, "application/javascript", "public, max-age=31536000, immutable")
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")

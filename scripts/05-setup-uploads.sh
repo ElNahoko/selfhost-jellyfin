@@ -34,6 +34,10 @@ mkdir -p "$BASE/uploads/assets" "$BASE/uploads/meta" "$BASE/uploads/data" "$BASE
 cp "$HERE/deploy/uploads/assets/index.html" "$BASE/uploads/assets/index.html"
 cp "$HERE"/deploy/uploads/meta/*.py "$HERE/deploy/uploads/meta/login.html" "$BASE/uploads/meta/"
 chmod 755 "$BASE/uploads/meta"; chmod 644 "$BASE"/uploads/meta/*
+# GSAP (animations of the "I'm feeling lucky" screen): downloaded here, not shipped in this repo (see https://gsap.com/standard-license)
+mkdir -p "$BASE/uploads/meta/lib"; chmod 755 "$BASE/uploads/meta/lib"
+[[ -s "$BASE/uploads/meta/lib/gsap.min.js" ]] || curl -fsSL -m 60 -o "$BASE/uploads/meta/lib/gsap.min.js" https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js || echo "Note: could not download GSAP; the lucky screen falls back to plain CSS animation."
+chmod 644 "$BASE"/uploads/meta/lib/* 2>/dev/null || true
 chown "$PUID:$PGID" "$BASE/uploads/data"; chmod 700 "$BASE/uploads/data"
 cp "$HERE/deploy/uploads/compose.uploads.yaml" "$BASE/compose.uploads.yaml"
 sed "s/FILES_DOMAIN_PLACEHOLDER/$FILES_DOMAIN/" "$HERE/deploy/uploads/files.caddy.example" > "$BASE/sites/files.caddy"

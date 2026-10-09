@@ -15,7 +15,7 @@ FILES_DOMAIN_PLACEHOLDER {
 	# admin -> the upload server (dufs, which has no login of its own and is reachable only through here),
 	# guest -> only the catalogue page and its API, served by uploads-meta. No session -> sign-in page.
 	@guest header X-Role guest
-	@public path /login /auth/login /auth/logout
+	@public path /login /auth/login /auth/logout /_lib/*
 	handle @public {
 		reverse_proxy uploads-meta:8000
 	}
