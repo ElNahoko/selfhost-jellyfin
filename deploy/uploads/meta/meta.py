@@ -447,7 +447,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, r.read(), r.headers.get("Content-Type", "image/jpeg"), "private, max-age=86400")
             if path == "/_meta/rimg":
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
-                if pu.scheme != "https" or pu.hostname != "image.tmdb.org": return self.send(400, b"{}")
+                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
                 with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "private, max-age=2592000, immutable")
         except Exception:

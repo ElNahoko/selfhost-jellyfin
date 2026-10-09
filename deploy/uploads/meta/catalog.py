@@ -542,6 +542,7 @@ def _castdb(path=CAST_DB):
     c = sqlite3.connect(path, timeout=30)
     c.execute("PRAGMA temp_store=MEMORY")          # the container has no writable /tmp
     c.execute("CREATE TABLE IF NOT EXISTS people(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
+    c.execute("CREATE TABLE IF NOT EXISTS photo(name TEXT PRIMARY KEY, url TEXT, t INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     return c
 
@@ -577,6 +578,10 @@ def _build_cast(ids):
     if batch: c.executemany("INSERT OR REPLACE INTO nm VALUES(?,?)", batch)
     os.remove(npath)
     c.execute("UPDATE people SET name=(SELECT name FROM nm WHERE nm.nconst=people.nconst)")
+    try:
+        c.execute("ATTACH DATABASE ? AS old", (CAST_DB,)); c.execute("INSERT OR IGNORE INTO photo SELECT * FROM old.photo"); c.commit(); c.execute("DETACH DATABASE old")
+    except sqlite3.Error:
+        pass
     c.execute("DELETE FROM people WHERE name IS NULL"); c.execute("DROP TABLE nm")
     c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
     c.commit(); c.close()
@@ -623,8 +628,43 @@ def cast_for(tid):
             if ch and ch not in seen[n]["c"]: seen[n]["c"] += " / " + ch
         else:
             seen[n] = {"n": n, "c": ch}; cast.append(seen[n])
-    return {"directors": uniq(n for n, k, _ in rows if k == "director")[:3],
-            "writers": uniq(n for n, k, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:8]}
+    out = {"directors": uniq(n for n, k, _ in rows if k == "director")[:3],
+           "writers": uniq(n for n, k, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:8]}
+    _photos(tid, out["cast"])
+    return out
+
+def _photos(tid, cast):
+    """Portraits for the cast from TVmaze: the show's own cast list when we know the show, else a name search. Cached for good."""
+    if not cast: return
+    names = [c["n"] for c in cast]
+    c = _castdb()
+    have = {r[0]: r[1] for r in c.execute("SELECT name, url FROM photo WHERE name IN (%s)" % ",".join("?" * len(names)), names)}
+    todo = [n for n in names if n not in have]
+    if todo:
+        found, t0 = {}, time.time()
+        try:
+            e = _epdb(); r = e.execute("SELECT tvmaze FROM epx_info WHERE series=? AND tvmaze IS NOT NULL", (tid,)).fetchone(); e.close()
+        except Exception:
+            r = None
+        try:
+            if r:
+                for x in _tvmaze(TVMAZE + "/shows/%d/cast" % r[0]):
+                    p = x.get("person") or {}
+                    if p.get("name") in todo and p.get("image"): found[p["name"]] = p["image"].get("medium") or ""
+            for n in todo:
+                if n in found or time.time() - t0 > 5: continue
+                for x in _tvmaze(TVMAZE + "/search/people?q=" + urllib.parse.quote(n)):
+                    p = x.get("person") or {}
+                    if p.get("name", "").lower() == n.lower():
+                        found[n] = (p.get("image") or {}).get("medium") or ""; break
+        except Exception:
+            pass
+        now = int(time.time())
+        c.executemany("INSERT OR REPLACE INTO photo VALUES(?,?,?)", [(n, found.get(n, ""), now) for n in todo if n in found or time.time() - t0 > 5 or True])
+        c.commit(); have.update(found)
+    c.close()
+    for x in cast:
+        if have.get(x["n"]): x["p"] = have[x["n"]]
 
 # ---------- admin tools: counts for the sidebar, status of the background jobs, "rebuild now" ----------
 _cnt = {"t": 0, "d": {}}
