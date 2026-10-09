@@ -6,7 +6,7 @@
 #
 # What you get on https://files.example.com
 #   - one branded sign-in page (no browser pop-up)
-#   - admin ("uploader"): uploads, deletes, folder sizes, server stats, profiles, requests
+#   - admin ("admin"): uploads, deletes, folder sizes, server stats, profiles, requests
 #   - guest profiles (made in the page): catalogue + requests only
 # The admin password is generated and printed ONCE (or set UPLOAD_PASSWORD yourself, 12+ characters).
 # JELLYFIN_API_KEY: any Jellyfin admin API key (Dashboard > API Keys). It is only used to create a separate
@@ -15,7 +15,7 @@ set -euo pipefail
 
 FILES_DOMAIN="${1:-}"
 BASE="${BASE:-/opt/jellyfin}"
-UPLOAD_USER="${UPLOAD_USER:-uploader}"
+UPLOAD_USER="${UPLOAD_USER:-admin}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
 [[ $EUID -eq 0 ]] || { echo "Run as root (sudo)."; exit 1; }

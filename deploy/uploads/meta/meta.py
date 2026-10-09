@@ -141,6 +141,18 @@ catalog.set_resolver(resolve_many)
 
 # ---------- server stats ----------
 _stats = {"cpu": 0.0, "mem_used": 0, "mem_total": 0, "load": 0.0}
+_net = {"t": 0, "d": None}
+def net_usage():
+    """Traffic this month, written by scripts/netstat.py on the host (root cron) into the data dir."""
+    if time.time() - _net["t"] > 60:
+        _net["t"] = time.time()
+        try:
+            with open("/db/net.json") as f: d = json.load(f)
+            _net["d"] = {"tx": d["tx"], "rx": d["rx"], "month": d["month"]}
+        except Exception:
+            _net["d"] = None
+    return _net["d"]
+
 def stats_loop():
     prev = None
     while True:
@@ -316,7 +328,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/sizes": return self.send(200, cached(_sizes, build_sizes, 60))
             if path == "/_meta/space":
                 du = shutil.disk_usage(DATA); return self.js({"used": du.used, "total": du.total})
-            if path == "/_meta/stats": return self.js(_stats)
+            if path == "/_meta/stats": return self.js(dict(_stats, net=net_usage(), catalog=catalog.counts()))
             if path == "/_meta/match":              # the official title for a messy folder name (used by Tidy up)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)
@@ -458,6 +470,8 @@ class H(BaseHTTPRequestHandler):
             s = self.sess()
             if not s: return self.js({"error": "sign in"}, 401)
             admin = s["role"] == "admin"
+            if path == "/_meta/admin/rebuild" and admin:
+                return self.js({"result": catalog.rebuild(clip(b.get("what"), 20))})
             if path == "/_meta/requests":
                 kind = "series" if b.get("kind") == "series" else "movie"
                 title = clip(b.get("title"), 120)

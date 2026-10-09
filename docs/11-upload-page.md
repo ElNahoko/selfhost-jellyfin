@@ -30,7 +30,7 @@ One small web app on its own hostname (for example `files.example.com`) with a s
    cd ~/selfhost-jellyfin
    sudo JELLYFIN_API_KEY=<the key> bash scripts/05-setup-uploads.sh files.example.com
    ```
-   The script prints the admin password **once** (name: `uploader`). Store it in a password manager. If the old Basic-auth login was set up before, its password is kept.
+   The script prints the admin password **once** (name: `admin`). Store it in a password manager. If the old Basic-auth login was set up before, its password is kept.
 4. Open `https://files.example.com`, sign in, and drop files. Change the password under **Settings** (gear icon, bottom left).
 
 ## Guest profiles
@@ -85,3 +85,25 @@ If you edit `deploy/uploads/assets/index.html`, copy it to `/opt/jellyfin/upload
 - "Anime" shelf: animated titles whose original title is Japanese (IMDb akas: original title vs. English title, Wikidata country lists as a tie-breaker). Animated titles enter the catalogue from fewer votes (3,000 for series, 8,000 for movies). The list is `data/anime.json`, rebuilt weekly.
 - Search looks in the catalogue first (instant, tolerant to typos, ranked by popularity) and asks TMDb only when few local titles match.
 - The catalogue remembers your tab, category and filters across reloads (per browser).
+
+## Catalogue data: what is built, and how to run it again
+
+Settings (gear in the sidebar) → **Catalogue data** lists every background job with what it has built and a **Rebuild** button:
+
+| Job | Source | Where it lands | Rebuilds |
+|---|---|---|---|
+| Catalogue | IMDb `title.basics` + `title.ratings` | `data/catalog.json` | weekly, or when the schema number in `catalog.py` changes |
+| Posters and plots | TMDb through Jellyfin's lookup | `data/titles.db`, `data/img/` | continuously, a few titles at a time |
+| Episode ratings | IMDb `title.episode` + ratings | `data/episodes.db` (table `ep`) | weekly and after every catalogue change |
+| Air dates and runtimes | TVmaze (free API) | `data/episodes.db` (tables `epx`, `epx_info`) | one series every 1.5 s until all are done, plus on first open of a series |
+| Cast and directors | IMDb `title.principals` + `name.basics` | `data/cast.db` | weekly and after every catalogue change |
+| Anime list | IMDb `title.akas` (original vs English title) | `data/anime.json` | weekly and after every catalogue change |
+| Country lists | Wikidata (original language) | `data/countries.json` | weekly; can also be collected from a PC with `scratchpad/build_countries_local.py` when Wikidata throttles the server |
+
+`GET /_meta/status` (admin) returns the same information as JSON, including the last error of any job. `POST /_meta/admin/rebuild {"what": "cast"}` starts one (`catalog`, `posters`, `episodes`, `tvmaze`, `cast`, `anime`, `countries`).
+
+The sidebar also shows the month's traffic (sent / received), written every 5 minutes by `/opt/jellyfin/scripts/netstat.py` from root's crontab (`deploy/uploads/netstat.py`), and the catalogue size.
+
+Catalogue links are shareable: the tab, category and filters live in the URL, e.g. `#/requests?kind=series&row=top&country=KR&genre=Drama`.
+
+The built-in admin account is called `admin` (`ADMIN_USER` in `uploads-meta.env`).

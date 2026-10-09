@@ -306,7 +306,13 @@ def countries():
         if old and not _cty["building"] and _mem["cat"] and time.time() - _cty["fail"] > 900:
             _cty["building"] = True
             threading.Thread(target=_countries_job, daemon=True).start()
-    return _cty["d"]
+    d = _cty["d"]
+    if d is not None and _mem["cat"]:
+        jp = d.setdefault("JP", {"movie": set(), "series": set()})
+        for i in _anime_set():
+            it = _mem["cat"]["items"].get(i)
+            if it: jp.setdefault(it["k"], set()).add(i)
+    return d
 
 EPS_DB = os.path.join(DBDIR, "episodes.db")
 _eps = {"building": False, "t": 0}
@@ -510,7 +516,7 @@ _cast = {"building": False, "t": 0}
 
 def _castdb(path=CAST_DB):
     c = sqlite3.connect(path, timeout=30)
-    c.execute("CREATE TABLE IF NOT EXISTS cast(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
+    c.execute("CREATE TABLE IF NOT EXISTS people(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     return c
 
@@ -533,8 +539,8 @@ def _build_cast(ids):
                 except ValueError: ch = ""
             batch.append((r[0], int(r[1]), r[2], r[3], ch[:80])); need.add(r[2])
             if len(batch) >= 5000:
-                c.executemany("INSERT OR REPLACE INTO cast(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch); batch = []
-    if batch: c.executemany("INSERT OR REPLACE INTO cast(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch)
+                c.executemany("INSERT OR REPLACE INTO people(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch); batch = []
+    if batch: c.executemany("INSERT OR REPLACE INTO people(tconst,ord,nconst,cat,chars) VALUES(?,?,?,?,?)", batch)
     c.commit(); os.remove(pp)
     _download("name.basics.tsv.gz", npath)
     batch = []
@@ -545,8 +551,8 @@ def _build_cast(ids):
                 c.executemany("INSERT OR REPLACE INTO nm VALUES(?,?)", batch); batch = []
     if batch: c.executemany("INSERT OR REPLACE INTO nm VALUES(?,?)", batch)
     os.remove(npath)
-    c.execute("UPDATE cast SET name=(SELECT name FROM nm WHERE nm.nconst=cast.nconst)")
-    c.execute("DELETE FROM cast WHERE name IS NULL"); c.execute("DROP TABLE nm")
+    c.execute("UPDATE people SET name=(SELECT name FROM nm WHERE nm.nconst=people.nconst)")
+    c.execute("DELETE FROM people WHERE name IS NULL"); c.execute("DROP TABLE nm")
     c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
     c.commit(); c.execute("VACUUM"); c.close()
     os.replace(new, CAST_DB)
@@ -576,13 +582,72 @@ def ensure_cast():
 
 def cast_for(tid):
     try:
-        c = _castdb(); rows = c.execute("SELECT name, cat, chars FROM cast WHERE tconst=? ORDER BY ord", (tid,)).fetchall(); c.close()
+        c = _castdb(); rows = c.execute("SELECT name, cat, chars FROM people WHERE tconst=? ORDER BY ord", (tid,)).fetchall(); c.close()
     except Exception:
         return None
     if not rows: return None
     return {"directors": [n for n, k, _ in rows if k == "director"][:3],
             "writers": [n for n, k, _ in rows if k in ("writer", "creator")][:3],
             "cast": [{"n": n, "c": ch} for n, k, ch in rows if k in ("actor", "actress")][:8]}
+
+# ---------- admin tools: counts for the sidebar, status of the background jobs, "rebuild now" ----------
+_cnt = {"t": 0, "d": {}}
+_tvm = {"running": False, "t": 0}
+
+def counts():
+    """How much of the catalogue has its data (cached a minute, the sidebar polls)."""
+    if time.time() - _cnt["t"] < 60: return _cnt["d"]
+    _cnt["t"] = time.time()
+    cat = _mem["cat"]
+    if not cat: return {}
+    items = cat["items"]
+    d = {"titles": len(items), "movies": sum(1 for i in items.values() if i["k"] == "movie"), "series": sum(1 for i in items.values() if i["k"] == "series"),
+         "posters": sum(1 for i in items if i in _mem["titles"]), "anime": len(_anime_set())}
+    try:
+        c = _epdb()
+        d["episodes_series"] = c.execute("SELECT count(DISTINCT series) FROM ep").fetchone()[0]
+        d["tvmaze"] = c.execute("SELECT count(*) FROM epx_info WHERE tvmaze IS NOT NULL").fetchone()[0]
+        c.close()
+    except Exception: pass
+    try:
+        c = _castdb(); d["cast"] = c.execute("SELECT count(DISTINCT tconst) FROM people").fetchone()[0]; c.close()
+    except Exception: pass
+    _cnt["d"] = d
+    return d
+
+def _tvmaze_prefetch():
+    """Air dates and runtimes for every series, most popular first, one request every 1.5 s (TVmaze allows 20 per 10 s)."""
+    try:
+        cat = _mem["cat"]
+        if not cat: return
+        c = _epdb(); done = {r[0] for r in c.execute("SELECT series FROM epx_info")}; c.close()
+        todo = sorted((it for it in cat["items"].values() if it["k"] == "series" and it["id"] not in done), key=lambda i: -i["v"])
+        for it in todo:
+            if not _tvm["running"]: break
+            fetch_tvmaze(it["id"]); time.sleep(1.5)
+    except Exception as e:
+        _state["error"] = ("tvmaze: " + str(e))[:200]
+    finally:
+        _tvm["running"] = False
+
+def ensure_tvmaze():
+    if _tvm["running"] or _eps["building"] or time.time() - _tvm["t"] < 3600 or not _mem["cat"]: return
+    _tvm["t"] = time.time(); _tvm["running"] = True
+    threading.Thread(target=_tvmaze_prefetch, daemon=True).start()
+
+JOBS = {"catalog": (_state, "building", "_background"), "episodes": (_eps, "building", "_episodes_job"), "cast": (_cast, "building", "_cast_job"),
+        "anime": (_anime, "building", "_anime_job"), "countries": (_cty, "building", "_countries_job"), "posters": (_bulk, "running", "_bulk_run"),
+        "tvmaze": (_tvm, "running", "_tvmaze_prefetch")}
+
+def rebuild(what):
+    """Starts one background job now (admin button), unless it is already running."""
+    if what not in JOBS: return "unknown"
+    st, key, fn = JOBS[what]
+    if st.get(key): return "already running"
+    if not _mem["cat"] and what != "catalog": return "no catalogue yet"
+    st[key] = True; st["t"] = time.time()
+    threading.Thread(target=globals()[fn], daemon=True).start()
+    return "started"
 
 def status():
     """What the background jobs are doing (admin only)."""
@@ -591,9 +656,12 @@ def status():
         try:
             c = sqlite3.connect(path); r = c.execute("SELECT v FROM info WHERE k='built'").fetchone(); c.close(); return int(r[0]) if r else None
         except Exception: return None
-    return {"error": _state["error"], "catalog": {"building": _state["building"], "built": cat and cat["built"], "titles": cat and len(cat["items"])},
+    return {"error": _state["error"], "counts": counts(),
+            "catalog": {"building": _state["building"], "built": cat and cat["built"]},
+            "posters": {"running": _bulk["running"]}, "tvmaze": {"running": _tvm["running"]},
             "episodes": {"building": _eps["building"], "built": built(EPS_DB)}, "cast": {"building": _cast["building"], "built": built(CAST_DB)},
-            "anime": {"building": _anime["building"], "count": len(_anime_set())}, "countries": {"complete": bool((_cty.get("d") or {})), "fail": _cty.get("fail")}}
+            "anime": {"building": _anime["building"]},
+            "countries": {"building": _cty["building"], "complete": bool(_cty.get("d")), "fail": _cty.get("fail")}}
 
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)
@@ -693,6 +761,7 @@ def ensure_all():
     ensure_anime()
     ensure_episodes()
     ensure_cast()
+    ensure_tvmaze()
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
     _bulk["t"] = time.time()

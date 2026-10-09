@@ -31,7 +31,11 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;st
 .lib{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:12px;color:var(--muted);font-weight:500;position:relative}
 .lib:hover{background:var(--card2);color:var(--ink)}
 .lib.on{background:var(--soft);color:var(--ink)}
-.lib.on svg{color:var(--accent)}
+.lib .ib{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--card2);color:var(--c,var(--muted));transition:transform .2s,background .2s,box-shadow .2s}
+.lib .ib svg{width:17px;height:17px}
+.lib:hover .ib{transform:translateY(-1px) scale(1.07)}
+.lib.on .ib{background:var(--c,var(--accent));color:#fff;box-shadow:0 8px 18px -6px var(--c,var(--accent))}
+.lib[data-sec=movies]{--c:#e50914}.lib[data-sec=shows]{--c:#3b82f6}.lib[data-sec=music]{--c:#22c55e}.lib[data-sec=audiobooks]{--c:#f59e0b}.lib[data-sec=requests]{--c:#a855f7}.lib[data-sec=profiles]{--c:#14b8a6}
 .lib:focus-visible{outline:2px solid var(--accent)}
 .lib .n{margin-left:auto;background:var(--accent);color:var(--accent-ink);border-radius:99px;font-size:.72rem;font-weight:700;min-width:1.4rem;text-align:center;padding:1px 7px}
 .space{margin-top:auto;padding:14px;border:1px solid var(--line);border-radius:14px;font-size:.82rem;color:var(--muted)}
@@ -677,21 +681,24 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .rp{font-weight:750;font-size:.88rem;white-space:nowrap;text-align:right}.rp.none{color:var(--muted);font-weight:500}
 .edate{color:var(--muted);font-size:.84rem;white-space:nowrap}
 .eprow.soon .et,.eprow.soon .edate{opacity:.6}
-.eph{margin:0 0 12px;font-size:1.15rem}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-bottom:16px}
-.stat{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
-.stat b{display:block;font-size:1.05rem;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stat span{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.heat{overflow-x:auto;margin-bottom:16px;scrollbar-width:thin;padding-bottom:4px}
-.heat table{border-collapse:separate;border-spacing:3px;margin-left:-3px}
-.heat td,.heat th{padding:0;border:0;height:26px;line-height:26px;box-sizing:border-box;vertical-align:middle}
-.heat tr{height:26px}
-.heat th{font-size:.7rem;color:var(--muted);font-weight:600;text-align:center;min-width:30px}
-.heat th.s{cursor:pointer;text-align:right;padding:0 8px 0 4px;font-size:.8rem;color:var(--ink);border-radius:6px;min-width:0;white-space:nowrap}
-.heat th.s:hover{background:var(--card2)}.heat th.s.on{background:#fff;color:#111}
-.heat td{width:30px;height:26px;border-radius:6px;text-align:center;font-size:.72rem;font-weight:700;color:#fff;background:var(--card2);cursor:pointer}
-.heat td.hx{background:transparent;cursor:default}.heat td.hn{color:var(--muted)}
+.epsticky{position:sticky;top:0;z-index:2;background:var(--card);padding:14px 0 6px;box-shadow:0 14px 14px -14px rgba(0,0,0,.8)}
+.epline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;font-size:.86rem;color:var(--muted);margin-bottom:12px}
+.epline b{color:var(--ink);font-size:1.05rem;margin-right:14px}
+.epline>span+span::before{content:"·";margin:0 8px;opacity:.5}
+.heat{overflow:auto;max-height:280px;scrollbar-width:thin;padding-bottom:2px}
+.heat table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;margin-left:-3px}
+.heat th{font-size:.72rem;color:var(--muted);font-weight:600;text-align:center;height:18px;padding:0;border:0}
+.heat th.s0{width:84px}
+.heat th.s{text-align:left;padding:0 8px;height:32px;border-radius:8px;background:var(--card2);color:var(--ink);cursor:pointer;font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
+.heat tr{cursor:pointer}
+.heat tr:hover th.s{background:rgba(255,255,255,.16)}
+.heat tr.on th.s{background:#fff;color:#111}
+.heat td{height:32px;font-size:.8rem;font-weight:700;border-radius:7px;color:#fff;background:var(--card2);text-align:center;padding:0;border:0;transition:filter .15s}
+.heat tr:hover td:not(.hx){filter:brightness(1.15)}
+.heat tr.on td:not(.hx){box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
+.heat td.hx{background:transparent}.heat td.hn{color:var(--muted)}
 .heat td.r9{background:#1d7f36}.heat td.r8{background:#43a047}.heat td.r7{background:#c9b11f;color:#1a1a1a}.heat td.r6{background:#d9822b;color:#1a1a1a}.heat td.r5{background:#c43c2f}
+.heathint{font-size:.74rem;color:var(--muted);margin:4px 0 8px;text-align:right}
 .shead2{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 6px}
 .shead2 b{font-size:1rem}.shead2 .sinfo{margin:0;flex:1}
 .dcast{margin-top:16px;display:flex;flex-direction:column;gap:10px}
@@ -722,8 +729,16 @@ details.extras>summary{font-weight:600;color:var(--muted)}
   .eps{padding:0 16px 18px}
   .epshead h4{font-size:1.05rem}
   .eprow{padding:8px 6px}
-  .stats{grid-template-columns:repeat(2,1fr)}
+  .heat table{table-layout:auto}
+  .heat td{min-width:34px}
+  .heat th.s0{width:70px}
+  .epsticky{padding-top:10px}
 }
+.dtable{margin-top:6px}
+.drow{display:grid;grid-template-columns:1fr auto auto;gap:16px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.drow .dl span,.drow .dv span{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+.drow .dv{text-align:right;white-space:nowrap}
+@media (max-width:860px){.drow{grid-template-columns:1fr auto}.drow .dv{grid-column:1/-1;text-align:left}}
 </style>
 </head>
 <body>
@@ -734,7 +749,9 @@ details.extras>summary{font-weight:600;color:var(--muted)}
     <div class="space" id="space" hidden>
       <b id="spT"></b><div class="meter"><i id="spB"></i></div><span id="spS"></span>
       <div class="live"><div class="lv"><span>CPU</span><b id="cpuV">–</b></div><div class="meter"><i id="cpuB"></i></div>
-      <div class="lv"><span>RAM</span><b id="ramV">–</b></div><div class="meter"><i id="ramB"></i></div></div>
+      <div class="lv"><span>RAM</span><b id="ramV">–</b></div><div class="meter"><i id="ramB"></i></div>
+      <div class="lv" id="netL" hidden><span>Traffic</span><b id="netV">–</b></div>
+      <div class="lv" id="catL" hidden><span>Catalogue</span><b id="catV">–</b></div></div>
     </div>
     <div class="who"><span class="wl"><span class="wd"></span><span id="whoT"></span></span><span class="wb"><button id="settingsBtn" type="button" title="Settings" aria-label="Settings"></button><button id="signout" type="button" title="Sign out" aria-label="Sign out"></button></span></div>
   </aside>
@@ -903,7 +920,10 @@ async function loadSpace(){
 async function loadStats(){
   try{var r=await fetch("/_meta/stats",{credentials:"same-origin",cache:"no-store"});if(!r.ok)return;var d=await r.json(),rp=d.mem_total?d.mem_used*100/d.mem_total:0;
     $("cpuV").textContent=Math.round(d.cpu)+"%";$("cpuB").style.width=Math.min(100,d.cpu)+"%";$("cpuB").className=d.cpu>85?"hot":"";
-    $("ramV").textContent=fmtSize(d.mem_used)+" / "+fmtSize(d.mem_total);$("ramB").style.width=Math.min(100,rp)+"%";$("ramB").className=rp>88?"hot":"";}catch(e){}
+    $("ramV").textContent=fmtSize(d.mem_used)+" / "+fmtSize(d.mem_total);$("ramB").style.width=Math.min(100,rp)+"%";$("ramB").className=rp>88?"hot":"";
+    if(d.net){$("netL").hidden=false;$("netV").textContent="↑ "+fmtSize(d.net.tx)+"  ↓ "+fmtSize(d.net.rx);$("netL").title="Sent and received this month ("+d.net.month+")";}
+    var c2=d.catalog;if(c2&&c2.titles){$("catL").hidden=false;$("catV").textContent=(c2.movies||0).toLocaleString()+" films · "+(c2.series||0).toLocaleString()+" series";
+      $("catL").title="Posters "+c2.posters+" of "+c2.titles+(c2.episodes_series!=null?" · episodes for "+c2.episodes_series+" series":"")+(c2.tvmaze!=null?" · air dates for "+c2.tvmaze:"")+(c2.cast!=null?" · cast for "+c2.cast+" titles":"")+" · anime "+c2.anime;}}catch(e){}
 }
 function cleanFolder(n){      // "The Sopranos (1999) S01-S06 (1080p ...)" -> {title:"The Sopranos", year:"1999"}
   n=n.replace(/^\s*(?:www\.)?[a-z0-9-]+\.(?:org|com|net|to|me|ws|cc|bz|io|tv)\s*[-–—]+\s*/i,"").replace(/^\s*\[[^\]]*\]\s*/,"");
@@ -915,11 +935,11 @@ function cleanFolder(n){      // "The Sopranos (1999) S01-S06 (1080p ...)" -> {t
 function hue(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;}
 
 /* ---------- navigation ---------- */
-function fromHash(){if(GUEST)return "requests";var h=decodeURIComponent((location.hash||"").replace(/^#\/?/,"")).replace(/\/+$/,"");
+function fromHash(){if(GUEST)return "requests";var h=decodeURIComponent((location.hash||"").replace(/^#\/?/,"").split("?")[0]).replace(/\/+$/,"");
   if(h==="settings")return h;
   return SECTIONS.some(function(l){return h===l.id||(l.id!=="requests"&&l.id!=="profiles"&&h.indexOf(l.id+"/")===0);})?h:"movies";}
 function go(p){location.hash="#/"+p;}
-window.addEventListener("hashchange",function(){cwd=fromHash();filterText="";$("filter").value="";render();});
+window.addEventListener("hashchange",function(){cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();});
 
 var openReq=0;
 try{var _c=JSON.parse(sessionStorage.getItem("lm")||"null");if(_c){META=_c.m||{};SIZES=_c.s||{};Object.keys(META).forEach(function(k){var v=META[k];if(v.t==="Movie"||v.t==="Series")LIBSET[v.t+"|"+(v.n||"").toLowerCase()+"|"+(v.y||"")]=1;});}}catch(e){}
@@ -928,7 +948,7 @@ function renderNav(){
     nav.innerHTML="";
     SECTIONS.forEach(function(l){
       var on=cwd===l.id||cwd.indexOf(l.id+"/")===0;
-      var b=el("button",(k?"":"lib ")+(on?"on":""));b.type="button";b.appendChild(svg(l.ic));
+      var b=el("button",(k?"":"lib ")+(on?"on":""));b.type="button";b.dataset.sec=l.id;if(k)b.appendChild(svg(l.ic));else{var ib=el("span","ib");ib.appendChild(svg(l.ic));b.appendChild(ib);}
       b.appendChild(el("span","",k&&l.id==="audiobooks"?"Books":l.label));
       if(l.id==="requests"&&openReq>0)b.appendChild(el("span","n",String(openReq)));
       if(on)b.setAttribute("aria-current","page");
@@ -1365,37 +1385,38 @@ function fmtMins(m){if(!m)return "";var h=Math.floor(m/60),mm=Math.round(m%60);r
 function fmtD(iso,day){if(!iso)return "";var d=new Date(iso+"T00:00:00");if(isNaN(d))return iso;return d.toLocaleDateString("en-GB",day?{day:"numeric",month:"short",year:"numeric"}:{month:"short",year:"numeric"});}
 function ehc(icon,text,val,cls){var c=el("span","ehc");c.appendChild(svg(icon));c.appendChild(el("span","",text));if(val)c.appendChild(el("b",cls||"",val));return c;}
 function renderEpisodes(d,host,it){
-  var box=el("section","eps");box.appendChild(el("h4","eph","Episodes"));
-  var st=el("div","stats");
-  function stat(v,l,cls){var t=el("div","stat");t.appendChild(el("b",cls||"",v));t.appendChild(el("span","",l));st.appendChild(t);}
-  if(d.season_count)stat(String(d.season_count),"Seasons");stat(String(d.episode_count),"Episodes");
-  if(d.minutes)stat(fmtMins(d.minutes),"To watch");if(d.avg)stat("★ "+d.avg.toFixed(1),"Average",rcls(d.avg));
-  if(d.premiered)stat(d.premiered.slice(0,4)+(d.ended?"–"+d.ended.slice(2,4):"–"),d.status==="Running"?"Still airing":"Aired");
-  if(d.best)stat("S"+pad2(d.best[0])+"E"+pad2(d.best[1])+" · ★ "+d.best[3].toFixed(1),"Best: "+(d.best[2]||"episode"),rcls(d.best[3]));
-  if(d.next)stat(fmtD(d.next[2],true),"Next: S"+pad2(d.next[0])+"E"+pad2(d.next[1]));
-  box.appendChild(st);
-  var cur=-1,rowTh=[],btns=[],hw=null;
+  var box=el("section","eps"),top=el("div","epsticky"),line=el("div","epline");
+  function li(t,cls){line.appendChild(el("span",cls||"",t));}
+  line.appendChild(el("b","","Episodes"));
+  if(d.season_count)li(plural(d.season_count,"season"));li(plural(d.episode_count,"episode"));
+  if(d.minutes)li(fmtMins(d.minutes)+" to watch");if(d.avg)li("★ "+d.avg.toFixed(1)+" average",rcls(d.avg));
+  if(d.premiered)li(d.premiered.slice(0,4)+(d.ended?"–"+d.ended.slice(0,4):"–")+(d.status==="Running"?" · still airing":""));
+  if(d.best)li("Best: S"+pad2(d.best[0])+"E"+pad2(d.best[1])+(d.best[2]?" "+d.best[2]:"")+" ★ "+d.best[3].toFixed(1),rcls(d.best[3]));
+  if(d.next)li("Next: S"+pad2(d.next[0])+"E"+pad2(d.next[1])+" on "+fmtD(d.next[2],true));
+  top.appendChild(line);
+  var cur=-1,rowTr=[],btns=[],hw=null;
   var maxE=Math.max.apply(null,d.seasons.map(function(x){return Math.max.apply(null,x.eps.map(function(e){return e[0]||0;}));}));
-  if(d.seasons.length>1&&maxE<=30&&d.seasons.length<=40){      // the rating map: a row per season, a cell per episode (click a row to open that season)
-    hw=el("div","heat");var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s",""));
+  if(d.seasons.length>1&&maxE<=30&&d.seasons.length<=40){      // the rating map: a row per season, a cell per episode; a row opens that season
+    hw=el("div","heat");var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s0",""));
     for(var i=1;i<=maxE;i++)hr.appendChild(el("th","",String(i)));tb.appendChild(hr);
     d.seasons.forEach(function(sn,si){
-      var tr=el("tr"),th=el("th","s",sn.n===0?"Sp":"S"+sn.n);th.onclick=function(){show(si);};tr.appendChild(th);rowTh.push(th);
+      var tr=el("tr"),th=el("th","s",sn.n===0?"Specials":"Season "+sn.n);tr.appendChild(th);rowTr.push(tr);tr.onclick=function(){show(si);};
       var byN={};sn.eps.forEach(function(e){byN[e[0]]=e;});
       for(var j=1;j<=maxE;j++){var e=byN[j],td=el("td",e?(e[1]?rcls(e[1]):"hn"):"hx",e&&e[1]?e[1].toFixed(1):"");
-        if(e){td.title="S"+pad2(sn.n)+"E"+pad2(e[0])+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");td.onclick=function(){show(si);};}
+        if(e)td.title="S"+pad2(sn.n)+"E"+pad2(e[0])+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");
         tr.appendChild(td);}
       tb.appendChild(tr);
     });
-    hw.appendChild(tb);box.appendChild(hw);
+    hw.appendChild(tb);top.appendChild(hw);
+    top.appendChild(el("div","heathint","Click a season to see its episodes"));
   }else if(d.seasons.length>1){
     var pills=el("div","spills");
     d.seasons.forEach(function(sn,i){var b=el("button","spill");b.type="button";b.appendChild(el("span","",sn.n===0?"Specials":"Season "+sn.n));if(sn.avg)b.appendChild(el("span","rp "+rcls(sn.avg),"★ "+sn.avg.toFixed(1)));b.onclick=function(){show(i);};pills.appendChild(b);btns.push(b);});
-    box.appendChild(pills);
+    top.appendChild(pills);
   }
   var shead=el("div","shead2"),stitle=el("b",""),sinfo=el("span","sinfo",""),reqb=el("button","btn sm sreq");reqb.type="button";reqb.hidden=true;
-  shead.appendChild(stitle);shead.appendChild(sinfo);shead.appendChild(reqb);
-  var list=el("div","eplist");box.appendChild(shead);box.appendChild(list);host.appendChild(box);
+  shead.appendChild(stitle);shead.appendChild(sinfo);shead.appendChild(reqb);top.appendChild(shead);
+  var list=el("div","eplist");box.appendChild(top);box.appendChild(list);host.appendChild(box);
   function updReq(sn){
     if(!it||!it.n||!(sn.n>0)){reqb.hidden=true;return;}
     var stt=seasonState(it,sn.n);reqb.hidden=false;reqb.disabled=!!stt;reqb.innerHTML="";
@@ -1405,7 +1426,7 @@ function renderEpisodes(d,host,it){
   }
   function show(i){
     if(i===cur)return;var delay=cur<0?0:110;cur=i;
-    rowTh.forEach(function(t,j){t.classList.toggle("on",j===i);});btns.forEach(function(b,j){b.classList.toggle("on",j===i);});
+    rowTr.forEach(function(t,j){t.classList.toggle("on",j===i);});btns.forEach(function(b,j){b.classList.toggle("on",j===i);});
     var sn=d.seasons[i],bits=[plural(sn.c,"episode")];
     if(sn.avg)bits.push("★ "+sn.avg.toFixed(1));if(sn.minutes)bits.push(fmtMins(sn.minutes));
     if(sn.first)bits.push(fmtD(sn.first)+(sn.last&&sn.last.slice(0,7)!==sn.first.slice(0,7)?" – "+fmtD(sn.last):""));
@@ -1522,6 +1543,31 @@ async function renderSettings(){
     sv.disabled=false;
   };
   card.appendChild(f);c.appendChild(card);
+  // data: what the background jobs have built, and buttons to run them now
+  var dp=el("section","panel");var dh=el("div","shead");dh.appendChild(el("h2","sec","Catalogue data"));
+  var rf=el("button","btn sm","Refresh");rf.type="button";dh.appendChild(rf);dp.appendChild(dh);
+  dp.appendChild(el("p","hint left","Everything below rebuilds itself every week and after a catalogue change. A button starts it now, at low priority; the site keeps working meanwhile."));
+  var tbl=el("div","dtable");dp.appendChild(tbl);c.appendChild(dp);
+  async function drawData(){
+    var st;try{st=await api("GET","/_meta/status");}catch(e){tbl.textContent="Not available.";return;}
+    tbl.innerHTML="";var n=st.counts||{};
+    var rows=[["catalog","Catalogue","IMDb titles, ratings, shelves (weekly)",n.titles?(n.movies||0).toLocaleString()+" films · "+(n.series||0).toLocaleString()+" series":"",st.catalog.building,st.catalog.built],
+      ["posters","Posters and plots","TMDb through Jellyfin, a few at a time",n.posters!=null?n.posters.toLocaleString()+" of "+n.titles.toLocaleString():"",st.posters.running,null],
+      ["episodes","Episode ratings","IMDb, per season and episode",n.episodes_series!=null?n.episodes_series.toLocaleString()+" series":"",st.episodes.building,st.episodes.built],
+      ["tvmaze","Air dates and runtimes","TVmaze, one series every 1.5 s",n.tvmaze!=null?n.tvmaze.toLocaleString()+" of "+(n.series||0).toLocaleString()+" series":"",st.tvmaze.running,null],
+      ["cast","Cast and directors","IMDb principals and names",n.cast!=null?n.cast.toLocaleString()+" titles":"",st.cast.building,st.cast.built],
+      ["anime","Anime list","IMDb original titles vs English titles",n.anime!=null?n.anime+" titles":"",st.anime.building,null],
+      ["countries","Country lists","Wikidata, by original language",st.countries.complete?"ready":"collecting…",st.countries.building,null]];
+    rows.forEach(function(r){
+      var row=el("div","drow"),l=el("div","dl");l.appendChild(el("b","",r[1]));l.appendChild(el("span","",r[2]));row.appendChild(l);
+      var v=el("div","dv");v.appendChild(el("b","",r[3]||"–"));v.appendChild(el("span","",r[4]?"Running…":r[5]?"Built "+ago(r[5]):""));row.appendChild(v);
+      var b=el("button","btn sm",r[4]?"Running":"Rebuild");b.type="button";b.disabled=!!r[4];
+      b.onclick=async function(){b.disabled=true;try{var x=await api("POST","/_meta/admin/rebuild",{what:r[0]});toast(x.result==="started"?"Started: "+r[1]:x.result);}catch(e){toast("Could not start");}setTimeout(drawData,1500);};
+      row.appendChild(b);tbl.appendChild(row);
+    });
+    if(st.error){var em=el("p","fmsg","Last error: "+st.error);tbl.appendChild(em);}
+  }
+  rf.onclick=drawData;drawData();
   // admins
   var ac=el("section","panel");var head=el("div","shead");head.appendChild(el("h2","sec","Admins"));
   var nb=el("button","btn sm primary","Add admin");nb.type="button";head.appendChild(nb);ac.appendChild(head);
@@ -1603,7 +1649,7 @@ function renderRequests(){
     var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
     b.appendChild(el("span","",k[1]));
     if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
-    b.onclick=function(){if(k[0]==="list")reqTab="list";else{reqTab="browse";if(reqKind!==k[0])clearFilters();reqKind=k[0];reqRow="";}$("filter").value="";renderRequests();};
+    b.onclick=function(){if(k[0]==="list")reqTab="list";else{reqTab="browse";reqKind=k[0];reqRow="";}$("filter").value="";saveCat();renderRequests();};
     tabs.appendChild(b);
   });
   hd.appendChild(tabs);
@@ -1613,7 +1659,7 @@ function renderRequests(){
   var res=el("div");res.id="reqRes";c.appendChild(res);
   var chips=el("div","chips");chips.id="reqChips";c.appendChild(chips);
   var morep=el("div","morep");morep.id="reqMore";morep.hidden=true;c.appendChild(morep);
-  var filt=el("div","morep fpanel");filt.id="reqFilt";filt.hidden=true;c.appendChild(filt);
+  var filt=el("div","morep fpanel");filt.id="reqFilt";filt.hidden=!FP_OPEN;c.appendChild(filt);
   var cat=el("div");cat.id="reqCat";c.appendChild(cat);
   loadRequests().then(refreshTiles);
   drawCatalog();
@@ -1702,8 +1748,17 @@ function makeDD(label,opts,cur,onPick,plain){      // a small dropdown whose ent
 function sortMenu(onPick,filtered){return makeDD("Sort by",filtered?FSORTS:SORTS,"",onPick);}
 // ---------- filters: country / genre / decade / rating (the default shelves stay as they are) ----------
 var reqF={country:"",genre:"",decade:"",min:""},FINFO={};
-(function(){try{var o=JSON.parse(localStorage.getItem("lumio_cat")||"{}");if(o.kind==="series"||o.kind==="movie")reqKind=o.kind;if(o.tab==="list")reqTab="list";reqRow=o.row||"";if(o.f)["country","genre","decade","min"].forEach(function(k){reqF[k]=String(o.f[k]||"");});}catch(e){}})();
-function saveCat(){try{localStorage.setItem("lumio_cat",JSON.stringify({kind:reqKind,tab:reqTab,row:reqRow,f:reqF}));}catch(e){}}
+(function(){try{var o=JSON.parse(localStorage.getItem("lumio_cat")||"{}");if(o.kind==="series"||o.kind==="movie")reqKind=o.kind;if(o.tab==="list")reqTab="list";reqRow=o.row||"";if(o.f)["country","genre","decade","min"].forEach(function(k){reqF[k]=String(o.f[k]||"");});FP_OPEN=!!o.fp;}catch(e){}})();
+var FP_OPEN=false;
+function saveCat(){try{localStorage.setItem("lumio_cat",JSON.stringify({kind:reqKind,tab:reqTab,row:reqRow,f:reqF,fp:FP_OPEN}));}catch(e){}catUrlSync();}
+function catFromUrl(){      // #/requests?kind=series&row=top&country=KR&genre=Drama: a link anyone can share
+  var q=(location.hash||"").split("?")[1]||"";if(!q)return false;var p=new URLSearchParams(q);
+  if(p.get("kind")==="series"||p.get("kind")==="movie")reqKind=p.get("kind");reqTab=p.get("tab")==="list"?"list":"browse";reqRow=p.get("row")||"";
+  ["country","genre","decade","min"].forEach(function(k){reqF[k]=p.get(k)||"";});FP_OPEN=p.get("fp")==="1";return true;}
+function catUrlSync(){
+  if(cwd!=="requests")return;var p=new URLSearchParams();
+  if(reqTab==="list")p.set("tab","list");else{p.set("kind",reqKind);if(reqRow)p.set("row",reqRow);["country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
+  var h="#/requests"+(p.toString()?"?"+p.toString():"");if(location.hash!==h)history.replaceState(null,"",h);}
 function filtersOn(){return !!(reqF.country||reqF.genre||reqF.decade||reqF.min);}
 function filterQuery(){var q="";["country","genre","decade","min"].forEach(function(k){if(reqF[k])q+="&"+k+"="+encodeURIComponent(reqF[k]);});return q;}
 function clearFilters(){reqF={country:"",genre:"",decade:"",min:""};}
@@ -1719,12 +1774,12 @@ async function drawFilters(){
   var fb=el("button","chip filt-chip"+(n?" on":""));fb.type="button";fb.appendChild(svg("sliders"));fb.appendChild(el("span","","Filters"));
   if(n)fb.appendChild(el("span","fcnt",String(n)));
   fb.setAttribute("aria-expanded",String(!panel.hidden));
-  fb.onclick=function(e){e.stopPropagation();panel.hidden=!panel.hidden;fb.setAttribute("aria-expanded",String(!panel.hidden));
+  fb.onclick=function(e){e.stopPropagation();panel.hidden=!panel.hidden;FP_OPEN=!panel.hidden;saveCat();fb.setAttribute("aria-expanded",String(!panel.hidden));
     if(!panel.hidden&&(!FINFO[reqKind]||!FINFO[reqKind].countries.length)){delete FINFO[reqKind];drawFilters().then(function(){panel.hidden=false;});}};
   btnBox.appendChild(fb);
   var kind=reqKind,fi=await loadFinfo(kind);if(kind!==reqKind||!$("reqFilt"))return;
   panel.innerHTML="";
-  function apply(){if(reqRow==="__f"&&!filtersOn())reqRow="";panel.hidden=true;drawFilters();drawCatalog();}
+  function apply(){if(reqRow==="__f"&&!filtersOn())reqRow="";drawFilters();drawCatalog();}
   var head=el("div","fhead");head.appendChild(el("b","","Filter the catalogue"));
   if(n){var cl=el("button","btn sm","Clear all");cl.type="button";cl.onclick=function(){clearFilters();apply();};head.appendChild(cl);}
   panel.appendChild(head);
@@ -2344,7 +2399,7 @@ function render(){
   if(rq){renderRequests();return;}
   renderHero();listDir();
 }
-cwd=fromHash();if(!location.hash)go(cwd);render();loadRequests();
+cwd=fromHash();catFromUrl();if(!location.hash)go(cwd);render();loadRequests();
 if(GUEST){loadHave().then(refreshTiles);}else{loadSpace();fetch("/_meta/me",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d)ME=d.user;paintWho();}).catch(function(){});}
 paintWho();showResume();
 if(!GUEST){setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
