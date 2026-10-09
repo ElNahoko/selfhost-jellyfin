@@ -339,7 +339,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/episodes":
                 sid = (qs.get("id") or [""])[0]
                 d = catalog.episodes_for(sid) if re.fullmatch(r"tt\d{6,10}", sid) else None
-                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=300")
+                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=300" if d else "no-store")
             if path == "/_meta/guess":              # a poster for a library folder Jellyfin does not know yet (by its name)
                 kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
                 q = clip((qs.get("q") or [""])[0], 80); yr = clip((qs.get("y") or [""])[0], 4)

@@ -275,8 +275,8 @@ def countries():
 EPS_DB = os.path.join(DBDIR, "episodes.db")
 _eps = {"building": False, "t": 0}
 
-def _epdb():
-    c = sqlite3.connect(EPS_DB, timeout=30)
+def _epdb(path=EPS_DB):
+    c = sqlite3.connect(path, timeout=30)
     c.execute("CREATE TABLE IF NOT EXISTS ep(tconst TEXT PRIMARY KEY, series TEXT, season INTEGER, ep INTEGER, rating REAL, votes INTEGER, title TEXT)")
     c.execute("CREATE INDEX IF NOT EXISTS ep_series ON ep(series)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
@@ -288,7 +288,11 @@ def _build_episodes(series_ids):
     paths = {n: os.path.join(DBDIR, "e_" + n + ".gz") for n in ("episode", "ratings", "basics")}
     for n, f in (("episode", "title.episode.tsv.gz"), ("ratings", "title.ratings.tsv.gz"), ("basics", "title.basics.tsv.gz")):
         _download(f, paths[n])
-    c = _epdb(); c.execute("DELETE FROM ep"); c.commit()
+    new = EPS_DB + ".new"
+    for q in (new, new + "-journal"):
+        try: os.remove(q)
+        except OSError: pass
+    c = _epdb(new)
     wanted, batch = set(series_ids), []
     tconsts = set()
     for r in _rows(paths["episode"]):
@@ -317,6 +321,7 @@ def _build_episodes(series_ids):
     if batch: c.executemany("UPDATE ep SET title=? WHERE tconst=?", batch)
     c.execute("INSERT OR REPLACE INTO info VALUES('built', ?)", (str(int(time.time())),))
     c.commit(); c.close()
+    os.replace(new, EPS_DB)
     for p in paths.values():
         try: os.remove(p)
         except OSError: pass
@@ -338,7 +343,7 @@ def ensure_episodes():
     _eps["t"] = time.time()
     try:
         c = _epdb(); r = c.execute("SELECT v FROM info WHERE k='built'").fetchone(); c.close()
-        if r and time.time() - int(r[0]) < MAXAGE: return
+        if r and time.time() - int(r[0]) < MAXAGE and int(r[0]) >= _mem["cat"]["built"]: return
     except Exception:
         pass
     _eps["building"] = True
@@ -359,7 +364,7 @@ def episodes_for(sid):
         out.append({"n": sn, "c": len(eps), "avg": round(sum(rated) / len(rated), 1) if rated else None, "eps": eps})
     rated_all = [e[1] for s in out for e in s["eps"] if e[1]]
     real = [s for s in out if s["n"] > 0]
-    return {"seasons": real and out, "season_count": len(real), "episode_count": sum(len(s["eps"]) for s in out if s["n"] > 0),
+    return {"seasons": out, "season_count": len(real), "episode_count": sum(len(s["eps"]) for s in (real or out)),
             "avg": round(sum(rated_all) / len(rated_all), 1) if rated_all else None}
 
 def _titles():
