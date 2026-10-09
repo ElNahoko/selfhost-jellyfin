@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Backend for the LUMIO upload and catalogue site (reachable only through Caddy). Sign-in lives in auth.py.
+"""Backend for the Nahoko upload and catalogue site (reachable only through Caddy). Sign-in lives in auth.py.
 Roles (enforced here on every call): admin = everything; uploader = upload + library; member = email sign-in, favorites,
 requests once approved; no session = public catalogue (read only).
   GET /login, POST /auth/login and /auth/logout, GET /auth/check (Caddy asks this before serving anything else)
@@ -206,6 +206,19 @@ def app_page(s, head=""):
     return _page["html"].replace("<head>", "<head>" + inj + head, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")
+
+# answers that are the same for everyone, kept a short while (the catalogue changes slowly; computing a view walks 30,000 titles)
+_rc = {}
+CACHED = {"/_meta/catalog": 60, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
+          "/_meta/episodes": 600, "/_meta/cast": 3600}
+def rc_get(key):
+    v = _rc.get(key)
+    return v[1] if v and v[0] > time.time() else None
+def rc_put(key, ttl, body):
+    if len(_rc) > 600:
+        now = time.time()
+        for k in [k for k, v in _rc.items() if v[0] <= now] or list(_rc)[:200]: _rc.pop(k, None)
+    _rc[key] = (time.time() + ttl, body)
 def approved(s): return staff(s) or (s["role"] == "member" and s.get("approved"))
 
 def limited(user, key, per_min):
@@ -275,8 +288,15 @@ def have_keys():
     return sorted({"%s|%s|%s" % (v["t"], (v["n"] or "").lower(), v["y"] or "") for v in d.values() if v["t"] in ("Movie", "Series")})
 
 class H(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"        # keep-alive: Caddy reuses its connections instead of opening one per request
     def log_message(self, *a): pass
     def send(self, code, body, ctype="application/json", cache="no-store", headers=None):
+        k = getattr(self, "_rc_key", None)
+        if k and code == 200 and ctype == "application/json":
+            self._rc_key = None
+            try:
+                if not json.loads(body).get("building"): rc_put(k[0], k[1], body)
+            except Exception: rc_put(k[0], k[1], body)
         self.send_response(code); self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -304,6 +324,7 @@ class H(BaseHTTPRequestHandler):
 
     # ---------- GET ----------
     def do_GET(self):
+        self._rc_key = None          # one handler serves several requests on a kept-alive connection
         u = urlparse(self.path); qs = parse_qs(u.query); path = u.path
         try:
             if path == "/_lib/gsap.min.js":         # the animation library (downloaded at setup, not shipped in the repo)
@@ -332,6 +353,10 @@ class H(BaseHTTPRequestHandler):
             if (path in ADMIN_ONLY and not admin) or ((path in STAFF_ONLY or path.startswith("/_meta/img/")) and not staff(s)) \
                or (path in APPROVED_ONLY and not approved(s)):
                 return self.js({"error": "sign in" if s["role"] == "public" else "forbidden"}, 401 if s["role"] == "public" else 403)
+            if path in CACHED:
+                hit = rc_get(self.path)
+                if hit is not None: return self.send(200, hit, cache="public, max-age=60")
+                self._rc_key = (self.path, CACHED[path])
             if path == "/_meta/me": return self.js(dict(s, approved=approved(s), mail=mail.configured()))
             if path == "/_meta/favorites":
                 if s["role"] != "member": return self.js([])
@@ -473,7 +498,7 @@ class H(BaseHTTPRequestHandler):
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
                 if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
-                with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "private, max-age=2592000, immutable")
+                with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
         except Exception:
             return self.send(404, b"{}")
         self.send(404, b"{}")

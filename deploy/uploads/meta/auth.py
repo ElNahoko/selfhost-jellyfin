@@ -24,9 +24,14 @@ USER_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,23}$")
 _fails = {}
 _lock = threading.Lock()
 
+_ready = {"done": False}
+
 def db():
+    """A connection; the tables are created/migrated once per process, not on every request (that was a write each time)."""
     c = sqlite3.connect(DB, timeout=10)
     c.row_factory = sqlite3.Row
+    if _ready["done"]: return c
+    c.execute("PRAGMA journal_mode=WAL")
     c.execute("CREATE TABLE IF NOT EXISTS users(username TEXT PRIMARY KEY, hash TEXT, active INTEGER DEFAULT 1, created INTEGER, last_login INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS sessions(th TEXT PRIMARY KEY, username TEXT, role TEXT, exp INTEGER)")
     try:
@@ -37,6 +42,8 @@ def db():
     c.execute("CREATE TABLE IF NOT EXISTS members(email TEXT PRIMARY KEY, approved INTEGER DEFAULT 0, created INTEGER, last_login INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS codes(email TEXT PRIMARY KEY, hash TEXT, exp INTEGER, tries INTEGER DEFAULT 0, sent INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS favorites(email TEXT, tid TEXT, added INTEGER, PRIMARY KEY(email, tid))")
+    c.execute("CREATE INDEX IF NOT EXISTS sessions_user ON sessions(username)")
+    c.commit(); _ready["done"] = True
     return c
 
 def hash_pw(pw):

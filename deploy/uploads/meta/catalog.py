@@ -301,7 +301,7 @@ def _wikidata_pair(spec):
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(8):
-        req = urllib.request.Request(url, headers={"User-Agent": "LumioCatalogue/1.1 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
+        req = urllib.request.Request(url, headers={"User-Agent": "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
         try:
             with urllib.request.urlopen(req, timeout=170) as r:
                 d = json.load(r)
@@ -468,7 +468,7 @@ def ensure_episodes():
     threading.Thread(target=_episodes_job, daemon=True).start()
 
 TVMAZE = "https://api.tvmaze.com"
-UA = "LumioCatalogue/1.1 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
+UA = "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
 
 def _tvmaze(url):
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=8) as r:

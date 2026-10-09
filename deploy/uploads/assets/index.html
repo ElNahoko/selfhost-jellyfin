@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#141414">
-<title>LUMIO</title>
+<title>Nahoko</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2064%2064%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%23ff3b3b%27/%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%23c10f1d%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2716%27%20fill%3D%27url%28%23g%29%27/%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%2717%27%20fill%3D%27none%27%20stroke%3D%27%23fff%27%20stroke-width%3D%275%27/%3E%3Cpath%20d%3D%27M28%2024.5%2041%2032%2028%2039.5z%27%20fill%3D%27%23fff%27%20stroke%3D%27%23fff%27%20stroke-width%3D%272%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E">
 <style>
 :root{
@@ -856,12 +856,17 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
 .gacct{display:flex;align-items:center;gap:10px;min-width:0}
 .gacct .gme{color:var(--muted);font-size:.86rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:860px){.gacct .gme{display:none}}
+.lockcard{max-width:460px;margin:40px auto;padding:34px 28px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,var(--card),transparent);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.lockcard .lockic{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:rgba(255,84,112,.12);color:#ff5470;margin-bottom:6px}
+.lockcard .lockic svg{width:30px;height:30px}.lockcard .lockic svg path{fill:currentColor}
+.lockcard b{font-size:1.2rem}.lockcard span{color:var(--muted);line-height:1.5}.lockcard .btn{margin-top:10px;padding:10px 26px}
+.rempty span{display:block;max-width:440px;margin:0 auto}.rempty .btn{margin-top:14px}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">LUM<i>IO</i></span><button class="stog" id="sideToggle" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"></button></div>
+    <div class="brand"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">NAHO<i>KO</i></span><button class="stog" id="sideToggle" type="button" title="Collapse the sidebar" aria-label="Collapse the sidebar"></button></div>
     <nav class="libs" id="libs" aria-label="Sections"></nav>
     <div class="space" id="space" hidden>
       <div class="lv"><span>Disk</span><b id="spT">–</b></div><div class="meter"><i id="spB"></i></div>
@@ -877,7 +882,7 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
   </aside>
 
   <main>
-    <div class="mtop"><span class="brandm"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g2)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">LUM<i>IO</i></span></span><span class="wb"><button id="settingsBtn2" type="button" aria-label="Settings"></button><button id="signout2" type="button" aria-label="Sign out"></button></span></div>
+    <div class="mtop"><span class="brandm"><span class="logo"><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff3b3b'/><stop offset='1' stop-color='#c10f1d'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(#g2)'/><circle cx='32' cy='32' r='17' fill='none' stroke='#fff' stroke-width='5'/><path d='M28 24.5 41 32 28 39.5z' fill='#fff' stroke='#fff' stroke-width='2' stroke-linejoin='round'/></svg></span><span class="wm">NAHO<i>KO</i></span></span><span class="wb"><button id="settingsBtn2" type="button" aria-label="Settings"></button><button id="signout2" type="button" aria-label="Sign out"></button></span></div>
     <div class="top">
       <div class="crumbs" id="crumbs" aria-label="Current folder"></div>
       <div class="tools" id="tools">
@@ -920,7 +925,7 @@ body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
 (function(){
 "use strict";
 var ROLE=window.__ROLE||"public", ME=window.__ME||"", ADMIN=ROLE==="admin", STAFF=ADMIN||ROLE==="uploader", MEMBER=ROLE==="member",
-    PUBLICV=ROLE==="public", APPROVED=STAFF||!!window.__APPROVED, GUEST=!STAFF, BRAND=window.__BRAND||"LUMIO";
+    PUBLICV=ROLE==="public", APPROVED=STAFF||!!window.__APPROVED, GUEST=!STAFF, BRAND=window.__BRAND||"Nahoko";
 if(GUEST)document.body.className+=" guest";
 var SECTIONS=[
   {id:"movies",label:"Movies",ic:"film"},
@@ -1936,8 +1941,8 @@ async function renderProfiles(){
 }
 async function drawFavorites(c){
   var box=el("div","favpage");c.appendChild(box);
-  if(PUBLICV){var lk=el("div","rempty");lk.appendChild(svg("heart","big"));lk.appendChild(el("b","","Favorites need an email"));
-    lk.appendChild(el("span","","Sign in with your email to keep the films and series you like, on every device. No password: we send you a code."));
+  if(PUBLICV){var lk=el("div","lockcard");var ic=el("div","lockic");ic.appendChild(svg("heart"));lk.appendChild(ic);lk.appendChild(el("b","","Your favorites, everywhere"));
+    lk.appendChild(el("span","","Sign in with your email to save the films and series you like and find them on every device. No password: we send you a code."));
     var sb0=el("button","btn primary","Sign in");sb0.type="button";sb0.onclick=function(){signInDialog();};lk.appendChild(sb0);box.appendChild(lk);return;}
   if(!FAV.length){var e=el("div","rempty");e.appendChild(svg("heart","big"));e.appendChild(el("b","","No favorites yet"));
     e.appendChild(el("span","","Tap the heart on any film or series to keep it here."));
@@ -2558,7 +2563,26 @@ async function pump(){
   }
   running=false;window.onbeforeunload=null;updateSummary();listDir();watchMeta();toast(jobs.some(function(j){return j.state==="fail";})?"Some files failed. Use Retry failed.":"Uploads finished. Jellyfin adds new files to the library in about a minute.");
 }
+var VIDEO_RE=/\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|webm)$/i;
+function smartPlace(items,where){      // a loose video at the top of Movies or Series gets the folders Jellyfin expects
+  var lib=(where||"").split("/");if(lib.length!==1||(lib[0]!=="movies"&&lib[0]!=="shows"))return items;
+  var placed={};      // file base name -> folder
+  items.forEach(function(it){
+    if(it.rel.indexOf("/")>=0||!VIDEO_RE.test(it.rel))return;
+    var base=it.rel.replace(/\.[^.]+$/,""),ext=it.rel.slice(base.length),dir;
+    if(lib[0]==="movies"){var cf=cleanFolder(base),nm=cf.title+(cf.year?" ("+cf.year+")":"");dir=nm;it.rel=nm+"/"+nm+ext;}
+    else{var m=base.match(/^(.*?)[\s._-]+S(\d{1,2})E\d{1,3}/i);if(!m)return;var show=cleanFolder(m[1]).title;dir=show+"/Season "+("0"+parseInt(m[2],10)).slice(-2);it.rel=dir+"/"+it.rel;}
+    placed[base]={dir:dir,name:it.rel.split("/").pop().replace(/\.[^.]+$/,"")};
+  });
+  items.forEach(function(it){      // subtitles and extras named like the video follow it ("Film.en.srt")
+    if(it.rel.indexOf("/")>=0)return;
+    Object.keys(placed).forEach(function(b){if(it.rel.indexOf(b)===0&&it.rel.indexOf("/")<0){var p=placed[b];it.rel=p.dir+"/"+p.name+it.rel.slice(b.length);}});
+  });
+  var n=Object.keys(placed).length;if(n)toast(n===1?"Put in its own folder: "+placed[Object.keys(placed)[0]].dir:n+" files put in their own folders");
+  return items;
+}
 function enqueue(items,opts){   // items: [{file, rel}] rel relative to the folder (opts.cwd, default: the open one)
+  items=smartPlace(items,(opts&&opts.cwd)||cwd);
   if(!running&&jobs.every(function(j){return j.state==="done";}))clearJobs();   // a finished batch makes room for the next one
   toast("Upload started. Progress is at the top.");precheck(items,opts).then(function(){pump();});
 }
@@ -2577,11 +2601,11 @@ async function precheck(items,opts){   // ask the server first what it already h
 /* ---------- upload progress pill (top bar) ---------- */
 var pill=$("pill"),qEl=$("queue");
 function pillUpdate(s){
-  if(!s){pill.hidden=true;qEl.hidden=true;document.title="LUMIO";return;}
+  if(!s){pill.hidden=true;qEl.hidden=true;document.title="Nahoko";return;}
   pill.hidden=false;pill.classList.toggle("fin",s.finished&&!s.fail);pill.classList.toggle("err",s.finished&&s.fail>0);
   $("ring").style.setProperty("--p",s.finished?100:s.pct);
   $("pillT").textContent=s.finished?(s.fail?s.fail+" failed":"Done"):s.pct+"%";
-  document.title=s.finished?"LUMIO":s.pct+"% · Uploading";
+  document.title=s.finished?"Nahoko":s.pct+"% · Uploading";
 }
 pill.onclick=function(e){e.stopPropagation();qEl.hidden=!qEl.hidden;};
 document.addEventListener("click",function(e){if(!qEl.hidden&&e.composedPath().indexOf(qEl)<0&&e.composedPath().indexOf(pill)<0)qEl.hidden=true;});

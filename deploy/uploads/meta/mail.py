@@ -9,7 +9,7 @@ PORT = int(os.environ.get("SMTP_PORT", "587") or 587)
 USER = os.environ.get("SMTP_USER", "")
 PASS = os.environ.get("SMTP_PASS", "")
 FROM = os.environ.get("MAIL_FROM", "")
-BRAND = os.environ.get("BRAND", "LUMIO")
+BRAND = os.environ.get("BRAND", "Nahoko")
 
 def configured():
     return bool(HOST and FROM)
