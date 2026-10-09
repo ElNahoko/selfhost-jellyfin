@@ -871,8 +871,9 @@ def _bulk_run():
             for kind in KINDS:
                 for i in sorted(cd[code].get(kind, ())): 
                     if i in cat["items"]: add(i)
+        for it in sorted(cat["items"].values(), key=lambda x: -x["v"]): add(it["id"])     # then everything else, best known first
         for k in range(0, len(order), 40):
-            chunk = [i for i in order[k:k + 40] if i["id"] not in _mem["titles"] and time.time() - _failed.get(i["id"], 0) > 1800]
+            chunk = [i for i in order[k:k + 40] if i["id"] not in _mem["titles"] and time.time() - _failed.get(i["id"], 0) > 86400]
             if chunk and _resolver: _resolver(chunk)
     finally:
         _bulk["running"] = False
@@ -885,7 +886,8 @@ def ensure_all():
     """Make sure every title in the catalogue gets a poster, a few at a time, in the background."""
     if _bulk["running"] or time.time() - _bulk["t"] < 60 or not _mem["cat"]: return
     _bulk["t"] = time.time()
-    if all(i in _mem["titles"] for i in _mem["cat"].get("rowids", [])): return
+    now = time.time()
+    if all(i in _mem["titles"] or now - _failed.get(i, 0) < 86400 for i in _mem["cat"]["items"]): return     # every title has a poster or was tried today
     _bulk["running"] = True
     threading.Thread(target=_bulk_run, daemon=True).start()
 

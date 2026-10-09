@@ -848,6 +848,14 @@ html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
   .modal{padding:8px 8px max(8px,env(safe-area-inset-bottom))}
   .dlg.wide,.dscroll{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
 }
+body.guest .side{display:none}
+body.guest .app{grid-template-columns:minmax(0,1fr)}
+body.guest main{width:100%;max-width:1560px;margin:0 auto}
+body.guest .mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 0}
+body.guest .mtop .brandm{display:flex;align-items:center;gap:10px}
+.gacct{display:flex;align-items:center;gap:10px;min-width:0}
+.gacct .gme{color:var(--muted);font-size:.86rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:860px){.gacct .gme{display:none}}
 </style>
 </head>
 <body>
@@ -1489,11 +1497,13 @@ async function whoAmI(){      // never opens a dialog (it would replace the scre
   if(GUEST)return ME;
   return me()||ME||"admin";
 }
-var FAV=[];try{FAV=JSON.parse(localStorage.getItem("lumio_fav")||"[]");}catch(e){FAV=[];}
+var FAV=[];if(!PUBLICV){try{FAV=JSON.parse(localStorage.getItem("lumio_fav")||"[]");}catch(e){FAV=[];}}
 function favSave(){try{localStorage.setItem("lumio_fav",JSON.stringify(FAV.slice(0,3000)));}catch(e){}}
 function isFav(id){return !!id&&FAV.indexOf(id)>=0;}
 async function favToggle(it){
-  if(!it.id)return false;var on=!isFav(it.id);
+  if(!it.id)return false;
+  if(PUBLICV){signInDialog("Favorites need an email: sign in and they follow you on every device. No password, we send you a code.");return false;}
+  var on=!isFav(it.id);
   if(on)FAV.unshift(it.id);else FAV=FAV.filter(function(x){return x!==it.id;});favSave();refreshTiles();
   toast(on?"Saved to your favorites":"Removed from your favorites");
   if(MEMBER){try{FAV=await api("POST","/_meta/favorites",on?{add:[it.id]}:{remove:[it.id]});favSave();}catch(e){}}
@@ -1529,8 +1539,8 @@ function signInDialog(why){
 }
 async function sendRequest(item,season){
   if(!APPROVED){
-    if(PUBLICV)signInDialog("Sign in with your email to ask for titles. No password: we send you a code.");
-    else toast("Requests open once the owner approves your account. Your favorites are saved meanwhile.");
+    if(PUBLICV)signInDialog("To request a film or a series, sign in with your email. No password: we send you a code.");
+    else toast("Thanks! Requests open once the owner approves your account.");
     return false;
   }
   var who=await whoAmI();if(!who)return false;
@@ -1688,13 +1698,13 @@ async function showTitle(it0,opts){
     if(it.g&&it.g.length){var tg=el("div","dtags");it.g.slice(0,4).forEach(function(g){tg.appendChild(el("span","tag",g));});rrow.appendChild(tg);}
     if(rrow.childNodes.length)b.appendChild(rrow);
     var acts=el("div","acts wrap"),s=stateOf(it);
-    var rq=el("button","btn "+(s||!APPROVED?"":"primary"));rq.type="button";rq.disabled=!!s||(MEMBER&&!APPROVED);rq.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
-    rq.appendChild(el("span","",s==="have"?"In the library":s==="asked"?"Requested":APPROVED?"Request":PUBLICV?"Sign in to request":"Requests after approval"));
-    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=MEMBER&&!APPROVED;};
+    var rq=el("button","btn "+(s?"":"primary"));rq.type="button";rq.disabled=!!s;rq.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
+    rq.appendChild(el("span","",s==="have"?"In the library":s==="asked"?"Requested":"Request"));
+    rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=false;};
     var fb=el("button","btn"+(isFav(it.id)?" favon":""));fb.type="button";fb.hidden=!it.id;fb.appendChild(svg("heart"));fb.appendChild(el("span","",isFav(it.id)?"Saved":"Save"));
     fb.onclick=async function(){await favToggle(it);paint();};
     var tr=el("button","btn");tr.type="button";tr.appendChild(svg("play"));tr.appendChild(el("span","","Trailer"));tr.onclick=function(){playTrailer(it);};
-    if(APPROVED){acts.appendChild(rq);acts.appendChild(fb);}else{acts.appendChild(fb);acts.appendChild(rq);}acts.appendChild(tr);
+    acts.appendChild(rq);acts.appendChild(fb);acts.appendChild(tr);
     if(opts&&opts.lucky){var an=el("button","btn");an.type="button";an.appendChild(svg("dice"));an.appendChild(el("span","","Another one"));
       an.onclick=async function(){an.disabled=true;var n=await luckyPick();if(n){it=n;it._loaded=1;paint();fetchEps();}else an.disabled=false;};acts.insertBefore(an,acts.firstChild);}
     if(it.id){var im=el("a","btn","IMDb");im.href="https://www.imdb.com/title/"+it.id+"/";im.target="_blank";im.rel="noopener noreferrer";acts.appendChild(im);}
@@ -1926,15 +1936,17 @@ async function renderProfiles(){
 }
 async function drawFavorites(c){
   var box=el("div","favpage");c.appendChild(box);
+  if(PUBLICV){var lk=el("div","rempty");lk.appendChild(svg("heart","big"));lk.appendChild(el("b","","Favorites need an email"));
+    lk.appendChild(el("span","","Sign in with your email to keep the films and series you like, on every device. No password: we send you a code."));
+    var sb0=el("button","btn primary","Sign in");sb0.type="button";sb0.onclick=function(){signInDialog();};lk.appendChild(sb0);box.appendChild(lk);return;}
   if(!FAV.length){var e=el("div","rempty");e.appendChild(svg("heart","big"));e.appendChild(el("b","","No favorites yet"));
-    e.appendChild(el("span","","Tap the heart on any film or series to keep it here."+(PUBLICV?" They are saved in this browser; sign in with your email to keep them on every device.":"")));
+    e.appendChild(el("span","","Tap the heart on any film or series to keep it here."));
     if(PUBLICV){var sb=el("button","btn primary","Sign in");sb.type="button";sb.onclick=function(){signInDialog();};e.appendChild(sb);}
     box.appendChild(e);return;}
   box.appendChild(el("div","hint","Loading…"));
   var items=[];try{items=await api("GET","/_meta/titles?ids="+FAV.slice(0,200).join(","));}catch(e){}
   if(!box.isConnected)return;box.innerHTML="";
   var order={};FAV.forEach(function(id,i){order[id]=i;});items.sort(function(a,b){return order[a.id]-order[b.id];});
-  if(PUBLICV){var note=el("div","favnote");note.appendChild(el("span","","Saved in this browser only."));var sb2=el("button","btn sm","Sign in to keep them everywhere");sb2.type="button";sb2.onclick=function(){signInDialog();};note.appendChild(sb2);box.appendChild(note);}
   [["movie","Films"],["series","Series"]].forEach(function(k){
     var its=items.filter(function(x){return x.k===k[0];});if(!its.length)return;
     var h2=el("h2","sec");h2.appendChild(svg(k[0]==="movie"?"film":"tv","ci"));h2.appendChild(el("span","",k[1]+" · "+its.length));box.appendChild(h2);
@@ -2701,7 +2713,13 @@ $("signout").onclick=signOut;$("signout2").onclick=PUBLICV?function(){signInDial
 $("signin").onclick=function(){signInDialog();};
 $("settingsBtn").onclick=$("settingsBtn2").onclick=function(){go("settings");};
 if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
-if(PUBLICV){$("signout").hidden=true;$("signin").hidden=false;$("signout2").title="Sign in";$("signout2").setAttribute("aria-label","Sign in");document.querySelector(".who .wd").style.background="var(--muted)";}
+if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
+  var mt=document.querySelector(".mtop"),acc=el("div","gacct");
+  if(PUBLICV){var si=el("button","btn primary","Sign in");si.type="button";si.onclick=function(){signInDialog();};acc.appendChild(si);}
+  else{acc.appendChild(el("span","gme",ME));var so=el("button","btn sm","Sign out");so.type="button";so.onclick=signOut;acc.appendChild(so);}
+  if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});mt.appendChild(acc);}
+  document.title=BRAND+" · films and series";
+}
 var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
 function upWhat(){return UPWHAT[cwd.split("/")[0]]||"";}
 function paintUpload(){var w=upWhat();$("upT").textContent=w?"Upload "+w:"Upload";}
