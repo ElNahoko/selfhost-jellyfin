@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 5      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 6      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -89,6 +89,7 @@ def _anime_job():
         os.remove(ap)
         tmp = ANIME_F + ".tmp"
         json.dump(sorted(found), open(tmp, "w")); os.replace(tmp, ANIME_F)
+        if found != _anime["s"]: _anime["mt"] = 0; _anime_set(); refresh_rows()
     except Exception as e:
         _state["error"] = ("anime: " + str(e))[:200]
     finally:
@@ -112,9 +113,11 @@ def _rules(kind, this):
     R = []
     def add(id_, name, fn, sort=W, home=False, pool="main"):
         R.append({"id": id_, "name": name, "fn": fn, "sort": sort, "home": home, "pool": pool})
-    add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True)
+    add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1, V, True, "all")
+    add("fresh", "Just released", lambda i: i["y"] == this, V, True, "all")
+    add("newanime", "Latest anime", lambda i: i["y"] and i["y"] >= this - 1 and i["id"] in _anime_set(), V, True, "all")
     add("top", "Top rated", lambda i: True, W, True)
-    add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True)
+    add("popular", "Popular", lambda i: i["y"] and i["y"] >= this - 15, V, True, "all")
     add("anime", "Anime", lambda i: i["id"] in _anime_set(), W, True, "all")
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
@@ -162,6 +165,31 @@ def _rows(path):
         for line in f:
             yield line.rstrip("\n").split("\t")
 
+def _make_rows(items, this):
+    """The shelves: every rule applied to the titles of its kind (the "main" pool needs many votes, "all" takes everything)."""
+    rows, rowids = {"movie": [], "series": []}, []
+    for kind in KINDS:
+        everyone = [i for i in items.values() if i["k"] == kind]
+        main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
+        for rule in _rules(kind, this):
+            pool = everyone if rule["pool"] == "all" else main
+            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:2000]
+            if len(lst) < 8: continue
+            rows[kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
+            rowids.extend(i["id"] for i in lst)
+    return rows, list(dict.fromkeys(rowids))
+
+def refresh_rows():
+    """Recomputes the shelves from the catalogue in memory (after the anime list changed, for example) and saves them."""
+    cat = _mem["cat"]
+    if not cat: return
+    with _lock:
+        cat["rows"], cat["rowids"] = _make_rows(cat["items"], date.today().year)
+        tmp = CAT + ".tmp"
+        with open(tmp, "w") as f: json.dump(cat, f, separators=(",", ":"))
+        os.replace(tmp, CAT)
+    _cnt["t"] = 0
+
 def _build():
     os.makedirs(DBDIR, exist_ok=True)
     rp, bp = os.path.join(DBDIR, "ratings.tsv.gz"), os.path.join(DBDIR, "basics.tsv.gz")
@@ -172,34 +200,29 @@ def _build():
             v = int(r[2])
         except ValueError:
             continue
-        if v >= 3000: ratings[r[0]] = (float(r[1]), v)
+        if v >= 500: ratings[r[0]] = (float(r[1]), v)
     _download("title.basics.tsv.gz", bp)
     items = {}
     want = {t: k for k, ts in KINDS.items() for t in ts}
+    this = date.today().year
     for r in _rows(bp):
         if r[0] in ratings and r[1] in want and r[4] == "0":
             rt, v = ratings[r[0]]
-            anim = "Animation" in r[8]
-            if v < ((8000 if anim else 20000) if want[r[1]] == "movie" else (3000 if anim else 8000)): continue
+            anim, recent = "Animation" in r[8], r[5].isdigit() and int(r[5]) >= this - 1
+            if want[r[1]] == "movie": need = (1500 if anim else 2500) if recent else (8000 if anim else 20000)
+            else: need = (500 if anim else 1000) if recent else (3000 if anim else 8000)
+            if v < need: continue
             items[r[0]] = {"id": r[0], "k": want[r[1]], "tt": r[1], "n": r[2], "y": int(r[5]) if r[5].isdigit() else None,
                            "rt": int(r[7]) if r[7].isdigit() else None, "g": [] if r[8] == "\\N" else r[8].split(","), "r": rt, "v": v}
     os.remove(bp); os.remove(rp)
-    this = date.today().year
     out = {"built": int(time.time()), "schema": SCHEMA, "items": {}, "rows": {"movie": [], "series": []}, "rowids": []}
     for kind in KINDS:
         everyone = [i for i in items.values() if i["k"] == kind]
-        main = [i for i in everyone if i["v"] >= MIN_VOTES[kind]]
         C, m = 6.8, MIN_VOTES[kind] * 2
         for i in everyone: i["w"] = (i["v"] / (i["v"] + m)) * i["r"] + (m / (i["v"] + m)) * C
-        for rule in _rules(kind, this):
-            pool = everyone if rule["pool"] == "all" else main
-            lst = sorted([i for i in pool if rule["fn"](i)], key=lambda i: -i[rule["sort"]])[:2000]
-            if len(lst) < 8: continue
-            out["rows"][kind].append({"id": rule["id"], "name": rule["name"], "home": rule["home"], "by": "rating" if rule["sort"] == "w" else "votes", "ids": [i["id"] for i in lst]})
-            out["rowids"].extend(i["id"] for i in lst)
+    out["rows"], out["rowids"] = _make_rows(items, this)
     for i in items.values():
         if "w" in i: out["items"][i["id"]] = {k: (round(v, 3) if k == "w" else v) for k, v in i.items()}
-    out["rowids"] = list(dict.fromkeys(out["rowids"]))
     tmp = CAT + ".tmp"
     with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
     os.replace(tmp, CAT)
@@ -534,7 +557,7 @@ def _build_cast(ids):
     _download("title.principals.tsv.gz", pp)
     batch, need = [], set()
     for r in _rows(pp):
-        if r[0] in wanted and r[3] in ("actor", "actress", "director", "writer", "creator") and r[1].isdigit() and int(r[1]) <= 10:
+        if r[0] in wanted and r[3] in ("actor", "actress", "director", "writer", "creator") and r[1].isdigit() and (int(r[1]) <= 10 or r[3] != "actor" and r[3] != "actress"):
             ch = ""
             if r[5] != "\\N":
                 try: ch = ", ".join(json.loads(r[5])[:2])
@@ -588,9 +611,20 @@ def cast_for(tid):
     except Exception:
         return None
     if not rows: return None
-    return {"directors": [n for n, k, _ in rows if k == "director"][:3],
-            "writers": [n for n, k, _ in rows if k in ("writer", "creator")][:3],
-            "cast": [{"n": n, "c": ch} for n, k, ch in rows if k in ("actor", "actress")][:8]}
+    def uniq(seq):
+        out = []
+        for x in seq:
+            if x not in out: out.append(x)
+        return out
+    cast, seen = [], {}
+    for n, k, ch in rows:
+        if k not in ("actor", "actress"): continue
+        if n in seen:
+            if ch and ch not in seen[n]["c"]: seen[n]["c"] += " / " + ch
+        else:
+            seen[n] = {"n": n, "c": ch}; cast.append(seen[n])
+    return {"directors": uniq(n for n, k, _ in rows if k == "director")[:3],
+            "writers": uniq(n for n, k, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:8]}
 
 # ---------- admin tools: counts for the sidebar, status of the background jobs, "rebuild now" ----------
 _cnt = {"t": 0, "d": {}}
