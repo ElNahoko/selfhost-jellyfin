@@ -15,10 +15,25 @@
 
 	# Caddy forwards X-Forwarded-For / -Proto / -Host automatically and handles websockets.
 	# Optional self-hosted theme files (see docs/12-theme.md). Harmless if the folder is empty.
+	# TVs (LG webOS, Samsung Tizen, ...) have an old browser and a remote control instead of a mouse, so they get
+	# plain stock Jellyfin: every theme file is answered with an empty one. Phones, tablets and computers get the theme.
+	@tv header_regexp tv User-Agent (Web0S|webOS|Tizen|SMART-TV|SmartTV|NetCast|HbbTV)
 	handle /theme/* {
-		root * /srv
 		header Cache-Control "no-cache"
-		file_server
+		handle @tv {
+			handle /theme/*.js {
+				header Content-Type "application/javascript"
+				respond "/* TV: stock Jellyfin */" 200
+			}
+			handle {
+				header Content-Type "text/css"
+				respond "/* TV: stock Jellyfin */" 200
+			}
+		}
+		handle {
+			root * /srv
+			file_server
+		}
 	}
 	handle {
 		reverse_proxy jellyfin:8096

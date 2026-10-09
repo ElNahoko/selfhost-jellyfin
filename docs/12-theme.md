@@ -39,6 +39,11 @@ It downloads the pinned theme, copies our files, enables the banner helper and r
 - Browse rows are cached for ten minutes per browser tab; Continue Watching and Next Up are always fresh.
 - All of this runs in the **web** client (computer, phone and tablet browsers; on a phone use *Add to Home screen*). The native Android/iOS apps and the TV app have their own screens, so they show Jellyfin's standard home.
 
+## TVs get the plain Jellyfin look (on purpose)
+The theme, the banner and the hover cards are made for a mouse or a touch screen. A TV is driven with a remote (up / down / left / right / OK), runs an old browser (an LG webOS TV reports Chrome 87, which does not know modern CSS such as `:has()`), and the banner script hides Jellyfin's own rows, which a remote can only reach through Jellyfin's own focus handling. On a TV that showed as "nothing is highlighted, I cannot move around".
+
+So the bundled `Caddyfile` answers every `/theme/*` request from a TV (user agent contains `Web0S`, `webOS`, `Tizen`, `SmartTV`, ...) with an empty file. TVs show stock Jellyfin, which is built for a remote; phones, tablets and computers get the theme. To add another TV brand, extend the `@tv` line in the `Caddyfile` and run `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
+
 ## Manual install
 (or just run the script above; this is what it does)
 On the server (after the main stack works):
