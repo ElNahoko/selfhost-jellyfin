@@ -1997,13 +1997,14 @@ async function drawFilters(){
   field("Rating",makeDD("Rating",[["","Any rating","star"],[6,"6 and up","star"],[7,"7 and up","star"],[8,"8 and up","star"]],reqF.min,function(v){reqF.min=v;apply();},true).el);
   panel.appendChild(grid);
 }
+var luckySeen=[];      // titles already suggested in this visit, so "Another one" never repeats
 async function luckyPick(again){
   try{
-    var d=await api("GET","/_meta/lucky?type="+reqKind+filterQuery()+"&seen="+luckySeen.slice(-60).join(",")+(luckyFresh?"":"&fresh=0"));
+    var d=await api("GET","/_meta/lucky?type="+reqKind+filterQuery()+"&seen="+luckySeen.slice(-60).join(","));
     if(!d||!d.id){toast("Nothing matches those filters");return null;}
     luckySeen.push(d.id);
     return d;
-  }catch(e){toast("Nothing to suggest right now");return null;}
+  }catch(e){toast(e.message==="HTTP 404"?(filtersOn()?"Nothing matches those filters":"You have seen every suggestion for now"):"Could not reach the server, try again");return null;}
 }
 function filterSummary(){
   var out=[];
