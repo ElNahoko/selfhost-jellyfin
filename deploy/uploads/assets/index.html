@@ -259,8 +259,8 @@ h2.sec{font-size:.8rem;text-transform:uppercase;letter-spacing:.09em;color:var(-
 .add.have:hover,.add.asked:hover{transform:none}
 .tile .tt{margin-top:10px;font-weight:600;font-size:.93rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .ty{color:var(--muted);font-size:.82rem}
-.dlg.wide{max-width:920px;padding:0;overflow:hidden;display:block;max-height:92vh;border-radius:22px;position:relative}
-.dscroll{max-height:92vh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.dlg.wide{max-width:920px;padding:0;overflow:hidden;display:block;max-height:92vh;max-height:92dvh;border-radius:22px;position:relative}
+.dscroll{max-height:92vh;max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
 .dscroll::-webkit-scrollbar{width:8px}.dscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:8px}
 .dclose{position:absolute;top:14px;right:14px;z-index:3;width:38px;height:38px;border-radius:50%;background:rgba(20,20,20,.72);border:1px solid rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(8px);transition:background .15s,transform .15s}
 .dclose:hover{background:rgba(255,255,255,.18);transform:scale(1.06)}
@@ -793,7 +793,7 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .drow .dv{text-align:right;white-space:nowrap}
 @media (max-width:860px){.drow{grid-template-columns:1fr auto}.drow .dv{grid-column:1/-1;text-align:left}}
 /* a series on a desktop: the top stays put, only the episode list scrolls */
-.fixedeps .dscroll{display:flex;flex-direction:column;height:92vh;overflow:hidden}
+.fixedeps .dscroll{display:flex;flex-direction:column;height:92vh;height:92dvh;overflow:auto}
 .fixedeps .dhero{flex:none;height:120px}
 .fixedeps .dmain{flex:none;margin-top:-66px;padding-bottom:10px}
 .fixedeps .dpst{width:112px}
@@ -802,10 +802,10 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .fixedeps .dtags{margin-bottom:10px}
 .fixedeps .dinfo .acts.wrap{margin-bottom:10px}
 .fixedeps .ov.clamp{-webkit-line-clamp:2}
-.fixedeps .epshost,.fixedeps .eps{flex:1;min-height:0;display:flex;flex-direction:column}
+.fixedeps .epshost,.fixedeps .eps{flex:1 0 auto;min-height:0;display:flex;flex-direction:column}
 .fixedeps .epsticky{position:static;flex:none;box-shadow:none;padding-top:6px}
 .fixedeps .heat{max-height:230px}
-.fixedeps .eplist{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;padding-bottom:12px}
+.fixedeps .eplist{flex:1;min-height:240px;overflow:auto;scrollbar-width:thin;padding-bottom:12px}
 @media (max-width:860px){.dcast{grid-column:1/-1}.srow1{flex-wrap:wrap}.srow1 b,.rbadge2{white-space:nowrap}.heat table{table-layout:fixed}.heat td{min-width:0;font-size:0;height:14px;border-radius:3px}.heat th:not(.s0):not(.s){font-size:0;height:0}.heat th.s0{width:64px}.heat th.s{font-size:.72rem;height:14px;padding:0 6px;line-height:14px}.heat table{border-spacing:2px}}
 </style>
 </head>
@@ -1541,7 +1541,7 @@ function renderEpisodes(d,host,it){
     },delay);
   }
   var start=d.seasons.findIndex(function(x){return x.n>0;});show(start<0?0:start);
-  var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860)dlg.classList.add("fixedeps");
+  var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860&&window.innerHeight>=820)dlg.classList.add("fixedeps");   // a short window scrolls as a whole instead
 }
 async function showTitle(it0,opts){
   var m=$("modal"),prev=document.activeElement,it=it0,epd=null,castd=null;m.innerHTML="";
