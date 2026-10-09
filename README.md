@@ -17,22 +17,23 @@
 ## Contents
 
 1. [What you get](#what-you-get)
-2. [Architecture](#architecture)
-3. [Two ways to follow along](#two-ways-to-follow-along)
-4. [Install flow](#install-flow)
-5. [Requirements](#requirements)
-6. [Quick start (manual)](#quick-start-manual)
-7. [How much can a small VPS stream?](#how-much-can-a-small-vps-stream)
-8. [Direct Play: the one idea that matters](#direct-play-the-one-idea-that-matters)
-9. [Security model](#security-model)
-10. [Storage layout](#storage-layout)
-11. [Repository layout](#repository-layout)
-12. [Scripts](#scripts)
-13. [Day-2 operations cheat sheet](#day-2-operations-cheat-sheet)
-14. [FAQ](#faq)
-15. [Honest limitations](#honest-limitations)
-16. [Project status](#project-status)
-17. [Contributing and license](#contributing-and-license)
+2. [Screenshots](#screenshots)
+3. [Architecture](#architecture)
+4. [Two ways to follow along](#two-ways-to-follow-along)
+5. [Install flow](#install-flow)
+6. [Requirements](#requirements)
+7. [Quick start (manual)](#quick-start-manual)
+8. [How much can a small VPS stream?](#how-much-can-a-small-vps-stream)
+9. [Direct Play: the one idea that matters](#direct-play-the-one-idea-that-matters)
+10. [Security model](#security-model)
+11. [Storage layout](#storage-layout)
+12. [Repository layout](#repository-layout)
+13. [Scripts](#scripts)
+14. [Day-2 operations cheat sheet](#day-2-operations-cheat-sheet)
+15. [FAQ](#faq)
+16. [Honest limitations](#honest-limitations)
+17. [Project status](#project-status)
+18. [Contributing and license](#contributing-and-license)
 
 ---
 
@@ -47,6 +48,19 @@
 | **Operations** | Unattended security updates, weekly config backups, disk-full alerts, `verify.sh` health check |
 | **Guidance** | Capacity maths, codec compatibility for TVs/browsers/phones, library preparation, troubleshooting |
 | **Tooling** | An offline browser **wizard** that builds your commands and tracks progress |
+
+## Screenshots
+
+What the optional [theme](docs/12-theme.md) looks like (a "Netflix-style" skin; it changes only looks, never what the server does). The home page has a rotating billboard and rows; hovering a poster shows quick actions; a click opens an info panel with a muted preview; the movie page keeps the same look; category pages get their own billboard; phones get the compact layout.
+
+| | |
+|---|---|
+| ![Home page: billboard](docs/img/screens/01-home-billboard.jpg) **Home: billboard** | ![Home page: rows](docs/img/screens/02-home-rows.jpg) **Home: rows (Continue Watching, Recently Added, ...)** |
+| ![Hover card](docs/img/screens/03-hover-card.jpg) **Hover: Play, + My list, More info** | ![Info panel](docs/img/screens/04-info-panel.jpg) **Click: info panel with preview, Details, Trailer** |
+| ![Movie page](docs/img/screens/05-details-page.jpg) **Movie page** | ![Movies category page](docs/img/screens/06-category-movies.jpg) **Category page: billboard, rows, full list** |
+| ![Phone layout](docs/img/screens/07-phone.jpg) **Phone** | ![Login page](docs/img/screens/08-login.jpg) **Login** |
+
+The screenshots were made on a throw-away demo server that contained only openly licensed films from the Blender Foundation (Sintel, Tears of Steel, Big Buck Bunny, Elephants Dream, Spring, Cosmos Laundromat, Coffee Run, Sprite Fright; Creative Commons CC BY, artwork via TMDb). The demo files were tiny placeholders, so nothing here shows real playback quality. The demo has since been deleted. The name "Lumio" is just an example: the server name and brand text are yours to change.
 
 ## Architecture
 

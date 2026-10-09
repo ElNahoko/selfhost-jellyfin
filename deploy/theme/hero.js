@@ -26,7 +26,7 @@
   };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
-  function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
+  function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); if (m < 1) return ""; return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
   function details(id, server) { window.location.hash = "#/details?id=" + id + (server ? "&serverId=" + server : ""); }
   function play(id, server) { try { sessionStorage.setItem("jfHeroPlay", id); } catch (x) {} details(id, server); }
   function href(it) { return "#/details?id=" + it.Id + (it.ServerId ? "&serverId=" + it.ServerId : ""); }
