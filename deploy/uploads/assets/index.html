@@ -660,7 +660,7 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .flag{width:26px;height:17px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.2);flex:none;display:block}
 .ddi .flag,.ddb .flag{margin-right:2px}
 .pill2 .flag{width:20px;height:13px;border-radius:3px}
-.r9{color:#46d369}.r8{color:#8ddf6a}.r7{color:#f5c518}.r6{color:#f5a524}.r5{color:#ff7b6b}
+.r9{color:#e9c25c}.r8{color:#dcc78f}.r7{color:#cfc9b9}.r6{color:#a8a296}.r5{color:#c27d70}
 .epshost:empty{display:none}
 .eps{padding:4px 30px 28px}
 .epshead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -682,9 +682,12 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .edate{color:var(--muted);font-size:.84rem;white-space:nowrap}
 .eprow.soon .et,.eprow.soon .edate{opacity:.6}
 .epsticky{position:sticky;top:0;z-index:2;background:var(--card);padding:14px 0 6px;box-shadow:0 14px 14px -14px rgba(0,0,0,.8)}
-.epline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;font-size:.86rem;color:var(--muted);margin-bottom:12px}
-.epline b{color:var(--ink);font-size:1.05rem;margin-right:14px}
-.epline>span+span::before{content:"·";margin:0 8px;opacity:.5}
+.epline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.epline b{font-size:1.1rem}
+.epfacts{color:var(--muted);font-size:.88rem}
+.rbadge2{display:inline-block;font-weight:800;font-size:.82rem;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1)}
+.epsub{display:flex;flex-wrap:wrap;gap:4px 22px;color:var(--muted);font-size:.82rem;margin-bottom:12px}
+.epbest b{font-weight:800}
 .heat{overflow:auto;max-height:280px;scrollbar-width:thin;padding-bottom:2px}
 .heat table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;margin-left:-3px}
 .heat th{font-size:.72rem;color:var(--muted);font-weight:600;text-align:center;height:18px;padding:0;border:0}
@@ -695,13 +698,14 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .heat tr.on th.s{background:#fff;color:#111}
 .heat td{height:32px;font-size:.8rem;font-weight:700;border-radius:7px;color:#fff;background:var(--card2);text-align:center;padding:0;border:0;transition:filter .15s}
 .heat tr:hover td:not(.hx){filter:brightness(1.15)}
-.heat tr.on td:not(.hx){box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
+.heat tr.on td:not(.hx){box-shadow:inset 0 0 0 2px rgba(255,255,255,.85)}
 .heat td.hx{background:transparent}.heat td.hn{color:var(--muted)}
-.heat td.r9{background:#1d7f36}.heat td.r8{background:#43a047}.heat td.r7{background:#c9b11f;color:#1a1a1a}.heat td.r6{background:#d9822b;color:#1a1a1a}.heat td.r5{background:#c43c2f}
+.heat td{color:#f1ece0;background:hsl(222,9%,19%)}
 .heathint{font-size:.74rem;color:var(--muted);margin:4px 0 8px;text-align:right}
-.shead2{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 6px}
-.shead2 b{font-size:1rem}.shead2 .sinfo{margin:0;flex:1}
-.dcast{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.shead2{margin:4px 0 6px}
+.srow1{display:flex;align-items:center;gap:10px}.srow1 b{font-size:1rem}.srow1 .sreq{margin-left:auto}
+.shead2 .sinfo{display:block;margin:3px 0 0;color:var(--muted);font-size:.84rem}
+.dcast{margin-top:14px;display:flex;flex-direction:column;gap:6px}
 .kv{display:flex;gap:10px;font-size:.92rem;align-items:baseline}.klab{color:var(--muted);flex:none;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
 .castrow{display:flex;gap:8px;flex-wrap:wrap}
 .castchip{display:inline-flex;flex-direction:column;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.84rem;min-width:0;max-width:170px}
@@ -739,6 +743,21 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .drow .dl span,.drow .dv span{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
 .drow .dv{text-align:right;white-space:nowrap}
 @media (max-width:860px){.drow{grid-template-columns:1fr auto}.drow .dv{grid-column:1/-1;text-align:left}}
+/* a series on a desktop: the top stays put, only the episode list scrolls */
+.fixedeps .dscroll{display:flex;flex-direction:column;height:92vh;overflow:hidden}
+.fixedeps .dhero{flex:none;height:120px}
+.fixedeps .dmain{flex:none;margin-top:-66px;padding-bottom:10px}
+.fixedeps .dpst{width:112px}
+.fixedeps .dinfo{padding-top:64px}
+.fixedeps .dinfo h3{font-size:1.35rem;margin-bottom:4px}
+.fixedeps .dtags{margin-bottom:10px}
+.fixedeps .dinfo .acts.wrap{margin-bottom:10px}
+.fixedeps .ov.clamp{-webkit-line-clamp:2}
+.fixedeps .epshost,.fixedeps .eps{flex:1;min-height:0;display:flex;flex-direction:column}
+.fixedeps .epsticky{position:static;flex:none;box-shadow:none;padding-top:6px}
+.fixedeps .heat{max-height:230px}
+.fixedeps .eplist{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;padding-bottom:12px}
+@media (max-width:860px){.dcast{grid-column:1/-1}.srow1{flex-wrap:wrap}.srow1 b,.rbadge2{white-space:nowrap}.heat table{table-layout:fixed}.heat td{min-width:0;font-size:0;height:14px;border-radius:3px}.heat th:not(.s0):not(.s){font-size:0;height:0}.heat th.s0{width:64px}.heat th.s{font-size:.72rem;height:14px;padding:0 6px;line-height:14px}.heat table{border-spacing:2px}}
 </style>
 </head>
 <body>
@@ -1384,16 +1403,24 @@ async function loadEpisodes(id){
 function fmtMins(m){if(!m)return "";var h=Math.floor(m/60),mm=Math.round(m%60);return h?(h+" h"+(mm?" "+mm+" min":"")):mm+" min";}
 function fmtD(iso,day){if(!iso)return "";var d=new Date(iso+"T00:00:00");if(isNaN(d))return iso;return d.toLocaleDateString("en-GB",day?{day:"numeric",month:"short",year:"numeric"}:{month:"short",year:"numeric"});}
 function ehc(icon,text,val,cls){var c=el("span","ehc");c.appendChild(svg(icon));c.appendChild(el("span","",text));if(val)c.appendChild(el("b",cls||"",val));return c;}
+function heatStyle(r){      // slate for ordinary episodes, gold for the great ones; text flips dark on bright gold
+  var t=Math.max(0,Math.min(1,(r-6.5)/3.2)),c0=[44,48,58],c1=[228,180,74];
+  var c=c0.map(function(v,i){return Math.round(v+(c1[i]-v)*t);});
+  return "background:rgb("+c.join(",")+");color:"+(t>.62?"#1b1508":"#f1ece0");
+}
 function renderEpisodes(d,host,it){
   var box=el("section","eps"),top=el("div","epsticky"),line=el("div","epline");
-  function li(t,cls){line.appendChild(el("span",cls||"",t));}
   line.appendChild(el("b","","Episodes"));
-  if(d.season_count)li(plural(d.season_count,"season"));li(plural(d.episode_count,"episode"));
-  if(d.minutes)li(fmtMins(d.minutes)+" to watch");if(d.avg)li("★ "+d.avg.toFixed(1)+" average",rcls(d.avg));
-  if(d.premiered)li(d.premiered.slice(0,4)+(d.ended?"–"+d.ended.slice(0,4):"–")+(d.status==="Running"?" · still airing":""));
-  if(d.best)li("Best: S"+pad2(d.best[0])+"E"+pad2(d.best[1])+(d.best[2]?" "+d.best[2]:"")+" ★ "+d.best[3].toFixed(1),rcls(d.best[3]));
-  if(d.next)li("Next: S"+pad2(d.next[0])+"E"+pad2(d.next[1])+" on "+fmtD(d.next[2],true));
+  if(d.avg)line.appendChild(el("span","rbadge2 "+rcls(d.avg),"★ "+d.avg.toFixed(1)));
+  var facts=[];if(d.season_count)facts.push(plural(d.season_count,"season"));facts.push(plural(d.episode_count,"episode"));if(d.minutes)facts.push(fmtMins(d.minutes));
+  line.appendChild(el("span","epfacts",facts.join(" · ")));
   top.appendChild(line);
+  var sub2=el("div","epsub"),bits2=[];
+  if(d.premiered)bits2.push(d.premiered.slice(0,4)+(d.ended?" – "+d.ended.slice(0,4):" – now")+(d.status==="Running"?", still airing":""));
+  if(d.next)bits2.push("next episode S"+pad2(d.next[0])+"E"+pad2(d.next[1])+" on "+fmtD(d.next[2],true));
+  if(bits2.length)sub2.appendChild(el("span","",bits2.join("  ·  ")));
+  if(d.best){var bb=el("span","epbest");bb.appendChild(el("span","","Best episode: S"+pad2(d.best[0])+"E"+pad2(d.best[1])+(d.best[2]?" "+d.best[2]:"")));bb.appendChild(el("b",rcls(d.best[3])," ★ "+d.best[3].toFixed(1)));sub2.appendChild(bb);}
+  if(sub2.childNodes.length)top.appendChild(sub2);
   var cur=-1,rowTr=[],btns=[],hw=null;
   var maxE=Math.max.apply(null,d.seasons.map(function(x){return Math.max.apply(null,x.eps.map(function(e){return e[0]||0;}));}));
   if(d.seasons.length>1&&maxE<=30&&d.seasons.length<=40){      // the rating map: a row per season, a cell per episode; a row opens that season
@@ -1402,7 +1429,7 @@ function renderEpisodes(d,host,it){
     d.seasons.forEach(function(sn,si){
       var tr=el("tr"),th=el("th","s",sn.n===0?"Specials":"Season "+sn.n);tr.appendChild(th);rowTr.push(tr);tr.onclick=function(){show(si);};
       var byN={};sn.eps.forEach(function(e){byN[e[0]]=e;});
-      for(var j=1;j<=maxE;j++){var e=byN[j],td=el("td",e?(e[1]?rcls(e[1]):"hn"):"hx",e&&e[1]?e[1].toFixed(1):"");
+      for(var j=1;j<=maxE;j++){var e=byN[j],td=el("td",e?(e[1]?"":"hn"):"hx",e&&e[1]?e[1].toFixed(1):"");if(e&&e[1])td.style.cssText=heatStyle(e[1]);
         if(e)td.title="S"+pad2(sn.n)+"E"+pad2(e[0])+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");
         tr.appendChild(td);}
       tb.appendChild(tr);
@@ -1414,8 +1441,8 @@ function renderEpisodes(d,host,it){
     d.seasons.forEach(function(sn,i){var b=el("button","spill");b.type="button";b.appendChild(el("span","",sn.n===0?"Specials":"Season "+sn.n));if(sn.avg)b.appendChild(el("span","rp "+rcls(sn.avg),"★ "+sn.avg.toFixed(1)));b.onclick=function(){show(i);};pills.appendChild(b);btns.push(b);});
     top.appendChild(pills);
   }
-  var shead=el("div","shead2"),stitle=el("b",""),sinfo=el("span","sinfo",""),reqb=el("button","btn sm sreq");reqb.type="button";reqb.hidden=true;
-  shead.appendChild(stitle);shead.appendChild(sinfo);shead.appendChild(reqb);top.appendChild(shead);
+  var shead=el("div","shead2"),stitle=el("b",""),sbadge=el("span","rbadge2"),sinfo=el("span","sinfo",""),reqb=el("button","btn sm sreq");reqb.type="button";reqb.hidden=true;
+  var srow1=el("div","srow1");srow1.appendChild(stitle);srow1.appendChild(sbadge);srow1.appendChild(reqb);shead.appendChild(srow1);shead.appendChild(sinfo);top.appendChild(shead);
   var list=el("div","eplist");box.appendChild(top);box.appendChild(list);host.appendChild(box);
   function updReq(sn){
     if(!it||!it.n||!(sn.n>0)){reqb.hidden=true;return;}
@@ -1428,9 +1455,11 @@ function renderEpisodes(d,host,it){
     if(i===cur)return;var delay=cur<0?0:110;cur=i;
     rowTr.forEach(function(t,j){t.classList.toggle("on",j===i);});btns.forEach(function(b,j){b.classList.toggle("on",j===i);});
     var sn=d.seasons[i],bits=[plural(sn.c,"episode")];
-    if(sn.avg)bits.push("★ "+sn.avg.toFixed(1));if(sn.minutes)bits.push(fmtMins(sn.minutes));
-    if(sn.first)bits.push(fmtD(sn.first)+(sn.last&&sn.last.slice(0,7)!==sn.first.slice(0,7)?" – "+fmtD(sn.last):""));
-    stitle.textContent=d.season_count?(sn.n===0?"Specials":"Season "+sn.n):"All episodes";sinfo.textContent=bits.join(" · ");updReq(sn);
+    if(sn.minutes)bits.push(fmtMins(sn.minutes));
+    if(sn.first){var f1=fmtD(sn.first),l1=sn.last?fmtD(sn.last):"";bits.push(l1&&l1!==f1?(sn.first.slice(0,4)===sn.last.slice(0,4)?f1.split(" ")[0]+" – "+l1:f1+" – "+l1):f1);}
+    stitle.textContent=d.season_count?(sn.n===0?"Specials":"Season "+sn.n):"All episodes";
+    sbadge.hidden=!sn.avg;if(sn.avg){sbadge.className="rbadge2 "+rcls(sn.avg);sbadge.textContent="★ "+sn.avg.toFixed(1);}
+    sinfo.textContent=bits.join("  ·  ");updReq(sn);
     list.classList.remove("in");
     setTimeout(function(){
       if(cur!==i)return;list.innerHTML="";var today=new Date().toISOString().slice(0,10);
@@ -1444,6 +1473,7 @@ function renderEpisodes(d,host,it){
     },delay);
   }
   var start=d.seasons.findIndex(function(x){return x.n>0;});show(start<0?0:start);
+  var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860)dlg.classList.add("fixedeps");
 }
 async function showTitle(it0,opts){
   var m=$("modal"),prev=document.activeElement,it=it0,epd=null,castd=null;m.innerHTML="";
@@ -1484,7 +1514,7 @@ async function showTitle(it0,opts){
       function kv(k,v){var r=el("div","kv");r.appendChild(el("span","klab",k));r.appendChild(el("span","",v));cb.appendChild(r);}
       if((castd.directors||[]).length)kv(isSeries()?"Director":"Directed by",castd.directors.join(", "));
       else if((castd.writers||[]).length)kv(isSeries()?"Created by":"Written by",castd.writers.join(", "));
-      if((castd.cast||[]).length){var row=el("div","castrow");castd.cast.forEach(function(c){var ch=el("span","castchip");ch.appendChild(el("b","",c.n));if(c.c)ch.appendChild(el("span","",c.c));row.appendChild(ch);});cb.appendChild(row);}
+      if((castd.cast||[]).length){var seenC={},names=[];castd.cast.forEach(function(c){var key=(c.c||c.n).split(" / ")[0].toLowerCase();if(seenC[key])return;seenC[key]=1;names.push(c.n);});kv("Cast",names.slice(0,6).join(", "));}
       b.appendChild(cb);
     }
     main.appendChild(b);sc.appendChild(main);
