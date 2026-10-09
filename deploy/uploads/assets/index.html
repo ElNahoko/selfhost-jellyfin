@@ -724,6 +724,8 @@ details.extras>summary{font-weight:600;color:var(--muted)}
 .heatlegend>span{display:inline-flex;align-items:center;gap:5px}.heatlegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .heatlegend .heathint{margin:0 0 0 auto}
 .heathint{font-size:.74rem;color:var(--muted);margin:4px 0 8px;text-align:right}
+.heat.tight td{font-size:.66rem;height:26px;border-radius:5px}.heat.tight th{font-size:.62rem}
+.heat.dense td{font-size:0;height:22px;border-radius:4px}.heat.dense th:not(.s0):not(.s){font-size:0;height:4px}
 .heat.vert{max-height:320px}
 .epsplit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 22px;align-items:start}
 .mapcol{display:flex;flex-direction:column;min-height:0}
@@ -1471,9 +1473,9 @@ function renderEpisodes(d,host,it){
   if(sub2.childNodes.length)top.appendChild(sub2);
   var cur=-1,rowTr=[],btns=[],hw=null;
   var maxE=Math.max.apply(null,d.seasons.map(function(x){return Math.max.apply(null,x.eps.map(function(e){return e[0]||0;}));}));
-  var vert=maxE>16&&d.seasons.length<=14;
-  if(d.seasons.length>1&&(maxE<=16||vert)&&d.seasons.length<=40){      // the rating map; long seasons run downwards (a column per season), short ones across
-    hw=el("div","heat"+(vert?" vert":""));var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s0",""));
+  var vert=false;      // one layout for every show: a row per season, like the series everyone knows
+  if(d.seasons.length>1&&maxE<=40&&d.seasons.length<=40){      // the rating map; long seasons run downwards (a column per season), short ones across
+    hw=el("div","heat"+(vert?" vert":"")+(maxE>26?" dense":maxE>16?" tight":""));var tb=el("table"),hr=el("tr");hr.appendChild(el("th","s0",""));
     var cells=d.seasons.map(function(){return [];});
     if(vert){
       d.seasons.forEach(function(sn,si){var th=el("th","sc",sn.n===0?"Sp":"S"+sn.n);th.onclick=function(){show(si);};hr.appendChild(th);cells[si].push(th);});tb.appendChild(hr);
