@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 12      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 14      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -117,11 +117,13 @@ def ensure_anime():
 
 def _rules(kind, this):
     g = lambda i, *gs: any(x in i["g"] for x in gs)
-    DARK = ("Horror", "Thriller", "Crime", "War", "Mystery")
-    def feel(i, rmin, vmin):      # light, warm, nothing grim: comedies, romances, family, music, adventure with a smile
+    DARK = ("Horror", "Thriller", "Crime", "War", "Mystery", "Action", "Documentary", "Sci-Fi", "Reality-TV", "Talk-Show", "Biography", "History")
+    def feel(i, rmin, vmin):      # light and warm: comedies, romances, family films, musicals; nothing grim, no action, no documentaries
         if i["r"] < rmin or i["v"] < vmin or g(i, *DARK): return False
-        if not g(i, "Comedy", "Family", "Romance", "Music", "Musical", "Animation"): return False
-        return not ("Drama" in i["g"] and not g(i, "Comedy", "Family", "Romance", "Music", "Musical"))
+        if not g(i, "Comedy", "Family", "Romance", "Music", "Musical"): return False
+        if i["id"] in _anime_set() and "Family" not in i["g"]: return False
+        if "Drama" in i["g"] and not g(i, "Comedy", "Family"): return False      # a sad romance or a music drama is not feel-good
+        return True
     a = lambda i, *gs: all(x in i["g"] for x in gs)
     W, V = "w", "v"
     R = []
@@ -135,7 +137,7 @@ def _rules(kind, this):
     add("gems", "Hidden gems", lambda i: i["r"] >= 7.8 and 35000 <= i["v"] <= 160000, W, True, "all")
     if kind == "movie":
         add("mind", "Mind-benders", lambda i: i["r"] >= 7.0 and ((a(i, "Thriller") and g(i, "Mystery", "Sci-Fi")) or a(i, "Sci-Fi", "Mystery") or (a(i, "Drama") and g(i, "Mystery") and g(i, "Sci-Fi", "Thriller"))), W, True, "all")
-        add("feel", "Feel-good", lambda i: feel(i, 7.0, 15000), W, True, "all")
+        add("feel", "Feel-good", lambda i: feel(i, 7.0, 40000), W, True, "all")
         add("edge", "Edge of your seat", lambda i: i["r"] >= 7.2 and a(i, "Thriller") and g(i, "Crime", "Mystery", "Horror"), W, True)
         add("family", "Family night", lambda i: i["v"] >= 80000 and g(i, "Family", "Animation"))
         add("true", "Based on true stories", lambda i: i["r"] >= 7.3 and g(i, "Biography", "History"))
@@ -148,7 +150,7 @@ def _rules(kind, this):
             add("g-" + gname.lower(), label, (lambda gn: lambda i: gn in i["g"])(gname))
     else:
         add("binge", "Binge-worthy", lambda i: i["r"] >= 8.2 and i["v"] >= 100000, V, True)
-        add("feel", "Feel-good", lambda i: feel(i, 7.6, 5000), W, True, "all")
+        add("feel", "Feel-good", lambda i: feel(i, 7.5, 15000), W, True, "all")
         add("mini", "Miniseries", lambda i: i.get("tt") == "tvMiniSeries", W, True)
         add("mind", "Mind-bending", lambda i: i["r"] >= 7.8 and g(i, "Sci-Fi", "Mystery", "Fantasy"), W, True)
         add("sitcom", "Sitcoms", lambda i: i["rt"] and i["rt"] <= 35 and a(i, "Comedy"))
