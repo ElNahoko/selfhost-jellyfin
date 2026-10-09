@@ -10,3 +10,7 @@ Blu-ray rips carry **picture subtitles** (PGS). TVs, phones and the browser cann
 - On the TV, pick the subtitle track marked **SRT** (external), not **PGSSUB**.
 
 Jellyfin encoding is also set to `veryfast`, with throttling and segment deletion on, so a transcode that does happen costs less.
+
+## From the admin panel
+
+Settings → **Subtitles** shows every video with picture subtitles grouped by film or show: how many are converted, what is left, what failed (hover for the error), and the file being converted right now. **Convert all** or **Convert** on one show queues the work: the panel writes `data/subocr-queue.json`, and `/opt/jellyfin/subocr/watch.sh` (root cron, every minute) starts a pass for it. A pass that is already running picks the request up between two files. Status: `data/subocr.json`.

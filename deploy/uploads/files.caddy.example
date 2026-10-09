@@ -28,6 +28,9 @@ FILES_DOMAIN_PLACEHOLDER {
 				uri /auth/check
 				copy_headers X-Role
 			}
+			# App pages with clean addresses (/catalogue/movies?row=feel, /settings): the server answers with the app itself.
+			@page path /catalogue /catalogue/* /profiles /settings
+			rewrite @page /?
 			reverse_proxy @guest uploads-meta:8000
 			# Big files: no body limit and long timeouts for slow connections (uploads are sent in 16 MB chunks).
 			reverse_proxy uploads:5000 {

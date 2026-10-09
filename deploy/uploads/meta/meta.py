@@ -386,6 +386,13 @@ class H(BaseHTTPRequestHandler):
                 if limited(s["user"], "search", 40): return self.js({"error": "slow down"}, 429)
                 kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
                 return self.js(search("series" if kind == "series" else "movie", q) if len(q) >= 2 else [])
+            if path == "/_meta/admin/subtitles" and s["role"] == "admin":
+                try:
+                    with open("/db/subocr.json") as f: st = json.load(f)
+                except (OSError, ValueError):
+                    st = {}
+                st["queued"] = os.path.exists("/db/subocr-queue.json")
+                return self.js(st)
             if path == "/_meta/status" and s["role"] == "admin":
                 return self.js(catalog.status())
             if path == "/_meta/filters":
@@ -470,6 +477,18 @@ class H(BaseHTTPRequestHandler):
             s = self.sess()
             if not s: return self.js({"error": "sign in"}, 401)
             admin = s["role"] == "admin"
+            if path == "/_meta/admin/subtitles" and admin:
+                qf = "/db/subocr-queue.json"
+                try:
+                    with open(qf) as f: q = json.load(f)
+                except (OSError, ValueError):
+                    q = {"all": False, "files": []}
+                if b.get("all"): q["all"] = True
+                for p in (b.get("files") or [])[:2000]:
+                    if isinstance(p, str) and ".." not in p and len(p) < 600 and p not in q["files"]: q["files"].append(p)
+                with open(qf + ".tmp", "w") as f: json.dump(q, f)
+                os.replace(qf + ".tmp", qf)
+                return self.js({"ok": True})
             if path == "/_meta/admin/rebuild" and admin:
                 return self.js({"result": catalog.rebuild(clip(b.get("what"), 20))})
             if path == "/_meta/requests":
