@@ -112,7 +112,13 @@ def fetch_poster(src, w):
     fp = os.path.join("/db/img", hashlib.sha1(src.encode()).hexdigest() + ".jpg")
     if not os.path.exists(fp):
         os.makedirs("/db/img", exist_ok=True)
-        data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": games.UA}), timeout=15).read(3_000_000)      # Wikimedia wants a real name
+        for attempt in range(2):      # Wikimedia wants a real name, and answers 429 to bursts: wait a moment once
+            try:
+                data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": games.UA}), timeout=15).read(3_000_000)
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt: raise
+                time.sleep(2)
         with open(fp + ".tmp", "wb") as f: f.write(data)
         os.replace(fp + ".tmp", fp)
     return fp

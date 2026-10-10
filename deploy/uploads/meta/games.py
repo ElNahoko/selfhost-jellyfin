@@ -7,7 +7,7 @@
 The list is rebuilt weekly in the background (Wikidata: one query every few seconds). Covers, descriptions and scores are
 then read from Wikipedia, most popular games first, and kept in games.db. A game is shown once its cover is known.
 The interface mirrors catalog.py: view (shelves, one shelf, inside filters), find, filters_info, item."""
-import html, json, math, os, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
+import hashlib, html, json, math, os, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -17,12 +17,17 @@ MAXAGE = 7 * 86400
 HOME_N = 16
 UA = "NahokoCatalogue/1.3 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
 PLATFORMS = [("PC", "PC", ["Q1406"]), ("PS5", "PlayStation 5", ["Q63184502"]), ("PS4", "PlayStation 4", ["Q5014725"]),
-             ("XBX", "Xbox", ["Q98973368", "Q64513817", "Q13361286"]), ("SW", "Nintendo Switch", ["Q19610114", "Q122761124"])]
+             ("PS3", "PlayStation 3", ["Q10683"]), ("PSR", "PlayStation 1 and 2", ["Q10680", "Q10677"]),
+             ("XBX", "Xbox Series and One", ["Q98973368", "Q64513817", "Q13361286"]), ("X360", "Xbox 360 and first Xbox", ["Q48263", "Q132020"]),
+             ("SW", "Nintendo Switch", ["Q19610114", "Q122761124"]), ("NIN", "Wii, GameCube, N64, DS", ["Q8079", "Q56942", "Q182172", "Q184839", "Q203597", "Q170323"])]
+IMGDIR = os.path.join(DBDIR, "img")      # the same cache the poster proxy (meta.fetch_poster) reads
+
+def cover_file(src): return os.path.join(IMGDIR, hashlib.sha1(src.encode()).hexdigest() + ".jpg")
 PNAME = {c: n for c, n, _ in PLATFORMS}
 ADULT = re.compile(r"eroge|hentai|adult|pornograph|erotic", re.I)
 
 _m = {"items": None, "t": 0, "raw": None, "mt": 0, "idx": None}
-_st = {"building": False, "t": 0, "enriching": False, "et": 0, "error": ""}
+_st = {"building": False, "t": 0, "enriching": False, "et": 0, "covering": False, "ct": 0, "error": ""}
 _lock = threading.Lock()
 
 def _get(url, timeout=60):
@@ -88,7 +93,7 @@ def _build_job():
         games = {q: g for q, g in games.items() if not any(ADULT.search(x) for x in g.get("gr", []))}
         if len(games) > 1000:
             tmp = LIST + ".tmp"
-            with open(tmp, "w") as f: json.dump({"built": int(time.time()), "games": games}, f, separators=(",", ":"))
+            with open(tmp, "w") as f: json.dump({"built": int(time.time()), "v": 2, "games": games}, f, separators=(",", ":"))
             os.replace(tmp, LIST)
         _st["error"] = ""
     except Exception as e:
@@ -100,7 +105,7 @@ def _ensure():
     now = time.time()
     if not _st["building"] and now - _st["t"] > 600:
         _st["t"] = now
-        try: fresh = now - os.path.getmtime(LIST) < MAXAGE
+        try: fresh = now - os.path.getmtime(LIST) < MAXAGE and json.load(open(LIST)).get("v") == 2
         except OSError: fresh = False
         if not fresh:
             _st["building"] = True
@@ -108,6 +113,46 @@ def _ensure():
     if not _st["enriching"] and now - _st["et"] > 120 and _raw():
         _st["et"] = now; _st["enriching"] = True
         threading.Thread(target=_enrich_job, daemon=True).start()
+    if not _st["covering"] and now - _st["ct"] > 120 and _raw():
+        _st["ct"] = now; _st["covering"] = True
+        threading.Thread(target=_covers_job, daemon=True).start()
+
+def _covers_job():
+    """Downloads every cover once, politely (Wikimedia answers 429 to bursts), most popular games first.
+    A game is shown only once its cover is on disk, so the catalogue never shows an empty tile or waits on Wikipedia."""
+    try:
+        try: os.nice(10)
+        except (OSError, AttributeError): pass
+        os.makedirs(IMGDIR, exist_ok=True)
+        raw = _raw() or {}
+        c = _db(); imgs = {r[0]: r[1] for r in c.execute("SELECT qid, img FROM wiki WHERE img != ''")}; c.close()
+        n = 0
+        for g in sorted(raw.values(), key=lambda g: -g["sl"]):
+            src = imgs.get(g["q"])
+            if not src or os.path.exists(cover_file(src)): continue
+            for attempt in range(3):
+                try:
+                    data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": UA}), timeout=20).read(3_000_000)
+                    fp = cover_file(src)
+                    with open(fp + ".tmp", "wb") as f: f.write(data)
+                    os.replace(fp + ".tmp", fp)
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code == 429:
+                        try: wait = int(e.headers.get("Retry-After") or 15)
+                        except ValueError: wait = 15
+                        time.sleep(min(wait, 120) + 1); continue
+                    break
+                except Exception:
+                    time.sleep(5)
+            n += 1
+            if n % 100 == 0: _m["t"] = 0      # show the new ones
+            time.sleep(0.2)
+        _m["t"] = 0
+    except Exception as e:
+        _st["error"] = ("game covers: " + str(e))[:200]
+    finally:
+        _st["covering"] = False
 
 # ---------- covers, descriptions and Metacritic scores from Wikipedia (background, most popular first) ----------
 WAPI = "https://en.wikipedia.org/w/api.php"
@@ -209,10 +254,12 @@ def _items():
             c = _db(); info = {r[0]: r for r in c.execute("SELECT qid, img, o, mc FROM wiki WHERE img != ''")}; c.close()
         except Exception:
             info = {}
+        try: cached = set(os.listdir(IMGDIR))
+        except OSError: cached = set()
         items = {}
         for g in raw.values():
             w = info.get(g["q"])
-            if not w: continue
+            if not w or os.path.basename(cover_file(w[1])) not in cached: continue      # only games whose cover is stored
             d = g.get("d") or ""
             gen = []
             for x in g.get("gr", []):
@@ -220,7 +267,7 @@ def _items():
                 if x and x not in gen: gen.append(x)
             mc = w[3]
             nm = g.get("n") or ""
-            if not nm or re.fullmatch(r"Q\d+", nm): nm = re.sub(r"\s*\((video )?game\)$", "", g["wp"])      # no English label: the article title
+            if not nm or re.fullmatch(r"Q\d+", nm): nm = re.sub(r"\s*\((\d{4} )?(video )?game\)$", "", g["wp"])      # no English label: the article title
             it = {"id": "wg" + g["q"][1:], "k": "game", "n": nm, "y": int(d[:4]) if d else None, "d": d, "g": gen[:4],
                   "r": round(mc / 10, 1) if mc else None, "mc": mc, "pop": g["sl"], "img": w[1], "o": html.unescape(w[2] or ""),
                   "dev": g["dv"][0] if len(g.get("dv", [])) == 1 else "",      # several studios come unordered: none is shown
@@ -242,10 +289,13 @@ def _rules():
     add("soon", "Coming soon", lambda i: i["d"] > today, "date", True)
     add("top", "Top rated", lambda i: mc(i, 85), "w", True)
     add("popular", "Everyone plays these", lambda i: True, "pop", True)
-    add("ps5", "Best on PlayStation 5", lambda i: on(i, "PS5") and mc(i, 75), "w", True)
-    add("xbox", "Best on Xbox", lambda i: on(i, "XBX") and mc(i, 75), "w", True)
-    add("pc", "Best on PC", lambda i: on(i, "PC") and mc(i, 80), "w", True)
-    add("switch", "Best on Switch", lambda i: on(i, "SW") and mc(i, 75), "w", True)
+    ok = lambda i: not i["mc"] or i["mc"] >= 72      # platform shelves: the known and the well reviewed, never the panned
+    add("ps5", "Best on PlayStation 5", lambda i: on(i, "PS5") and ok(i), "w", True)
+    add("xbox", "Best on Xbox", lambda i: (on(i, "XBX")) and ok(i), "w", True)
+    add("pc", "Best on PC", lambda i: on(i, "PC") and ok(i), "w", True)
+    add("switch", "Best on Switch", lambda i: on(i, "SW") and ok(i), "w", True)
+    add("ps4", "Best on PlayStation 4", lambda i: on(i, "PS4") and ok(i), "w", True)
+    add("retro", "Retro consoles", lambda i: any(on(i, p) for p in ("PS3", "PSR", "X360", "NIN")) and ok(i), "w", True)
     add("gems", "Hidden gems", lambda i: mc(i, 84) and i["pop"] <= 12, "mc", True)
     add("classics", "Classics", lambda i: i["y"] and i["y"] <= 2010 and mc(i, 88), "w", True)
     for gn, label in (("Action-adventure", "Action-adventure"), ("Role-playing", "Role-playing"), ("First-person shooter", "Shooters"),
@@ -298,11 +348,20 @@ def view(row=None, sort=None, offset=0, limit=40, flt=None):
         page = its[offset:offset + limit]
         return {"rows": [{"id": row, "name": r["name"] if r else "All games", "items": [_out(i) for i in page]}], "chips": chips,
                 "total": len(its), "offset": offset, "sort": sort, "default": by, "ready": True}
-    out = []
-    for r in rules:
+    out, used = [], set()
+    def series(i):      # "Grand Theft Auto V" and "Grand Theft Auto: Vice City" are the same series
+        return " ".join(re.split(r"[:\-–]| \d| [ivx]+\b", i["n"].lower())[0].split()[:3])
+    for r in rules:      # the home page shows each game once, and at most two of a series per shelf
         if not r["home"]: continue
-        its = sorted((i for i in pool if r["fn"](i)), key=KEY[r["sort"]])[:HOME_N]
-        if len(its) >= 6: out.append({"id": r["id"], "name": r["name"], "items": [_out(i) for i in its]})
+        its, per = [], {}
+        for i in sorted((i for i in pool if r["fn"](i)), key=KEY[r["sort"]]):
+            k = series(i)
+            if i["id"] in used or per.get(k, 0) >= 2: continue
+            its.append(i); per[k] = per.get(k, 0) + 1
+            if len(its) >= HOME_N: break
+        if len(its) >= 6:
+            used.update(i["id"] for i in its)
+            out.append({"id": r["id"], "name": r["name"], "items": [_out(i) for i in its]})
     if not out and pool:
         out.append({"id": "__f", "name": "All games", "items": [_out(i) for i in sorted(pool, key=KEY["w"])[:HOME_N]]})
     return {"building": _st["building"], "ready": True, "rows": out, "chips": chips, "total_titles": len(pool)}
@@ -354,5 +413,5 @@ def rebuild():
 
 def status():
     c = _db(); n, covers, scored = c.execute("SELECT count(*), sum(img != ''), sum(mc IS NOT NULL) FROM wiki").fetchone(); c.close()
-    return {"listed": len(_raw() or {}), "looked_up": n, "with_cover": covers or 0, "with_score": scored or 0,
-            "building": _st["building"], "enriching": _st["enriching"], "error": _st["error"]}
+    return {"listed": len(_raw() or {}), "looked_up": n, "with_cover": len(_items() or {}), "covers_found": covers or 0, "with_score": scored or 0,
+            "building": _st["building"], "enriching": _st["enriching"] or _st["covering"], "error": _st["error"]}

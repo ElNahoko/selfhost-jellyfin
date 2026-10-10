@@ -968,6 +968,17 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .dctg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px;margin-bottom:18px}
 .dcr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem}.dcr b{font-weight:600}
 .favsecs .sec{margin:22px 0 12px}.favsecs .sec:first-child{margin-top:0}
+.rvote{border-color:rgba(59,130,246,.45);color:#93c5fd;background:rgba(59,130,246,.08);transition:background .15s,border-color .15s,color .15s}
+.rvote b{color:#bfdbfe}.rvote:hover{border-color:#3b82f6;color:#bfdbfe;background:rgba(59,130,246,.16)}
+.rvote.on{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 4px 16px rgba(59,130,246,.45)}.rvote.on b{color:#fff}
+.btn.wantb{border-color:rgba(59,130,246,.55);color:#93c5fd;background:rgba(59,130,246,.1)}.btn.wantb:hover{background:rgba(59,130,246,.2)}
+.btn.wantb.on{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 6px 20px rgba(59,130,246,.4)}
+.vpop{animation:vpop .55s cubic-bezier(.2,1.6,.4,1)}
+@keyframes vpop{0%{transform:scale(1)}30%{transform:scale(.86)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.vburst{position:fixed;width:0;height:0;pointer-events:none;z-index:3000}
+.vburst i{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:#60a5fa;box-shadow:0 0 6px #3b82f6;animation:vspark .65s ease-out forwards}
+.vburst i:nth-child(3n){background:#bfdbfe;width:4px;height:4px}
+@keyframes vspark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1894,7 +1905,8 @@ async function showTitle(it0,opts){
       rq.className="btn wantb"+(mine?" on":"");rq.appendChild(svg(mine?"check":"thumb"));
       rq.appendChild(el("span","",nv+(nv===1?" wants it":" want it")+(mine?" · you too":" · me too")));
       rq.title=mine?"Take my vote back":"Add my vote: I want it too";
-      rq.onclick=async function(){rq.disabled=true;try{var who=await whoAmI();await api("POST","/_meta/requests/"+rr.id+"/vote",{who:who});await loadRequests();refreshTiles();}catch(e){toast("Could not vote");}paint();};
+      rq.onclick=async function(){if(!APPROVED){dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can add wishes and votes. Ask the owner to allow yours ("+ME+").",ok:"OK"});return;}
+        rq.disabled=true;voteFx(rq,!mine);try{var who=await whoAmI();await api("POST","/_meta/requests/"+rr.id+"/vote",{who:who});await loadRequests();refreshTiles();}catch(e){toast("Could not vote");}await sleep(600);paint();};
     }else{
       rq.appendChild(svg(s==="have"?"check":"add"));rq.appendChild(el("span","",s==="have"?"In the library":"I want it"));
       rq.onclick=async function(){rq.disabled=true;if(await sendRequest(it)){paint();}else rq.disabled=false;};
@@ -2392,6 +2404,12 @@ function confetti(g,host){
   }
   g.delayedCall(1.8,function(){layer.remove();});
 }
+function voteFx(btn,up){      // bounce, a burst of sparks, a soft pop
+  btn.classList.remove("vpop");void btn.offsetWidth;btn.classList.add("vpop");SFX.pop(up);
+  if(!up)return;var r=btn.getBoundingClientRect(),host=el("span","vburst");host.style.left=(r.left+r.width/2)+"px";host.style.top=(r.top+r.height/2)+"px";
+  for(var i=0;i<10;i++){var p=el("i");var a=i/10*Math.PI*2,d=26+Math.random()*16;p.style.setProperty("--x",Math.cos(a)*d+"px");p.style.setProperty("--y",Math.sin(a)*d+"px");p.style.animationDelay=(Math.random()*60)+"ms";host.appendChild(p);}
+  document.body.appendChild(host);setTimeout(function(){host.remove();},800);
+}
 /* lucky-pick sounds, made in the browser (no files): a tick per poster in the reel, a bright chime when the pick lands */
 var SFX={ctx:null,on:(function(){try{return localStorage.getItem("nahoko_sfx")!=="off";}catch(e){return true;}})(),
   c:function(){if(!SFX.on)return null;try{if(!SFX.ctx)SFX.ctx=new (window.AudioContext||window.webkitAudioContext)();if(SFX.ctx.state==="suspended")SFX.ctx.resume();return SFX.ctx;}catch(e){return null;}},
@@ -2399,6 +2417,7 @@ var SFX={ctx:null,on:(function(){try{return localStorage.getItem("nahoko_sfx")!=
     g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.05);},
   tick:function(k){var c=SFX.c();if(!c)return;var t=c.currentTime;SFX.tone(1400+(k||0)*55,t,0.035,"triangle",0.05,700);},
   rattle:function(){var c=SFX.c();if(!c)return;var t=c.currentTime;for(var i=0;i<9;i++)SFX.tone(1200+Math.random()*500,t+i*0.07+i*i*0.004,0.035,"triangle",0.045,650);},
+  pop:function(up){var c=SFX.c();if(!c)return;var t=c.currentTime;SFX.tone(up?520:700,t,0.12,"sine",0.12,up?1040:350);if(up)SFX.tone(1560,t+0.06,0.18,"sine",0.04);},
   reveal:function(){var c=SFX.c();if(!c)return;var t=c.currentTime+0.02;
     [523.25,659.25,783.99,1046.5].forEach(function(f,i){SFX.tone(f,t+i*0.065,0.7,"triangle",0.085);SFX.tone(f*2,t+i*0.065,0.35,"sine",0.02);});
     SFX.tone(2093,t+0.28,0.5,"sine",0.035);SFX.tone(2637,t+0.36,0.45,"sine",0.025);}};
@@ -2654,7 +2673,9 @@ function drawRequests(){
     if(r.status==="open"){      // one small vote button: thumb + how many want it; filled when it includes you
       var wb=el("button","rvote"+(voted?" on":""));wb.type="button";wb.appendChild(svg(voted?"check":"thumb"));wb.appendChild(el("b","",String(nv)));
       wb.title=voted?"You want this too · click to take your vote back":nv+(nv===1?" person wants":" people want")+" this · click for “me too”";wb.setAttribute("aria-label",voted?"You want this too. Click to take your vote back":"Me too: add your vote");wb.setAttribute("aria-pressed",String(voted));
-      wb.onclick=async function(e){e.stopPropagation();if(!APPROVED){dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can add wishes and votes. Ask the owner to allow yours ("+ME+").",ok:"OK"});return;}var who=await whoAmI();if(!who)return;wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e2){toast("Could not vote");}await loadRequests();drawRequests();};
+      wb.onclick=async function(e){e.stopPropagation();if(!APPROVED){dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can add wishes and votes. Ask the owner to allow yours ("+ME+").",ok:"OK"});return;}var who=await whoAmI();if(!who)return;
+        var up=!wb.classList.contains("on"),cnt=wb.querySelector("b");wb.classList.toggle("on",up);wb.firstChild.replaceWith(svg(up?"check":"thumb"));cnt.textContent=String(Math.max(1,(+cnt.textContent||1)+(up?1:-1)));voteFx(wb,up);
+        wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e2){toast("Could not vote");}await sleep(650);await loadRequests();drawRequests();};
       body.appendChild(wb);
     }
     c.tabIndex=0;c.setAttribute("role","button");c.title="Details";
