@@ -101,6 +101,7 @@ Read [`docs/`](docs) in order. Each page explains *why* before *how*:
 | 10 | [Troubleshooting](docs/10-troubleshooting.md) | Symptom → cause → fix |
 | 11 | [Upload page, catalogue and guest profiles](docs/11-upload-page.md) | Optional: uploads from a browser, a browsable catalogue with requests, guest profiles |
 | 12 | [Theme](docs/12-theme.md) | Optional: nicer look, colourful library tiles |
+| 13 | [The catalogue](docs/13-catalogue.md) | How the films, series and games catalogue works: data sources, shelves, API, speed |
 
 ## Install flow
 
