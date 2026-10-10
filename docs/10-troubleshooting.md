@@ -12,6 +12,7 @@
 | Media vanished after reboot | Data disk not mounted | `findmnt /srv/media`, `lsblk -f`, check `/etc/fstab` UUID; services started before the mount, so `docker compose restart` |
 | The whole web interface is slow while someone watches a film | One transcode (re-encoding HEVC/10-bit for a browser that cannot decode it, or burning in image subtitles) uses the only CPU core and starves Jellyfin itself. Check Dashboard: *Transcoding* | Use a client that direct-plays HEVC (TV app, phone app, Edge/Safari with HEVC), pick text subtitles instead of image ones (PGS). Optional: `compose.perf.yaml` runs ffmpeg at the lowest CPU priority (`nice 19`) so the interface stays responsive |
 | Everything transcodes / buffers | Codec/container/subtitle mismatch | See [Configure Jellyfin](06-configure-jellyfin.md); look at the playback reason in the player info |
+| Disk slowly fills, `cache/transcodes` is big | Jellyfin leaves transcode pieces behind after some sessions | Clean it hourly: `echo '17 * * * * root find /opt/jellyfin/cache/transcodes -type f -mmin +360 ! -name .jellyfin-transcode -delete' \| sudo tee /etc/cron.d/nahoko-transcodes` |
 | High CPU during playback | Transcoding is active | Disable video transcoding for the user, fix the file or client |
 | Slow library scans | Spinning disk + many small files | Schedule nightly; disable chapter image extraction; keep config on SSD |
 | Locked out of SSH | Key not installed, wrong user | Use the provider's recovery console; remove `/etc/ssh/sshd_config.d/00-hardening.conf` and `systemctl reload ssh` |

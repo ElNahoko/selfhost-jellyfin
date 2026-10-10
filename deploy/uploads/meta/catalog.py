@@ -252,11 +252,19 @@ def _build():
     if batch: db.executemany("INSERT INTO b VALUES(?,?,?,?,?,?)", batch)
     db.commit(); os.remove(bp)
     this = date.today().year
+    natl = set()      # films and series of the national cinemas (French, Korean, ...): they get far fewer IMDb votes, so they enter with fewer
+    try:
+        with open(COUNTRIES_F) as f: cj = json.load(f)
+        for c, v in cj.items():
+            if c not in ("built", "complete"): natl.update(v.get("movie", ())); natl.update(v.get("series", ()))
+    except (OSError, ValueError):
+        pass
     items = {}
     for i, tt, name, year, rt, genres, rating, votes in db.execute("SELECT b.id, tt, name, year, rt, genres, rating, votes FROM b JOIN r ON r.id = b.id"):
         kind = want[tt]; g = genres.split(",") if genres else []
         anim, recent = "Animation" in g, bool(year and year >= this - 1)
         need = _need(kind, anim, recent, year)
+        if i in natl: need = min(need, 1000 if kind == "movie" else 400)
         if i in an: anim = True
         if votes < need and not anim: continue
         it = {"id": i, "k": kind, "tt": tt, "n": name, "y": year, "rt": rt, "g": g, "r": rating, "v": votes}
@@ -296,15 +304,18 @@ GROUPS = [("FR", "French cinema", {"langs": ["Q150"], "countries": ["Q142"]}),
 COUNTRIES_F = os.path.join(DBDIR, "countries.json")
 _cty = {"t": 0, "d": None, "building": False, "fail": 0}
 
+FILM_CLS = ("Q11424", "Q202866", "Q93204", "Q506240", "Q24869", "Q24862")          # film, animated, documentary, TV film, feature, short
+SERIES_CLS = ("Q5398426", "Q1259759", "Q581714", "Q117467246", "Q63952888", "Q526877", "Q15416")   # series, miniseries, animated, anime, web, TV programme
+
 def _wikidata_pair(spec):
-    """Films and series of a "cinema" group (Wikidata, free). One request returns both kinds: {"movie": [...], "series": [...]}.
+    """Films and series of a "cinema" group (Wikidata, free): original language in the group's languages OR made in one of its
+    countries, and never English-language. One request returns both kinds: {"movie": [...], "series": [...]}.
     Wikidata allows about one request a minute for us, so a 429 is waited out (Retry-After) instead of hammered."""
     parts = []
-    if spec["langs"]:      # by original language: fast, and keeps English-language co-productions out
-        parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }" % " ".join("wd:" + x for x in spec["langs"]))   # not also English
-    else:                  # by country of origin, English-language films excluded
-        parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }" % " ".join("wd:" + x for x in spec["countries"]))
-    q = "SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?cls { wd:Q11424 wd:Q5398426 } ?f wdt:P31 ?cls; wdt:P345 ?imdb. %s }" % " UNION ".join(parts)
+    if spec["langs"]: parts.append("{ VALUES ?lang { %s } ?f wdt:P364 ?lang. }" % " ".join("wd:" + x for x in spec["langs"]))
+    if spec["countries"]: parts.append("{ VALUES ?c { %s } ?f wdt:P495 ?c. }" % " ".join("wd:" + x for x in spec["countries"]))
+    q = ("SELECT DISTINCT ?imdb ?cls WHERE { VALUES ?cls { %s } ?f wdt:P31 ?cls; wdt:P345 ?imdb. %s FILTER NOT EXISTS { ?f wdt:P364 wd:Q1860 } }"
+         % (" ".join("wd:" + x for x in FILM_CLS + SERIES_CLS), " UNION ".join(parts)))
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(8):
@@ -315,7 +326,7 @@ def _wikidata_pair(spec):
             out = {"movie": [], "series": []}
             for b in d["results"]["bindings"]:
                 i = b["imdb"]["value"]
-                if i.startswith("tt"): out["movie" if b["cls"]["value"].endswith("Q11424") else "series"].append(i)
+                if i.startswith("tt"): out["movie" if b["cls"]["value"].rsplit("/", 1)[-1] in FILM_CLS else "series"].append(i)
             return out
         except urllib.error.HTTPError as e:
             last = e
@@ -332,7 +343,6 @@ def _wikidata_pair(spec):
 def _build_countries():
     cat = _mem["cat"] or _read()
     if not cat: return
-    have = set(cat["items"])
     out = {"built": int(time.time()), "complete": False}
     ok = 0
     try:      # carry on from a run that was interrupted a short while ago (restart, rate limit)
@@ -348,7 +358,7 @@ def _build_countries():
             continue
         try:
             pair = _wikidata_pair(spec)
-            out[code] = {k: [i for i in v if i in have] for k, v in pair.items()}
+            out[code] = {k: sorted(set(v)) for k, v in pair.items()}
             ok += 1
         except Exception:
             out[code] = {"movie": [], "series": []}
@@ -963,7 +973,8 @@ def _dress(cat, i):
     if k: it["img"], it["o"] = k
     return it
 
-SORTS = {"rating": lambda i: (-i.get("w", i["r"]), -i["v"]),      # vote-weighted: a 9.1 from 2,000 votes does not beat 12 Angry Men "votes": lambda i: (-i["v"], -i["r"]),
+# "rating" is vote-weighted: a 9.1 from 2,000 votes does not beat 12 Angry Men
+SORTS = {"rating": lambda i: (-i.get("w", i["r"]), -i["v"]), "votes": lambda i: (-i["v"], -i["r"]),
          "newest": lambda i: (-(i["y"] or 0), -i["v"]), "name": lambda i: (i["n"].lower(),)}
 
 def _ordered(cat, ids, sort):
