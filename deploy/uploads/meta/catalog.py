@@ -1616,10 +1616,12 @@ def platforms():
             old = time.time() - raw.get("built", 0) > MAXAGE or len(raw.get("done", [])) < len(PLATFORMS)
         except Exception:
             pass
-        try:
+        try:      # a series' own network (TVmaze) has the last word: Sherlock is BBC One, even if Netflix "distributes" it
             c = _epdb()
-            for sid, name in c.execute("SELECT series, name FROM net"):
-                k = TVNET.get((name or "").lower())
+            for sid, name in c.execute("SELECT series, name FROM net WHERE name != ''"):
+                k = TVNET.get(name.lower())
+                for p2 in d:
+                    if p2 != k: d[p2].discard(sid)
                 if k: d.setdefault(k, set()).add(sid)
             c.close()
         except Exception:
