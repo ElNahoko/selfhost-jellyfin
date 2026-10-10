@@ -1285,6 +1285,33 @@ body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
 .htip{position:fixed;z-index:5000;max-width:280px;pointer-events:none;background:#0e0e0e;color:#fff;font-size:.8rem;font-weight:600;line-height:1.35;
   padding:7px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 30px rgba(0,0,0,.6)}
 @media (max-width:600px){.eptop .heat td{font-size:0}.eptop .heat table{border-spacing:3px}}
+/* the language button and its menu */
+.langw{position:relative}
+.langbtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:99px;border:1px solid var(--line);color:var(--ink);font-weight:800;font-size:.82rem;letter-spacing:.04em}
+.langbtn:hover{border-color:#666;background:var(--card2)}.langbtn svg{width:16px;height:16px}
+.lmenu{position:absolute;right:0;top:calc(100% + 8px);z-index:90;min-width:190px;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:6px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.lmi{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border-radius:9px;color:#ddd;font-size:.92rem}
+.lmi b{width:26px;font-size:.74rem;color:var(--muted)}.lmi:hover{background:rgba(255,255,255,.07)}.lmi.on{background:rgba(255,255,255,.1);color:#fff}
+@media (max-width:600px){.langbtn{height:44px;padding:0 14px}}
+/* a toast with one quiet action; a soft note on the favorites page */
+.toast .tact{all:unset;cursor:pointer;margin-left:14px;font-weight:800;color:#fff;text-decoration:underline;text-underline-offset:3px}
+.favnote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.86rem;margin:0 0 14px}
+.linkbtn{all:unset;cursor:pointer;color:var(--ink);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+/* the sticky bar reads well at every size */
+.tbar{height:clamp(68px,6.2vw,96px)}
+.tbp{width:clamp(44px,3.8vw,62px);height:auto;aspect-ratio:2/3}.tbp.round{width:clamp(50px,4.4vw,68px);aspect-ratio:1}
+.tbt b{font-size:clamp(1.02rem,1.3vw,1.3rem)}.tbt span{font-size:clamp(.84rem,.95vw,1rem);color:#cfcfcf;text-transform:none}
+.tpage.baron .epsticky{top:calc(var(--stick,0px) + clamp(68px,6.2vw,96px))}
+@media (max-width:600px){.tbar{height:74px}.tbp{width:46px}.tbp.round{width:54px}.tbt b{font-size:1.06rem}.tbt span{font-size:.86rem}
+  .tpage.baron .epsticky{top:calc(var(--stick,0px) + 74px)}}
+/* big screens: everything one step larger, pages a little wider */
+@media (min-width:1700px){html{font-size:17px}.dlg.wide.tpage,.bcrumb{max-width:1240px}}
+@media (min-width:2200px){html{font-size:19px}.dlg.wide.tpage,.bcrumb{max-width:1440px}}
+.mtop .gacct .langw .langbtn,.langw .langbtn{display:inline-flex!important;flex-direction:row!important;align-items:center;gap:7px;width:auto!important;height:40px;padding:0 13px!important;border-radius:99px!important;border:1px solid var(--line)!important;background:transparent}
+.mtop .gacct .langw .langbtn span{display:inline!important;font-size:.82rem;font-weight:800}
+.langw .lmenu .lmi{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:12px;height:auto;width:100%}
+.langw .lmenu .lmi b{display:inline-block;width:28px;text-align:left}.langw .lmenu .lmi span{display:inline!important;font-size:.92rem}
+@media (max-width:600px){.mtop .gacct .langw .langbtn{height:44px}}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1348,7 +1375,7 @@ if("serviceWorker" in navigator)addEventListener("load",function(){navigator.ser
     <div class="resume" id="resume" hidden></div>
     <section class="hero" id="hero" hidden></section>
     <div id="content"></div>
-    <footer class="sfoot" id="sfoot"><a href="/news">News</a><span>·</span><a href="/about">About</a><span>·</span><a href="/methodology">How it works</a><span>·</span><a href="/contact">Contact</a><span>·</span><a href="/privacy">Privacy</a><span>·</span><span>No ads, no tracking</span><span>·</span><label class="langsel" title="Language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><select id="langSel" aria-label="Language"></select></label>
+    <footer class="sfoot" id="sfoot"><a href="/news">News</a><span>·</span><a href="/about">About</a><span>·</span><a href="/methodology">How it works</a><span>·</span><a href="/contact">Contact</a><span>·</span><a href="/privacy">Privacy</a><span>·</span><a href="#" id="footSign" hidden>Sign in</a><span id="footSignDot" hidden>·</span><span>No ads, no tracking</span><span>·</span><label class="langsel" title="Language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><select id="langSel" aria-label="Language"></select></label>
       <span class="credit">Information courtesy of IMDb (<a href="https://www.imdb.com" rel="noopener">imdb.com</a>). Used with permission.</span></footer>
   </main>
 </div>
@@ -1514,6 +1541,9 @@ function svg(n,cls){var s=document.createElementNS("http://www.w3.org/2000/svg",
 
 function $(id){return document.getElementById(id);}
 function enc(p){return "/"+p.split("/").filter(Boolean).map(encodeURIComponent).join("/");}
+function toastAct(m,label,fn){      // a message with one quiet action (stays a little longer)
+  var t=$("toast");t.textContent="";t.appendChild(el("span","",m));var b=el("button","tact",label);b.type="button";b.onclick=function(){t.classList.remove("on");fn();};t.appendChild(b);
+  t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove("on");},6000);}
 function toast(m){var t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove("on");},3400);}
 function fmtSize(n){if(n==null)return"";var u=["B","KB","MB","GB","TB"],i=0;while(n>=1024&&i<4){n/=1024;i++;}return (i?n.toFixed(n<10?1:0):n)+" "+u[i];}
 function fmtDate(ms){if(!ms)return"";return new Date(ms).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});}
@@ -2064,12 +2094,12 @@ async function whoAmI(){      // never opens a dialog (it would replace the scre
   if(GUEST)return ME;
   return me()||ME||"admin";
 }
-var FAV=[];if(!PUBLICV){try{FAV=JSON.parse(localStorage.getItem("lumio_fav")||"[]");}catch(e){FAV=[];}}
+var FAV=[];try{FAV=JSON.parse(localStorage.getItem("lumio_fav")||"[]");}catch(e){FAV=[];}      // visitors too: kept on this device
 function favSave(){try{localStorage.setItem("lumio_fav",JSON.stringify(FAV.slice(0,3000)));}catch(e){}}
 function isFav(id){return !!id&&FAV.indexOf(id)>=0;}
 async function favToggle(it){
   if(!it.id)return false;
-  if(PUBLICV){signInDialog("Favorites need an email: sign in and they follow you on every device. No password, we send you a code.");return false;}
+  if(PUBLICV&&!favToggle._told&&!isFav(it.id)){favToggle._told=1;setTimeout(function(){toastAct("Saved on this device","Keep on every device",function(){signInDialog("Optional: your favorites follow you on every device. No password: we send you a code.");});},900);}
   var on=!isFav(it.id);
   var btn0=LASTBTN;if(on)FAV.unshift(it.id);else FAV=FAV.filter(function(x){return x!==it.id;});favSave();fx(btn0,on?"heart":"off");refreshTiles();
   toast(on?"Saved to your favorites":"Removed from your favorites");
@@ -2750,12 +2780,10 @@ async function renderProfiles(){
 }
 async function drawFavorites(c){
   var box=el("div","favpage");c.appendChild(box);
-  if(PUBLICV){var lk=el("div","lockcard");var ic=el("div","lockic");ic.appendChild(svg("heart"));lk.appendChild(ic);lk.appendChild(el("b","","Your favorites, everywhere"));
-    lk.appendChild(el("span","","Sign in with your email to save the films and series you like and find them on every device. No password: we send you a code."));
-    var sb0=el("button","btn primary","Sign in");sb0.type="button";sb0.onclick=function(){signInDialog();};lk.appendChild(sb0);box.appendChild(lk);return;}
+  if(PUBLICV&&FAV.length){var nb=el("div","favnote");nb.appendChild(el("span","","Saved on this device."));var sl=el("button","linkbtn","Keep them on every device");sl.type="button";
+    sl.onclick=function(){signInDialog("Optional: your favorites follow you on every device. No password: we send you a code.");};nb.appendChild(sl);box.appendChild(nb);}
   if(!FAV.length){var e=el("div","rempty");e.appendChild(svg("heart","big"));e.appendChild(el("b","","No favorites yet"));
     e.appendChild(el("span","","Tap the heart on any film or series to keep it here."));
-    if(PUBLICV){var sb=el("button","btn primary","Sign in");sb.type="button";sb.onclick=function(){signInDialog();};e.appendChild(sb);}
     box.appendChild(e);return;}
   box.appendChild(el("div","hint","Loading…"));
   var items=[];try{items=await api("GET","/_meta/titles?ids="+FAV.slice(0,200).join(","));}catch(e){}
@@ -3713,8 +3741,13 @@ $("settingsBtn").onclick=$("settingsBtn2").onclick=function(){go("settings");};
 if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
-  if(PUBLICV){var si=el("button","signbtn");si.type="button";si.appendChild(svg("user"));si.appendChild(el("span","","Sign in"));si.title="Optional: only to keep your favorites";
-    si.onclick=function(){signInDialog();};acc.appendChild(si);}
+  (function(){      // the language: a globe with its code; a small menu of the others
+    var lb=el("button","langbtn");lb.type="button";lb.setAttribute("aria-label","Language");lb.title="Language";lb.setAttribute("translate","no");
+    lb.appendChild(svg("globe"));lb.appendChild(el("span","",LANG.toUpperCase()));var lm=el("div","lmenu");lm.hidden=true;lm.setAttribute("translate","no");
+    Object.keys(LANGS).forEach(function(k){var o=el("button","lmi"+(k===LANG?" on":""));o.type="button";o.appendChild(el("b","",k.toUpperCase()));o.appendChild(el("span","",LANGS[k]));o.onclick=function(){lm.hidden=true;if(k!==LANG)setLang(k);};lm.appendChild(o);});
+    lb.onclick=function(e){e.stopPropagation();lm.hidden=!lm.hidden;};document.addEventListener("click",function(){lm.hidden=true;});
+    var w=el("div","langw");w.appendChild(lb);w.appendChild(lm);acc.appendChild(w);})();
+  if(PUBLICV){}
   else{if(JELLYFIN_URL&&STAFF){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
     var av=el("button","avatar",(ME||"?").charAt(0).toUpperCase());av.type="button";av.title=ME;av.setAttribute("aria-label","Account");av.setAttribute("aria-expanded","false");
     var am=el("div","amenu");am.hidden=true;var ah=el("div","amhead");ah.appendChild(el("span","avatar big",(ME||"?").charAt(0).toUpperCase()));
@@ -3769,6 +3802,7 @@ var deepTitle=(LPATH().match(RX_TITLE)||[])[1];      // a link to one title: its
 var deepPath=LPATH();
 var deepPerson=(LPATH().match(RX_PERSON)||[])[1];
 if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";}
+(function(){var fs=$("footSign");if(fs&&PUBLICV){fs.hidden=false;$("footSignDot").hidden=false;fs.onclick=function(e){e.preventDefault();signInDialog();};}})();
 if(LP)[].forEach.call(document.querySelectorAll('#sfoot a[href^="/"]'),function(a){if(/^\/(about|methodology|contact|privacy)$/.test(a.getAttribute("href")))a.setAttribute("href",LP+a.getAttribute("href"));});      // the plain pages in the same language
 (function(){var ls=$("langSel");if(!ls)return;Object.keys(LANGS).forEach(function(k){var o=document.createElement("option");o.value=k;o.textContent=LANGS[k];o.setAttribute("translate","no");if(k===LANG)o.selected=true;ls.appendChild(o);});ls.setAttribute("translate","no");ls.onchange=function(){setLang(ls.value);};})();
 cwd=(deepTitle||deepPerson)&&!GUEST?"requests":fromHash();catFromUrl();if(!deepTitle&&!deepPerson&&LPATH()+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();

@@ -1545,21 +1545,31 @@ PLATFORMS = [("netflix", "Netflix", "Q907311"), ("prime", "Prime Video", "Q47408
              ("apple", "Apple TV+", "Q62446736"), ("max", "HBO Max", "Q65359104"), ("hbo", "HBO", "Q23633"),
              ("hulu", "Hulu", "Q1630304"), ("paramount", "Paramount+", "Q27903045"), ("crunchyroll", "Crunchyroll", "Q1142035")]
 PNAMES = {k: n for k, n, _ in PLATFORMS}
+PSINCE = {"netflix": 2012, "prime": 2014, "disney": 2019, "apple": 2019, "max": 2020, "hbo": 1972, "hulu": 2011, "paramount": 2014, "crunchyroll": 2006}      # nothing older than the service itself
 TVNET = {"netflix": "netflix", "prime video": "prime", "amazon prime video": "prime", "amazon": "prime", "disney+": "disney",
          "apple tv+": "apple", "apple tv": "apple", "hbo max": "max", "max": "max", "hbo": "hbo", "hulu": "hulu",
          "paramount+": "paramount", "crunchyroll": "crunchyroll"}
-PLAT_F = os.path.join(DBDIR, "platforms.json")
+PLAT_F = os.path.join(DBDIR, "platforms2.json")      # (2: originals only)
 _plat = {"t": 0, "d": {}, "rev": {}, "building": False, "fail": 0}
 
 def _wikidata_platform(qid):
-    q = "SELECT DISTINCT ?imdb WHERE { VALUES ?p { wdt:P750 wdt:P449 } ?f ?p wd:%s; wdt:P345 ?imdb. }" % qid
+    # its own titles only: the original broadcaster of a series, or the ONLY distributor of a film (Netflix also "distributes"
+    # The Shawshank Redemption in some countries; that is not where it comes from). Wikidata returns the pairs, we count here.
+    q = ("SELECT ?imdb ?o ?b WHERE { { ?f wdt:P449 wd:%s. BIND(1 AS ?b) } UNION { ?f wdt:P750 wd:%s; wdt:P750 ?o. } ?f wdt:P345 ?imdb. }" % (qid, qid))
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(6):
         req = urllib.request.Request(url, headers={"User-Agent": "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
         try:
             with urllib.request.urlopen(req, timeout=170) as r: d = json.load(r)
-            return sorted({b["imdb"]["value"] for b in d["results"]["bindings"] if b["imdb"]["value"].startswith("tt")})
+            own, dist = set(), {}
+            for x in d["results"]["bindings"]:
+                i = x["imdb"]["value"]
+                if not i.startswith("tt"): continue
+                if "b" in x: own.add(i)
+                elif "o" in x: dist.setdefault(i, set()).add(x["o"]["value"].rsplit("/", 1)[-1])
+            own |= {i for i, ds in dist.items() if ds == {qid}}
+            return sorted(own)
         except urllib.error.HTTPError as e:
             last = e
             wait = 65
@@ -1603,7 +1613,8 @@ def platforms():
         _plat["t"] = time.time(); d, old = {}, True
         try:
             with open(PLAT_F) as f: raw = json.load(f)
-            d = {k: set(v) for k, v in raw.items() if k in PNAMES}
+            items = (_mem["cat"] or {}).get("items", {})
+            d = {k: {i for i in v if (items.get(i, {}).get("y") or 9999) >= PSINCE[k]} for k, v in raw.items() if k in PNAMES}
             old = time.time() - raw.get("built", 0) > MAXAGE or len(raw.get("done", [])) < len(PLATFORMS)
         except Exception:
             pass
