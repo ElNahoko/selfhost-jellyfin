@@ -507,6 +507,14 @@ def _title_ids():
     ids += [(g["id"], g["n"]) for g in sorted((games._items() or {}).values(), key=lambda g: -g["pop"])[:10000]]
     return ids
 
+_ppl = {"t": 0, "v": []}
+def _people():
+    """The people with a page in the sitemaps (computed at most every 6 hours: it walks the whole cast list)."""
+    import catalog
+    if time.time() - _ppl["t"] > 6 * 3600 or not _ppl["v"]:
+        _ppl["t"] = time.time(); _ppl["v"] = catalog.people_for_sitemap()
+    return _ppl["v"]
+
 def robots():
     return "\n".join(["User-agent: *", "Allow: /", "Allow: /_meta/rimg", "Allow: /_meta/nimg", "Disallow: /_meta/", "Disallow: /auth/",
                       "Disallow: /login", "Disallow: /settings", "Disallow: /profiles", "", "Sitemap: %s/sitemap.xml" % SITE, ""])
@@ -514,6 +522,7 @@ def robots():
 def sitemap_index():
     n = max(1, math.ceil(len(_title_ids()) / TITLES_PER_MAP))
     parts = ["sitemap-pages.xml", "sitemap-news.xml"] + ["sitemap-titles-%d.xml" % (i + 1) for i in range(n)]
+    parts += ["sitemap-people-%d.xml" % (i + 1) for i in range(max(1, math.ceil(len(_people()) / TITLES_PER_MAP)))]
     today = time.strftime("%Y-%m-%d")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s</sitemapindex>'
             % "".join("<sitemap><loc>%s/%s</loc><lastmod>%s</lastmod></sitemap>" % (SITE, p, today) for p in parts))
@@ -523,12 +532,16 @@ def sitemap(name):
     import extras
     if name == "pages":
         return _xml([(u, None) for u in ("/", "/catalogue/movies", "/catalogue/series", "/catalogue/games", "/news", "/news/movies", "/news/series",
-                                         "/news/anime", "/news/games", "/news/nahoko", "/about", "/contact", "/privacy")])
+                                         "/news/anime", "/news/games", "/news/nahoko", "/about", "/methodology", "/contact", "/privacy")])
     if name == "news":
         c = _db(); rows = c.execute("SELECT id, title, t FROM items ORDER BY t DESC LIMIT 2000").fetchall(); c.close()
         urls = [("/news/a/%s-%s" % (r["id"], _slug(r["title"])), time.strftime("%Y-%m-%d", time.gmtime(r["t"]))) for r in rows]
         urls += [("/news/p/%d-%s" % (p["id"], _slug(p["title"])), time.strftime("%Y-%m-%d", time.gmtime(p["t"]))) for p in extras.news()]
         return _xml(urls)
+    m = re.fullmatch(r"people-(\d{1,3})", name)
+    if m:
+        k = int(m.group(1)) - 1; ps = _people()[k * TITLES_PER_MAP:(k + 1) * TITLES_PER_MAP]
+        return _xml([("/person/%s-%s" % (i, _slug(n)), None) for i, n in ps]) if ps else None
     m = re.fullmatch(r"titles-(\d{1,3})", name)
     if m:
         k = int(m.group(1)) - 1; ids = _title_ids()[k * TITLES_PER_MAP:(k + 1) * TITLES_PER_MAP]
@@ -554,7 +567,9 @@ titles each story is about.
 
 ## Title pages
 Addresses look like %(s)s/title/tt0816692-interstellar (IMDb identifier, then the name). Each page carries schema.org data
-(Movie, TVSeries or VideoGame) with the rating. Ratings and titles: information courtesy of IMDb (imdb.com), used with permission.
+(Movie, TVSeries or VideoGame) with the rating.
+People (actors, directors, writers) have pages too, like %(s)s/person/nm0000138-leonardo-dicaprio: a short bio, their best-known
+titles and their filmography in the catalogue (schema.org Person). Ratings and titles: information courtesy of IMDb (imdb.com), used with permission.
 
 ## Sitemaps
 - %(s)s/sitemap.xml

@@ -59,7 +59,7 @@ On the games page every game appears once, and a shelf shows at most two games o
 | `catalog?type=movie\|series\|game[&row=][&country=&genre=&decade=&min=][&sort=&offset=&limit=]` | everyone | shelves, or one shelf page by page |
 | `find?type=&q=` | everyone | search in the catalogue |
 | `search?type=&q=` | everyone | search beyond it (TMDB through Jellyfin; not for games) |
-| `title?id=`, `titles?ids=` | everyone | one or several titles (favorites) |
+| `title?id=[&lang=]`, `titles?ids=` | everyone | one or several titles (favorites); with `lang`, its name and description in that language |
 | `episodes?id=`, `cast?id=`, `trailer?title=&year=&kind=` | everyone | details of a title |
 | `filters?type=` | everyone | countries (platforms for games), genres, decades |
 | `lucky?type=movie\|series` | everyone | one good pick (none for games) |
@@ -67,6 +67,7 @@ On the games page every game appears once, and a shelf shows at most two games o
 | `favorites` (GET, POST) | members | the member's favorites |
 | `requests` (GET; POST to add or vote) | members see it; approved members add and vote | the wishlist |
 | `me` | everyone | who is looking (public, member, uploader, admin) |
+| `person?id=nm…&lang=` | everyone | a person: portrait, dates, short bio (Wikidata + Wikipedia), best-known titles, filmography in the catalogue |
 | `related?id=` | everyone | "More like this" and "More from the director / creator" (games: the same series) |
 | `news` (GET), `contact` (POST) | everyone | the news posts; a contact message (spam trap, 5 an hour per address) |
 | `status`, `admin/rebuild`, `members`, `users`, `usage`, `stats` | admin | the admin panels |
@@ -130,3 +131,31 @@ stays when switching between Movies, Series and Games.
 VideoGame data with the rating; story pages carry NewsArticle data (headline, picture, date, the publisher as author and
 source, the titles it is about) and breadcrumbs. Every story ends with "Background" (Nahoko's own text about the titles it
 names, from the catalogue) and picks that fit its subject.
+
+## People pages
+
+Every actor, director and writer of a catalogue title has a page at `/person/<IMDb id>-<name>` (cast cards and crew names
+on title pages link to it). What they made comes from `cast.db` (IMDb principals: the first 10 billed actors, directors and
+writers of each catalogue title), so the filmography is limited to the catalogue. Portrait: TMDB through Jellyfin, TVmaze, else
+Wikidata/Commons. Birth, death, place, jobs and a short biography come from Wikidata and the Wikipedia summary of the page's
+language (CC BY-SA, linked), kept 30 days in `titles.db` (`pinfo`). The sitemaps list the 30,000 best-known people
+(`sitemap-people-N.xml`); each page carries schema.org Person data and breadcrumbs.
+
+## Title pages
+
+A short wide cover (the series' TVmaze background, else a frame of the trailer), breadcrumbs (Home › Movies › title), the cast
+as cards, and a slim bar that follows the page once its header has scrolled away (poster, name, Trailer, Save). On series pages
+the episode chart stays pinned under that bar.
+
+## Languages
+
+English, French, Spanish, German, Italian, Portuguese and Arabic (right to left). `/fr/...` (and `/es/`, `/de/`, `/it/`, `/pt/`,
+`/ar/`) serves the same page in that language; the choice in the footer is remembered (cookie `lang`), and plain links bring
+the visitor back to their language. Interface words live in `assets/i18n/strings.tsv` (one row per English text, one column
+per language; `{x}` stands for a name or number); the server sends the page's language with it and the page translates what it
+shows. Names of titles and people are never translated. A title's own name and description come from TMDB when `TMDB_KEY`
+is set in `uploads-meta.env` (a free key from themoviedb.org), else from Wikidata and Wikipedia; kept 60 days (`tl` in
+`titles.db`). Every page lists its other languages (`hreflang`) for search engines. News stories stay in their original English.
+
+`/methodology` ("Who we are and how it works") explains the sources, updates, which titles get in, what the ratings mean
+and how to report an error.

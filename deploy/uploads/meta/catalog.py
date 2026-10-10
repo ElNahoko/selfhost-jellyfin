@@ -609,6 +609,7 @@ def _castdb(path=CAST_DB):
     c.execute("PRAGMA temp_store=MEMORY")          # the container has no writable /tmp
     c.execute("CREATE TABLE IF NOT EXISTS people(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
     c.execute("CREATE INDEX IF NOT EXISTS people_name ON people(name, cat)")      # "more from this director"
+    c.execute("CREATE INDEX IF NOT EXISTS people_who ON people(nconst)")         # a person's page: everything they made
     c.execute("CREATE TABLE IF NOT EXISTS photo(name TEXT PRIMARY KEY, url TEXT, t INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     return c
@@ -679,7 +680,7 @@ def ensure_cast():
 
 def cast_for(tid):
     try:
-        c = _castdb(); rows = c.execute("SELECT name, cat, chars FROM people WHERE tconst=? ORDER BY ord", (tid,)).fetchall(); c.close()
+        c = _castdb(); rows = c.execute("SELECT name, cat, chars, nconst FROM people WHERE tconst=? ORDER BY ord", (tid,)).fetchall(); c.close()
     except Exception:
         return None
     if not rows: return None
@@ -689,14 +690,16 @@ def cast_for(tid):
             if x not in out: out.append(x)
         return out
     cast, seen = [], {}
-    for n, k, ch in rows:
+    for n, k, ch, nm in rows:
         if k not in ("actor", "actress"): continue
         if n in seen:
             if ch and ch not in seen[n]["c"]: seen[n]["c"] += " / " + ch
         else:
-            seen[n] = {"n": n, "c": ch}; cast.append(seen[n])
-    out = {"directors": uniq(n for n, k, _ in rows if k == "director")[:3],
-           "writers": uniq(n for n, k, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:8]}
+            seen[n] = {"n": n, "c": ch, "id": nm}; cast.append(seen[n])
+    crew = lambda ks: uniq({"n": n, "id": nm} for n, k, _, nm in rows if k in ks)[:3]
+    out = {"directors": uniq(n for n, k, _, _ in rows if k == "director")[:3],
+           "writers": uniq(n for n, k, _, _ in rows if k in ("writer", "creator"))[:3], "cast": cast[:10],
+           "dirs": crew(("director",)), "wrs": crew(("writer", "creator"))}      # the same, with the ids of their pages
     if _photos(tid, out["cast"]): out["pending"] = True      # some portraits are still being looked up (ask again in a moment)
     return out
 
@@ -1280,3 +1283,190 @@ def save_cover(tid, url):
     with _titles() as c:
         c.execute("CREATE TABLE IF NOT EXISTS covers(id TEXT PRIMARY KEY, url TEXT, t INTEGER)")
         c.execute("INSERT OR REPLACE INTO covers VALUES(?,?,?)", (tid, url or "", int(time.time())))
+
+# ---------- people pages: what they made comes from cast.db (IMDb); portrait, dates and a short bio from Wikidata + Wikipedia ----------
+LANGS = ("en", "fr", "es", "de", "it", "pt", "ar", "tr", "nl", "pl", "ru", "ja", "ko", "zh", "hi")
+_UA = {"User-Agent": "NahokoCatalogue/1.0 (self-hosted film catalogue)"}
+WDAPI = "https://www.wikidata.org/w/api.php"
+
+def _wget(url, timeout=12):
+    with urllib.request.urlopen(urllib.request.Request(url, headers=_UA), timeout=timeout) as r: return json.load(r)
+
+def _commons(fname, w=400):
+    """The address of a Wikimedia Commons picture at a given width (the same path Wikipedia uses)."""
+    import hashlib
+    f = fname.replace(" ", "_"); h = hashlib.md5(f.encode()).hexdigest()
+    q = urllib.parse.quote(f)
+    return "https://upload.wikimedia.org/wikipedia/commons/thumb/%s/%s/%s/%dpx-%s%s" % (h[0], h[:2], q, w, q, ".png" if f.lower().endswith((".svg", ".tif", ".tiff")) else "")
+
+def _wikidata_person(nm, lang):
+    hit = _wget(WDAPI + "?action=query&list=search&srlimit=1&format=json&srsearch=" + urllib.parse.quote("haswbstatement:P345=" + nm))["query"]["search"]
+    if not hit: return {}
+    q = hit[0]["title"]
+    e = _wget(WDAPI + "?action=wbgetentities&format=json&props=claims|sitelinks|descriptions&languages=%s|en&ids=%s" % (lang, q))["entities"][q]
+    cl = e.get("claims", {})
+    def vals(p):
+        return [s["mainsnak"]["datavalue"]["value"] for s in cl.get(p, []) if s.get("mainsnak", {}).get("datavalue")]
+    out = {"wd": q, "v": 2}
+    for p, k in (("P569", "born"), ("P570", "died")):
+        v = vals(p)
+        if v and isinstance(v[0], dict) and v[0].get("time"):
+            out[k] = v[0]["time"][1:11] if v[0].get("precision", 0) >= 11 else v[0]["time"][1:5]
+    img = vals("P18")
+    if img: out["pic"] = _commons(img[0])
+    ids = [v["id"] for v in vals("P19")[:1] + vals("P106")[:6] if isinstance(v, dict) and v.get("id")]
+    if ids:
+        lab = _wget(WDAPI + "?action=wbgetentities&format=json&props=labels&languages=%s|en&ids=%s" % (lang, "|".join(ids)))["entities"]
+        name = lambda i: ((lab.get(i, {}).get("labels") or {}).get(lang) or (lab.get(i, {}).get("labels") or {}).get("en") or {}).get("value")
+        bp = [v["id"] for v in vals("P19")[:1] if isinstance(v, dict)]
+        if bp and name(bp[0]): out["place"] = name(bp[0])
+        en = lambda i: ((lab.get(i, {}).get("labels") or {}).get("en") or {}).get("value") or ""
+        screen = re.compile(r"act|direct|produc|writ|screen|comedian|presenter|host|voice|anim|film|televis|singer|musician|composer|model|stunt|cinemat|editor|novel|author|rapper|dancer|playwright", re.I)
+        out["jobs"] = [n for n in (name(v["id"]) for v in vals("P106")[:6] if isinstance(v, dict) and screen.search(en(v["id"]))) if n][:4]      # their screen work, not "aircraft pilot"
+    d = (e.get("descriptions") or {}).get(lang) or (e.get("descriptions") or {}).get("en")
+    if d: out["desc"] = d["value"]
+    sl = e.get("sitelinks") or {}
+    for lg in ((lang, "en") if lang != "en" else ("en",)):
+        if lg + "wiki" in sl:
+            try:
+                s = _wget("https://%s.wikipedia.org/api/rest_v1/page/summary/%s" % (lg, urllib.parse.quote(sl[lg + "wiki"]["title"].replace(" ", "_"), safe="")))
+                if s.get("extract"):
+                    out["bio"] = s["extract"][:1500]; out["wiki"] = (s.get("content_urls") or {}).get("desktop", {}).get("page", ""); out["bio_lang"] = lg
+                if not out.get("pic") and (s.get("thumbnail") or {}).get("source"): out["pic"] = s["thumbnail"]["source"]
+            except Exception:
+                pass
+            break
+    return out
+
+def _pinfo(nm, lang):
+    """Wikidata/Wikipedia facts about a person, kept 30 days (a failed lookup is retried after a day)."""
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS pinfo(nconst TEXT, lang TEXT, v TEXT, t INTEGER, PRIMARY KEY(nconst, lang))")
+            r = c.execute("SELECT v, t FROM pinfo WHERE nconst=? AND lang=?", (nm, lang)).fetchone()
+        if r:
+            v = json.loads(r[0])
+            if time.time() - r[1] < (30 * 86400 if v else 3600) and (not v or v.get("v") == 2): return v
+    except Exception:
+        pass
+    try: v = _wikidata_person(nm, lang)
+    except Exception: return {}
+    try:
+        with _titles() as c: c.execute("INSERT OR REPLACE INTO pinfo VALUES(?,?,?,?)", (nm, lang, json.dumps(v), int(time.time())))
+    except Exception:
+        pass
+    return v
+
+def person(nm, lang="en"):
+    """One person's page: who they are and every catalogue title they acted in, directed or wrote."""
+    cat = load()
+    if not cat: return None
+    try:
+        c = _castdb(); rows = c.execute("SELECT tconst, cat, chars, name FROM people WHERE nconst=?", (nm,)).fetchall()
+        name = rows[0][3] if rows else None
+        ph = c.execute("SELECT url FROM photo WHERE name=?", (name,)).fetchone() if name else None
+        c.close()
+    except Exception:
+        return None
+    if not rows: return None
+    roles, seen, gender = {"acting": [], "directing": [], "writing": []}, {}, ""
+    for t, k, ch, _ in rows:
+        if t not in cat["items"]: continue
+        r = "acting" if k in ("actor", "actress") else "directing" if k == "director" else "writing"
+        if k in ("actor", "actress"): gender = k
+        key = (r, t)
+        if key in seen:
+            if ch and ch not in (seen[key].get("as") or ""): seen[key]["as"] = ((seen[key].get("as") or "") + " / " + ch).strip(" /")
+            continue
+        it = _dress(cat, t)
+        if ch: it["as"] = ch
+        seen[key] = it; roles[r].append(it)
+    for r in roles: roles[r].sort(key=lambda i: (-(i.get("y") or 0), -i["v"]))
+    every = {i["id"]: i for r in roles.values() for i in r}
+    best = sorted(every.values(), key=lambda i: -i["v"])[:12]
+    queue_resolve([cat["items"][i] for i in every if known(i) is None][:60])      # posters still missing: fetched for next time
+    info = _pinfo(nm, lang if lang in LANGS else "en")
+    if not ph and person_lookup:      # never looked up: TMDB's portrait (through Jellyfin), kept like the cast photos
+        try: u = person_lookup(name) or ""
+        except Exception: u = None
+        if u is not None:
+            try:
+                c = _castdb(); c.execute("INSERT OR REPLACE INTO photo VALUES(?,?,?)", (name, u, int(time.time()))); c.commit(); c.close()
+            except Exception: pass
+            ph = (u,) if u else None
+    pic = ph[0].replace("/w185/", "/h632/").replace("/medium_portrait/", "/original_untouched/") if ph and ph[0] else info.get("pic", "")
+    jobs = info.get("jobs") or [{"actor": "Actor", "actress": "Actress"}.get(gender, "")] + (["Director"] if roles["directing"] else []) + (["Writer"] if roles["writing"] else [])
+    return {"id": nm, "n": name, "pic": pic, "jobs": [j for j in jobs if j][:4], "born": info.get("born"), "died": info.get("died"),
+            "place": info.get("place"), "desc": info.get("desc"), "bio": info.get("bio"), "wiki": info.get("wiki"), "bio_lang": info.get("bio_lang"),
+            "wd": info.get("wd"), "known": best, "roles": {k: v for k, v in roles.items() if v}, "count": len(every)}
+
+def people_for_sitemap(limit=30000):
+    """The people worth a page of their own: the first-billed cast and the directors of the better-known titles."""
+    cat = load()
+    if not cat: return []
+    good = {i for i, o in cat["items"].items() if o["v"] >= 20000}
+    try:
+        c = _castdb()
+        rows = c.execute("SELECT nconst, name, tconst FROM people WHERE ord<=4 OR cat='director'").fetchall(); c.close()
+    except Exception:
+        return []
+    score = {}
+    for nm, n, t in rows:
+        if t in good:
+            s = score.setdefault(nm, [n, 0]); s[1] += cat["items"][t]["v"]
+    return [(nm, s[0]) for nm, s in sorted(score.items(), key=lambda x: -x[1][1])[:limit]]
+
+# ---------- a title in another language: its name and description (TMDB when a key is set, else Wikidata + Wikipedia) ----------
+TMDB_KEY = os.environ.get("TMDB_KEY", "")      # optional: a free TMDB key gives real synopses in every language
+
+def _tmdb_i18n(tid, lang):
+    u = "https://api.themoviedb.org/3/find/%s?external_source=imdb_id&language=%s" % (tid, lang)
+    hd = dict(_UA)
+    if len(TMDB_KEY) > 40: hd["Authorization"] = "Bearer " + TMDB_KEY      # a "read access token"
+    else: u += "&api_key=" + TMDB_KEY
+    with urllib.request.urlopen(urllib.request.Request(u, headers=hd), timeout=10) as r: d = json.load(r)
+    x = (d.get("movie_results") or d.get("tv_results") or [None])[0]
+    if not x: return {}
+    return {"n": x.get("title") or x.get("name") or "", "o": x.get("overview") or "", "src": "tmdb"}
+
+def _wiki_i18n(tid, lang):
+    hit = _wget(WDAPI + "?action=query&list=search&srlimit=1&format=json&srsearch=" + urllib.parse.quote("haswbstatement:P345=" + tid))["query"]["search"]
+    if not hit: return {}
+    q = hit[0]["title"]
+    e = _wget(WDAPI + "?action=wbgetentities&format=json&props=labels|sitelinks&languages=%s&ids=%s" % (lang, q))["entities"][q]
+    out = {"n": ((e.get("labels") or {}).get(lang) or {}).get("value", ""), "src": "wikipedia"}
+    sl = (e.get("sitelinks") or {}).get(lang + "wiki")
+    if sl:
+        try:
+            s = _wget("https://%s.wikipedia.org/api/rest_v1/page/summary/%s" % (lang, urllib.parse.quote(sl["title"].replace(" ", "_"), safe="")))
+            out["o"] = (s.get("extract") or "")[:900]; out["wiki"] = (s.get("content_urls") or {}).get("desktop", {}).get("page", "")
+        except Exception:
+            pass
+    return out
+
+def title_i18n(tid, lang):
+    """{"n": localized name, "o": localized description, "src": ...} or {} — kept 60 days (a miss is retried after 3 days)."""
+    if lang not in LANGS or lang == "en": return {}
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS tl(id TEXT, lang TEXT, v TEXT, t INTEGER, PRIMARY KEY(id, lang))")
+            r = c.execute("SELECT v, t FROM tl WHERE id=? AND lang=?", (tid, lang)).fetchone()
+        if r:
+            v = json.loads(r[0])
+            if time.time() - r[1] < (60 * 86400 if v.get("o") else 3 * 86400 if v else 3600) and (v.get("src") == "tmdb" or not TMDB_KEY): return v
+    except Exception:
+        pass
+    v = {}
+    try: v = _tmdb_i18n(tid, lang) if TMDB_KEY else {}
+    except Exception: v = {}
+    if not v.get("o"):
+        try:
+            w = _wiki_i18n(tid, lang)
+            v = {"n": v.get("n") or w.get("n", ""), "o": w.get("o", ""), "src": w.get("src", ""), "wiki": w.get("wiki", "")} if w else v
+        except Exception:
+            pass
+    try:
+        with _titles() as c: c.execute("INSERT OR REPLACE INTO tl VALUES(?,?,?,?)", (tid, lang, json.dumps(v), int(time.time())))
+    except Exception:
+        pass
+    return v

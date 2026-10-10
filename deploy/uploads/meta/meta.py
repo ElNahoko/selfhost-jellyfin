@@ -213,42 +213,112 @@ PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
 _rate = {}
 
+UI_LANGS = ("fr", "es", "de", "it", "pt", "ar")      # besides English; /fr/... and so on
+_i18n = {"m": 0, "d": {}}
+def i18n(lang):
+    """English text -> its translation, from assets/i18n/strings.tsv (reloaded when the file changes)."""
+    f = os.path.join(ASSETS, "i18n", "strings.tsv")
+    try: m = os.path.getmtime(f)
+    except OSError: return {}
+    if m != _i18n["m"]:
+        out = {l: {} for l in UI_LANGS}
+        rows = open(f, encoding="utf-8").read().splitlines()
+        head = rows[0].split("\t")
+        for line in rows[1:]:
+            cols = line.split("\t")
+            if len(cols) != len(head): continue
+            for i, l in enumerate(head[1:], 1):
+                if l in out and cols[i] and cols[i] != cols[0]: out[l][cols[0]] = cols[i]
+        _i18n["d"] = out; _i18n["m"] = m
+    return _i18n["d"].get(lang, {})
+
+def lang_url(lang, path):
+    return SITE + ("/" + lang if lang != "en" else "") + path
+
+def alternates(path):
+    """<link rel=alternate hreflang> for one page in every language (path without the language part)."""
+    return "".join('<link rel="alternate" hreflang="%s" href="%s">' % (l, lang_url(l, path)) for l in ("en",) + UI_LANGS) + \
+        '<link rel="alternate" hreflang="x-default" href="%s">' % lang_url("en", path)
+
 def slug_of(n):
     import unicodedata
     n = unicodedata.normalize("NFD", str(n or "")).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "-", n).strip("-")[:60] or "title"
 
-def title_seo(tid):
+def title_seo(tid, lang="en"):
     """For /title/<id>: what search engines read (the app draws the page itself): name, description, picture,
     structured data, and plain links to related titles, so robots can walk from title to title."""
     import html as H
     it = games.item(tid) if tid.startswith("wg") else catalog.item(tid)
     if not it: return "", ""
-    name = it["n"] + (" (%s)" % it["y"] if it.get("y") else "")
-    desc = (it.get("o") or "%s on %s." % (name, mail.BRAND))[:300]
-    url = "%s/title/%s-%s" % (SITE, tid, slug_of(it["n"]))
+    loc = catalog.title_i18n(tid, lang) if lang != "en" and tid.startswith("tt") else {}
+    name = (loc.get("n") or it["n"]) + (" (%s)" % it["y"] if it.get("y") else "")
+    desc = (loc.get("o") or it.get("o") or "%s on %s." % (name, mail.BRAND))[:300]
+    path = "/title/%s-%s" % (tid, slug_of(it["n"]))
+    url = lang_url(lang, path)
     img = "%s/_meta/%s?w=500&u=%s" % (SITE, "rimg", quote(it["img"], safe="")) if it.get("img") else ""
     kind = {"movie": "Movie", "series": "TVSeries", "game": "VideoGame"}.get(it.get("k"), "CreativeWork")
-    ld = {"@context": "https://schema.org", "@type": kind, "name": it["n"], "url": url, "description": desc}
+    ld = {"@context": "https://schema.org", "@type": kind, "name": loc.get("n") or it["n"], "url": url, "description": desc, "inLanguage": lang}
     if it.get("y"): ld["datePublished"] = str(it["y"])
     if img: ld["image"] = img
     if it.get("g"): ld["genre"] = it["g"]
     if it.get("r") and it.get("v"): ld["aggregateRating"] = {"@type": "AggregateRating", "ratingValue": it["r"], "bestRating": 10, "ratingCount": it["v"]}
+    kname, kpath = {"movie": ("Movies", "movies"), "series": ("Series", "series"), "game": ("Games", "games")}.get(it.get("k"), ("Movies", "movies"))
+    crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": mail.BRAND, "item": SITE + "/"},
+        {"@type": "ListItem", "position": 2, "name": kname, "item": SITE + "/catalogue/" + kpath},
+        {"@type": "ListItem", "position": 3, "name": it["n"], "item": url}]}
     e = lambda x: H.escape(str(x), quote=True)
     head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
             '<meta property="og:type" content="video.%s"><meta property="og:title" content="%s"><meta property="og:description" content="%s">%s'
             '<script type="application/ld+json">%s</script>') % (
         e(name), e(mail.BRAND), e(desc), e(url), "movie" if kind == "Movie" else "tv_show" if kind == "TVSeries" else "other", e(name), e(desc),
         ('<meta property="og:image" content="%s">' % e(img)) if img else "", json.dumps(ld).replace("</", "<\\/"))
+    head += '<script type="application/ld+json">%s</script>' % json.dumps(crumbs).replace("</", "<\\/") + alternates(path)
     try: rel = (games.related(tid) if tid.startswith("wg") else catalog.related(tid)) or {}
     except Exception: rel = {}
     links = [x for x in (rel.get("similar") or [])[:12]] + [x for x in ((rel.get("by") or {}).get("items") or [])[:6]]
     body = '<noscript><article><h1>%s</h1><p>%s</p>%s</article></noscript>' % (
         e(name), e(desc), ('<nav><h2>Related</h2><ul>%s</ul></nav>' % "".join(
-            '<li><a href="/title/%s-%s">%s%s</a></li>' % (x["id"], slug_of(x["n"]), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
+            '<li><a href="%s/title/%s-%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", x["id"], slug_of(x["n"]), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
     return head, body
 
-def app_page(s, head="", body=""):
+def person_seo(nm, lang="en"):
+    """For /person/<id>: name, short bio, portrait, schema.org Person, and plain links to everything they made."""
+    import html as H
+    p = catalog.person(nm, lang)
+    if not p: return "", ""
+    e = lambda x: H.escape(str(x), quote=True)
+    path = "/person/%s-%s" % (nm, slug_of(p["n"]))
+    url = lang_url(lang, path)
+    jobs = ", ".join(p.get("jobs") or [])
+    top = ", ".join(i["n"] for i in (p.get("known") or [])[:4])
+    desc = (p.get("bio") or "%s%s. Known for %s." % (p["n"], (" (" + jobs + ")") if jobs else "", top or "their work"))[:300]
+    img = "%s/_meta/rimg?w=500&u=%s" % (SITE, quote(p["pic"], safe="")) if p.get("pic") else ""
+    ld = {"@context": "https://schema.org", "@type": "Person", "name": p["n"], "url": url, "description": desc,
+          "sameAs": ["https://www.imdb.com/name/%s/" % nm] + (["https://www.wikidata.org/wiki/%s" % p["wd"]] if p.get("wd") else []) + ([p["wiki"]] if p.get("wiki") else [])}
+    if jobs: ld["jobTitle"] = jobs
+    if p.get("born"): ld["birthDate"] = p["born"]
+    if p.get("died"): ld["deathDate"] = p["died"]
+    if p.get("place"): ld["birthPlace"] = p["place"]
+    if img: ld["image"] = img
+    crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": mail.BRAND, "item": SITE + "/"},
+        {"@type": "ListItem", "position": 2, "name": "People", "item": SITE + "/catalogue/movies"},
+        {"@type": "ListItem", "position": 3, "name": p["n"], "item": url}]}
+    title = "%s%s" % (p["n"], (" · " + jobs) if jobs else "")
+    head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
+            '<meta property="og:type" content="profile"><meta property="og:title" content="%s"><meta property="og:description" content="%s">%s'
+            '<script type="application/ld+json">%s</script><script type="application/ld+json">%s</script>') % (
+        e(title), e(mail.BRAND), e(desc), e(url), e(p["n"]), e(desc), ('<meta property="og:image" content="%s">' % e(img)) if img else "",
+        json.dumps(ld).replace("</", "<\\/"), json.dumps(crumbs).replace("</", "<\\/")) + alternates(path)
+    every = {i["id"]: i for r in (p.get("roles") or {}).values() for i in r}
+    body = '<noscript><article><h1>%s</h1><p>%s</p><nav><h2>Filmography</h2><ul>%s</ul></nav></article></noscript>' % (
+        e(p["n"]), e(desc), "".join('<li><a href="%s/title/%s-%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", i["id"], slug_of(i["n"]), e(i["n"]), (" (%s)" % i["y"]) if i.get("y") else "")
+                                   for i in sorted(every.values(), key=lambda i: -(i.get("y") or 0))[:200]))
+    return head, body
+
+def app_page(s, head="", body="", lang="en"):
     """The app, told who is looking (public, member, uploader, admin). `head` adds page-specific tags (SEO)."""
     p = os.path.join(ASSETS, "index.html")
     m = os.path.getmtime(p)
@@ -256,14 +326,17 @@ def app_page(s, head="", body=""):
         _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
     inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;window.__WATCH=%s;</script>' % (
         json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND), json.dumps(WATCH))
-    return _page["html"].replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
+    if lang != "en":      # the interface in that language: its words travel with the page
+        inj += '<script>window.__LANG=%s;window.__T=%s;</script>' % (json.dumps(lang), json.dumps(i18n(lang), ensure_ascii=False).replace("</", "<\\/"))
+    html = _page["html"].replace('<html lang="en">', '<html lang="%s"%s>' % (lang, ' dir="rtl"' if lang == "ar" else ""), 1)
+    return html.replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")
 
 # answers that are the same for everyone, kept a short while (the catalogue changes slowly; computing a view walks 30,000 titles)
 _rc = {}
 CACHED = {"/_meta/catalog": 60, "/_meta/search": 600, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
-          "/_meta/episodes": 600, "/_meta/cast": 3600, "/_meta/related": 1800}
+          "/_meta/episodes": 600, "/_meta/cast": 3600, "/_meta/related": 1800, "/_meta/person": 3600}
 def rc_get(key):
     v = _rc.get(key)
     return v[1] if v and v[0] > time.time() else None
@@ -441,6 +514,14 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         self._rc_key = None          # one handler serves several requests on a kept-alive connection
         u = urlparse(self.path); qs = parse_qs(u.query); path = u.path
+        lang = "en"
+        lm = re.match(r"/(fr|es|de|it|pt|ar)(?=/|$)", path)
+        if lm:
+            lang = lm.group(1); path = path[lm.end():] or "/"
+        def chosen():      # an app page asked without a language part: back to the language this browser chose
+            c = re.search(r"(?:^|;\s*)lang=([a-z]{2})", self.headers.get("Cookie") or "")
+            if lang == "en" and c and c.group(1) in UI_LANGS:
+                self.redirect("/" + c.group(1) + path + ("?" + u.query if u.query else "")); return True
         try:
             if path == "/_lib/gsap.min.js":         # the animation library (downloaded at setup, not shipped in the repo)
                 try:
@@ -460,7 +541,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
-            if path in ("/about", "/privacy", "/contact"):          # plain pages, the same for everyone
+            if path in ("/about", "/privacy", "/contact", "/methodology"):          # plain pages, the same for everyone
                 with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
                 return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
             if path == "/robots.txt": return self.send(200, news.robots().encode(), "text/plain; charset=utf-8", "public, max-age=3600")
@@ -487,11 +568,21 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, page.encode(), "text/html; charset=utf-8", "public, max-age=120")
             m = re.fullmatch(r"/title/((?:tt|wg)\d{1,10})(?:-[a-z0-9-]*)?", path)
             if m:                                        # one title: the app draws it, robots get its facts and links
-                try: hd, bd = title_seo(m.group(1))
+                if chosen(): return
+                try: hd, bd = title_seo(m.group(1), lang)
                 except Exception: hd, bd = "", ""
-                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd), "text/html; charset=utf-8")
+                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
+            m = re.fullmatch(r"/person/(nm\d{5,10})(?:-[a-z0-9-]*)?", path)
+            if m:                                        # one person: the app draws it, robots get the facts and the filmography
+                if chosen(): return
+                try: hd, bd = person_seo(m.group(1), lang)
+                except Exception: hd, bd = "", ""
+                if not hd: return self.redirect("/")
+                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
-                return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
+                if chosen(): return
+                hd = alternates(path if path != "/index.html" else "/") if path == "/" or path.startswith("/catalogue") else ""
+                return self.send(200, app_page(self.sess() or PUBLIC, hd, "", lang), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
                 s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
                 if not s or not staff(s):           # the file server is for the admin and uploaders only
@@ -595,6 +686,10 @@ class H(BaseHTTPRequestHandler):
                 lim = (qs.get("limit") or ["24"])[0]
                 body = json.dumps(catalog.find(kind, clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode()
                 return self.send(200, body, cache="private, max-age=60")
+            if path == "/_meta/person":
+                pid = (qs.get("id") or [""])[0]; lg = (qs.get("lang") or ["en"])[0]
+                d = catalog.person(pid, lg) if re.fullmatch(r"nm\d{5,10}", pid) else None
+                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=3600" if d else "no-store")
             if path == "/_meta/cast":
                 tid = (qs.get("id") or [""])[0]
                 d = catalog.cast_for(tid) if re.fullmatch(r"tt\d{6,10}", tid) else None
@@ -710,6 +805,12 @@ class H(BaseHTTPRequestHandler):
                 if it and catalog.known(tid) is None:
                     resolve_one(it); it = catalog.item(tid)
                 if it and catalog.get_cover(tid): it = dict(it, bd=catalog.get_cover(tid))      # the wide picture, when ready
+                lg = (qs.get("lang") or ["en"])[0]
+                if it and lg in UI_LANGS:      # in another language: its own name and description when we can find them
+                    loc = catalog.title_i18n(tid, lg)
+                    it = dict(it, o_en=it.get("o"))
+                    if loc.get("n") and loc["n"] != it["n"]: it["ln"] = loc["n"]
+                    if loc.get("o"): it.update(o=loc["o"], osrc=loc.get("src"), owiki=loc.get("wiki", ""))
                 return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/requests":
                 with db() as c:
