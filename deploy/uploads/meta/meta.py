@@ -329,6 +329,49 @@ def title_seo(tid, lang="en"):
             '<li><a href="%s%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", title_path(x["id"], lang, x), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
     return head, body
 
+_home = {"t": 0, "d": None}
+def home_data():
+    """The start page: a few short rows (trending, popular, anime, top rated, games), the platforms and the genres.
+    Computed every 5 minutes; small enough to travel inside the page itself."""
+    if _home["d"] and time.time() - _home["t"] < 300: return _home["d"]
+    keep = ("id", "n", "y", "k", "r", "img", "on")
+    def pick(view, ids, n=12):
+        by = {r["id"]: r for r in (view.get("rows") or [])}
+        for i in ids:
+            if i in by and by[i]["items"]: return i, [{k: x[k] for k in keep if k in x} for x in by[i]["items"][:n]]
+        return None, []
+    mv, sv = catalog.view("movie"), catalog.view("series")
+    try: gv = games.view(None, "", 0, 12, None)
+    except Exception: gv = {}
+    secs = []
+    for sid, name, kind, view, ids in (("trend", "Trending now", "movie", mv, ["new", "fresh"]), ("pseries", "Popular series", "series", sv, ["popular", "new"]),
+                                        ("anime", "Anime", "series", sv, ["anime"]), ("pmovies", "Popular movies", "movie", mv, ["popular"]),
+                                        ("top", "Top rated films", "movie", mv, ["top"]), ("games", "Games to play", "game", gv, ["new", "popular", "top"])):
+        rid, items = pick(view, ids)
+        if items: secs.append({"id": sid, "name": name, "kind": kind, "row": rid, "items": items})
+    hero = None
+    for sec in secs[:2]:
+        for x in sec["items"]:
+            u = catalog.get_cover(x["id"])
+            if u: hero = dict(x, bd=u); break
+        if hero: break
+    plats = {}
+    for kind in ("movie", "series"):
+        for x in catalog.filters_info(kind).get("platforms") or []:
+            plats.setdefault(x["id"], {"id": x["id"], "name": x["name"], "movie": 0, "series": 0})[kind] = x["n"]
+    d = {"sections": secs, "hero": hero, "platforms": list(plats.values()),
+         "genres": catalog.filters_info("movie").get("genres") or []}
+    _home.update(t=time.time(), d=d)
+    return d
+
+def boot_script(name, data):
+    """Data the page needs first, sent inside the page: no extra round trip before the first pictures."""
+    return '<script>window.%s=%s;</script>' % (name, json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
+
+def preload(urls):
+    return "".join('<link rel="preload" as="image" href="/_meta/rimg?w=%s&amp;u=%s"%s>' % (w, quote(u, safe=""), ' fetchpriority="high"' if i == 0 else "")
+                   for i, (u, w) in enumerate(urls) if u)
+
 _secseo = {}
 def section_seo(lang, segs, qs):
     """A list page (/movies, /movies/top-rated, /series?on=netflix): its title, description, the titles on it as plain
@@ -436,6 +479,8 @@ def app_page(s, head="", body="", lang="en"):
         _page.update(html=raw, m=m, files={"%s.%s" % (h, e): (d, e) for e, (h, d) in files.items()})
     inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;window.__WATCH=%s;</script>' % (
         json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND), json.dumps(WATCH))
+    if os.environ.get("ADSENSE_CLIENT") and s["role"] == "public":      # ads only when set up, only for visitors (side columns)
+        inj += '<script>window.__ADS=%s;</script>' % json.dumps(os.environ["ADSENSE_CLIENT"][:40])
     if lang != "en":      # the interface in that language: its words come in a file of their own, kept by the browser
         inj += '<script>window.__LANG=%s;</script><script src="/_app/%s"></script>' % (json.dumps(lang), i18n_file(lang))
     html = _page["html"].replace('<html lang="en">', '<html lang="%s"%s>' % (lang, ' dir="rtl"' if lang == "ar" else ""), 1)
@@ -553,6 +598,14 @@ def _warm_people():
         except Exception:
             pass
         time.sleep(24 * 3600)
+
+def _warm_home():
+    """The start page is computed in the background every 4 minutes, so no visitor ever waits for it."""
+    time.sleep(20)
+    while True:
+        try: _home["t"] = 0; home_data()
+        except Exception: pass
+        time.sleep(240)
 
 def _warm_covers():
     """In the background: wide pictures for the best-known titles, ready before anyone opens them."""
@@ -749,10 +802,26 @@ class H(BaseHTTPRequestHandler):
                 if path.rstrip("/") != want and not staff(self.sess() or PUBLIC): return moved(want)      # /fr/movies -> /fr/films
                 try: hd, bd = section_seo(lang, segs, qs)
                 except Exception: hd, bd = alternates(lambda l: section_path(l, segs)), ""
+                key = SEC_ANY[segs[0]]
+                if len(segs) == 1 and key in ("movie", "series", "game") and not any(k in qs for k in ("on", "country", "genre", "decade", "min", "q")):
+                    try:
+                        v = (games.view(None, "", 0, 40, None) if key == "game" else catalog.view(key))
+                        v = json.loads(slim(json.dumps(v).encode()))
+                        hd += boot_script("__CAT", {"key": key + "||", "d": v}) + preload([(x.get("img"), "185") for r in (v.get("rows") or [])[:1] for x in r["items"][:8]])
+                    except Exception: pass
                 return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith("/catalogue") or path.endswith("/"):
                 if chosen(): return
                 hd = alternates("/") if path in ("/", "/index.html") else ""
+                if path in ("/", "/index.html") and not staff(self.sess() or PUBLIC):      # the start page, with its rows inside
+                    try:
+                        hdat = home_data(); hero = hdat.get("hero") or {}
+                        T = i18n(lang) if lang != "en" else {}
+                        desc = "Films, series, anime and games worth your time: IMDb ratings, cast, episode ratings, trailers and where each title comes from. Free, no account needed."
+                        hd += ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">' % (
+                            mail.BRAND, T.get("Films, series, anime and games", "Films, series, anime and games"), desc, lang_url(lang, "/")))
+                        hd += boot_script("__HOME", hdat) + preload([(hero.get("bd"), "500")] + [(x.get("img"), "185") for x in (hdat["sections"][0]["items"][:6] if hdat["sections"] else [])])
+                    except Exception: pass
                 return self.send(200, app_page(self.sess() or PUBLIC, hd, "", lang), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
                 s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
@@ -858,6 +927,7 @@ class H(BaseHTTPRequestHandler):
                 lim = (qs.get("limit") or ["24"])[0]
                 body = json.dumps(catalog.find(kind, clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode()
                 return self.send(200, body, cache="private, max-age=60")
+            if path == "/_meta/home": return self.js(home_data())
             if path == "/_meta/suggest":      # the search box, as you type: a few titles and people, with their pictures
                 q = clip((qs.get("q") or [""])[0], 60); typ = (qs.get("type") or ["movie"])[0]
                 if len(q) < 2: return self.js({"titles": [], "people": []})
@@ -1196,4 +1266,5 @@ if __name__ == "__main__":
     threading.Thread(target=stats_loop, daemon=True).start()
     threading.Thread(target=_warm_covers, daemon=True).start()
     threading.Thread(target=_warm_people, daemon=True).start()
+    threading.Thread(target=_warm_home, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()

@@ -212,3 +212,16 @@ title comes from, not where it streams in your country; Nahoko links to no servi
 `/movies`, `/movies/top-rated`, `/series?on=netflix`… are answered with their own title, description, schema.org
 CollectionPage/ItemList and the titles as plain links (`section_seo`), and every shelf and platform page is in
 `sitemap-pages.xml`. Each page has one `<title>`.
+
+## Start page
+
+`/` is a start page in the pattern of the big catalogue sites: a welcome with search, short rows (trending, popular series,
+anime, popular movies, top rated, games) with "See all", the platforms with their logos, the genres, and who we are. Its data
+(`/_meta/home`) is computed in the background every 4 minutes and sent inside the page with `<link rel="preload">` for the
+first pictures, so it draws without waiting. The same goes for `/movies`, `/series` and `/games` (`window.__CAT`).
+"See all" lists load two pages by themselves, then a "Show more" button, so the footer is always reachable.
+
+## Ads
+
+Set `ADSENSE_CLIENT` in `uploads-meta.env` and visitors on wide screens (1640 px and more) get two ad columns at the sides;
+never inside the content, never for signed-in staff. Without it, nothing is loaded.

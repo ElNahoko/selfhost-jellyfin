@@ -1312,6 +1312,52 @@ body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
 .langw .lmenu .lmi{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:12px;height:auto;width:100%}
 .langw .lmenu .lmi b{display:inline-block;width:28px;text-align:left}.langw .lmenu .lmi span{display:inline!important;font-size:.92rem}
 @media (max-width:600px){.mtop .gacct .langw .langbtn{height:44px}}
+/* the start page */
+.home{display:flex;flex-direction:column;gap:38px;padding-bottom:20px}
+.hhero{position:relative;border-radius:24px;overflow:hidden;min-height:clamp(320px,34vw,460px);display:flex;align-items:center;justify-content:center;text-align:center;isolation:isolate;margin-top:4px}
+.hhbg{position:absolute;inset:0;z-index:-1;background:#161616}.hhbg img{width:100%;height:100%;object-fit:cover;object-position:center 30%;display:block;opacity:.55}
+.hhbg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(12,12,12,.35),rgba(12,12,12,.85) 75%),linear-gradient(to bottom,transparent 50%,#141414)}
+.hhin{max-width:760px;padding:40px 22px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.hhin h1{margin:0;font-size:clamp(1.9rem,4.4vw,3.4rem);line-height:1.05;letter-spacing:-.025em;font-weight:900}
+.hhin p{margin:0;color:#d0d0d0;font-size:clamp(.98rem,1.4vw,1.15rem);max-width:600px}
+.hsrch{all:unset;box-sizing:border-box;cursor:text;display:flex;align-items:center;gap:12px;width:min(620px,100%);height:56px;padding:0 20px;border-radius:99px;
+  background:rgba(20,20,20,.75);border:1px solid rgba(255,255,255,.18);color:#bbb;font-size:1.02rem;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.hsrch:hover{border-color:rgba(255,255,255,.35)}.hsrch svg{width:20px;height:20px}
+.hquick{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.hhcap{position:absolute;right:16px;bottom:12px;font-size:.78rem;color:rgba(255,255,255,.65);text-decoration:none}.hhcap:hover{color:#fff}
+.hsec{display:flex;flex-direction:column;gap:14px}
+.hsec h2{margin:0;font-size:clamp(1.25rem,2vw,1.6rem);letter-spacing:-.01em}
+.hsh{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.hmore{color:#f5c518;font-weight:700;font-size:.92rem;text-decoration:none;white-space:nowrap}.hmore:hover{text-decoration:underline}
+.hgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:22px 16px}.hgrid .tile{width:auto}
+@media (max-width:1100px){.hgrid{grid-template-columns:repeat(4,minmax(0,1fr))}.hgrid .tile:nth-child(n+9){display:none}}
+@media (max-width:600px){.hgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 10px}.hgrid .tile:nth-child(n+7){display:none}.home{gap:30px}.hhero{border-radius:18px}}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.pcard{all:unset;cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);transition:border-color .15s,transform .15s}
+.pcard:hover{border-color:#555;transform:translateY(-2px)}.pct{display:flex;flex-direction:column;gap:3px;min-width:0}.pct b{font-size:1rem}.pct span{font-size:.8rem;color:var(--muted)}
+.ggrid{display:flex;flex-wrap:wrap;gap:8px}
+.gcard{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:700;font-size:.92rem}
+.gcard:hover{border-color:#555}.gcard svg{width:17px;height:17px}
+.habout{max-width:820px}.habout p{margin:0;color:#cfcfcf;line-height:1.65}
+/* platform logos */
+.plogo{display:inline-grid;place-items:center;overflow:hidden;border-radius:9px;background:#222;flex:none}
+.plogo img{width:100%;height:100%;object-fit:cover;display:block}.plogo b{font-size:.7rem;color:#fff}
+.plogo.sm{position:absolute;left:8px;bottom:8px;width:24px;height:24px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.6);z-index:2}
+.plogo.md{width:34px;height:34px}.plogo.lg{width:52px;height:52px;border-radius:12px}
+.onplat{gap:10px}.pbtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:9px;padding:4px 12px 4px 4px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-weight:700;font-size:.9rem}
+.pbtn:hover{background:rgba(255,255,255,.12)}
+/* "Show more" under a long list */
+.showmore{display:block;margin:18px auto 6px;padding:0 26px;height:44px}
+/* the sticky bar: a real poster, readable */
+.tbar{height:clamp(84px,7.6vw,118px)}
+.tbp{width:clamp(56px,4.8vw,78px);border-radius:10px}.tbp.round{width:clamp(62px,5.4vw,86px)}
+.tbt b{font-size:clamp(1.1rem,1.5vw,1.45rem)}.tbt span{font-size:clamp(.88rem,1vw,1.04rem)}
+.tpage.baron .epsticky{top:calc(var(--stick,0px) + clamp(84px,7.6vw,118px))}
+@media (max-width:600px){.tbar{height:92px}.tbp{width:56px}.tbp.round{width:64px}.tbt b{font-size:1.12rem}.tpage.baron .epsticky{top:calc(var(--stick,0px) + 92px)}}
+/* ads: only in the side columns of wide screens, never over the content */
+.adside{display:none}
+@media (min-width:1640px){.adside{display:block;position:fixed;top:120px;width:160px;min-height:600px;z-index:1}.adside.l{left:16px}.adside.r{right:16px}
+  .adlab{display:block;font-size:.66rem;color:#666;text-align:center;margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase}}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1463,6 +1509,7 @@ var queue=[], running=false;
 var META={}, SIZES={}, metaT=0, metaBusy=false, listing=[], filterText="", LIBSET={};
 
 var ICONS={
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   news:'<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>',
   list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
@@ -2153,9 +2200,17 @@ function refreshTiles(){
 var TPAGE=false,TSCROLL=0,TFROM="";      // a title page is on screen; where the list was scrolled before it
 function slugOf(n){return String(n||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60)||"title";}
 var PNAME={netflix:"Netflix",prime:"Prime Video",disney:"Disney+",apple:"Apple TV+",max:"HBO Max",hbo:"HBO",hulu:"Hulu",paramount:"Paramount+",crunchyroll:"Crunchyroll"};
+var PLOGO={netflix:"rK1KljqmbvO9HQa1PBFLILWah72.png",prime:"gMZdpavHmxFNnLpMHwVxfqeux2g.png",disney:"5eZ872CghnHFLB1j8grszbrx0dx.png",apple:"9icYBfYFcwgCbky5VdGUIKJ4C5i.png",
+  max:"skypuy7SXuugIQeYg0IglmzoKaS.png",hulu:"44uAnmSqvA4yBOdbPWN8YgQHjWm.png",paramount:"pkx3klJlwW5JdtaulvDx6hDNtch.png",crunchyroll:"uFL3c4Cq8M6WoLymlC5Y8bmGytV.png"};
+function plogo(k,cls){      // a platform's logo, or its name when we have none
+  var w=el("span","plogo "+(cls||"")+" p-"+k);w.title=PNAME[k]||k;w.setAttribute("translate","no");
+  if(PLOGO[k]){var im=el("img");im.alt=PNAME[k]||k;im.decoding="async";im.src=rimg("https://image.tmdb.org/t/p/w92/"+PLOGO[k],185);w.appendChild(im);}else w.appendChild(el("b","",(PNAME[k]||k).slice(0,3)));
+  return w;
+}
 function platChips(it,onPick){      // where it comes from: Netflix, Apple TV+...; a tap shows everything else from there
   if(!it.on||!it.on.length)return null;var w=el("div","onplat");w.appendChild(el("span","klab","Platform"));
-  it.on.forEach(function(k){var b=el("button","pchip p-"+k,PNAME[k]||k);b.type="button";b.setAttribute("translate","no");b.title="Released by "+(PNAME[k]||k)+" · see more";b.onclick=function(){onPick(k);};w.appendChild(b);});
+  it.on.forEach(function(k){var b=el("button","pbtn");b.type="button";b.setAttribute("translate","no");b.title="Released by "+(PNAME[k]||k)+" · see more";
+    b.appendChild(plogo(k,"md"));b.appendChild(el("span","",PNAME[k]||k));b.onclick=function(){onPick(k);};w.appendChild(b);});
   return w;
 }
 function titleKey(it){return /^wg\d/.test(it.id||"")||it.k==="game"?"game":it.k==="series"?"series":"movie";}
@@ -2169,6 +2224,7 @@ function enterPage(){      // a title or person page takes the place of the list
 }
 var KINDNAME={movie:"Movies",series:"Series",game:"Games"};
 function kindHref(k){return LP+"/"+secw(k==="series"?"series":k==="game"?"game":"movie");}
+function goHome(){TPAGE=false;reqTab="home";reqRow="";clearFilters();var f=$("filter");if(f)f.value="";go("requests");window.scrollTo(0,0);}
 function goKind(k){TPAGE=false;reqTab="browse";reqKind=k||"movie";reqRow="";reqPage=1;clearFilters();var f=$("filter");if(f)f.value="";go("requests");window.scrollTo(0,0);}
 function crumbsEl(items){      // Home › Movies › This title: where you are, each step a link back
   var n=el("nav","bcrumb");n.setAttribute("aria-label","Breadcrumb");var ol=el("ol");n.appendChild(ol);
@@ -2210,7 +2266,7 @@ async function showPerson(id,p0){      // a person's page: portrait, who they ar
   var tp=enterPage(),gen=(showPerson._g=(showPerson._g||0)+1);
   [].forEach.call(document.querySelectorAll(".tabs button[data-k]"),function(b){b.classList.remove("on");b.setAttribute("aria-selected","false");});      // a person is no tab
   var d=el("div","dlg wide tpage ppage");
-  var crumbs=crumbsEl([{t:"Home",href:"/",go:function(){goKind("movie");}},{t:"People"},{t:(p0&&p0.n)||"…"}]);
+  var crumbs=crumbsEl([{t:"Home",href:LP+"/",go:goHome},{t:"People"},{t:(p0&&p0.n)||"…"}]);
   tp.appendChild(crumbs);tp.appendChild(d);window.scrollTo(0,0);
   function back(){if(history.state&&(history.state.title||history.state.person))history.back();else goKind("movie");}
   var tab=null;
@@ -2271,6 +2327,7 @@ function tile(it){
   ph.style.background="linear-gradient(145deg,hsl("+hue(it.n)+",42%,34%),hsl("+((hue(it.n)+40)%360)+",45%,20%))";p.appendChild(ph);
   cover(p,rimg(it.img,185));
   if(it.r)p.appendChild(el("span","rate","★ "+it.r.toFixed(1)));
+  if(it.on&&it.on[0]&&PLOGO[it.on[0]])p.appendChild(plogo(it.on[0],"sm"));
   var add=el("button","add");add.type="button";      // (kept for the old code paths; never shown: a favorite is the wish)
   var fv=el("button","fav");fv.type="button";if(it.id)p.appendChild(fv);
   fv.onclick=function(e){e.stopPropagation();favToggle(it);};
@@ -2541,7 +2598,7 @@ async function showTitle(it0,opts){
   if(PAGE){      // the title page takes the place of the list
     var tp=enterPage();
     var tk=isGameIt(it)?"game":isSeries()?"series":"movie";reqKind=tk;reqTab="browse";
-    tp.appendChild(crumbsEl([{t:"Home",href:"/",go:function(){goKind("movie");}},{t:KINDNAME[tk],href:kindHref(tk),go:function(){goKind(tk);}},{t:it.n}]));
+    tp.appendChild(crumbsEl([{t:"Home",href:LP+"/",go:goHome},{t:KINDNAME[tk],href:kindHref(tk),go:function(){goKind(tk);}},{t:it.n}]));
     var fq=$("filter");if(fq)fq.placeholder=tk==="series"?"Search any series…":tk==="game"?"Search any game…":"Search any movie…";      // the header tab follows the title on screen
     [].forEach.call(document.querySelectorAll(".tabs button[data-k]"),function(b){var on=b.dataset.k===tk;b.classList.toggle("on",on);b.setAttribute("aria-selected",String(on));});
     paint();tp.appendChild(d);window.scrollTo(0,0);barWatch(d,".dinfo h3");
@@ -2778,6 +2835,51 @@ async function renderProfiles(){
   };
   draw();
 }
+var HOMEC=null;
+async function drawHome(c){      // the start page: a welcome, short rows of the best, platforms, genres, who we are
+  var box=el("div","home");c.appendChild(box);
+  var d=HOMEC||window.__HOME;window.__HOME=null;
+  if(!d){try{d=JSON.parse(localStorage.getItem("nahoko_home")||"null");if(d&&Date.now()-d._t>3600e3)d=null;}catch(e){d=null;}}
+  if(!d){box.appendChild(el("div","hint","Loading…"));try{d=await api("GET","/_meta/home");}catch(e){d=null;}if(!box.isConnected)return;box.innerHTML="";}
+  if(!d){box.appendChild(el("div","hint","Could not load this page"));return;}
+  HOMEC=d;try{d._t=d._t||Date.now();localStorage.setItem("nahoko_home",JSON.stringify(d));}catch(e){}
+  function goRow(kind,row,f){reqTab="browse";reqKind=kind;reqRow=row||"";reqPage=1;clearFilters();if(f)Object.assign(reqF,f);saveCat();go("requests");window.scrollTo(0,0);}
+  var hero=el("section","hhero"),hb=el("div","hhbg");
+  if(d.hero&&d.hero.bd){var hi=el("img");hi.alt="";hi.fetchPriority="high";hi.decoding="async";hi.src=rimg(d.hero.bd,500);hb.appendChild(hi);}
+  hero.appendChild(hb);var hin=el("div","hhin");
+  hin.appendChild(el("h1","","Films, series, anime and games worth your time"));
+  hin.appendChild(el("p","","Ratings, cast, every episode, trailers and where each title comes from. Free, no account needed."));
+  var sb=el("button","hsrch");sb.type="button";sb.appendChild(svg("search"));sb.appendChild(el("span","","Search films, series, people…"));
+  sb.onclick=function(){var f=$("filter");window.scrollTo({top:0,behavior:"smooth"});f.focus();};hin.appendChild(sb);
+  var qc=el("div","hquick");[["movie","Movies","film"],["series","Series","tv"],["anime","Anime","torii"],["game","Games","grid"]].forEach(function(q){
+    var b=el("button","chip");b.type="button";b.appendChild(tint(svg(q[2]),q[2]));b.appendChild(el("span","",q[1]));
+    b.onclick=function(){if(q[0]==="anime")goRow("series","anime");else goRow(q[0],"");};qc.appendChild(b);});
+  hin.appendChild(qc);hero.appendChild(hin);
+  if(d.hero){var hl=el("a","hhcap");hl.href=titleUrl(d.hero);hl.textContent=d.hero.n+(d.hero.y?" ("+d.hero.y+")":"");hl.setAttribute("translate","no");
+    hl.onclick=function(e){e.preventDefault();openTitle(d.hero);};hero.appendChild(hl);}
+  box.appendChild(hero);
+  (d.sections||[]).forEach(function(sec){
+    var se=el("section","hsec"),sh=el("div","hsh");sh.appendChild(el("h2","",sec.name));
+    var more=el("a","hmore","See all");more.href=LP+"/"+secw(sec.kind)+(sec.row?"/"+rowSlug(sec.kind,sec.row):"");
+    more.onclick=function(e){if(e.ctrlKey||e.metaKey)return;e.preventDefault();goRow(sec.kind,sec.row);};sh.appendChild(more);se.appendChild(sh);
+    var g=el("div","hgrid");sec.items.forEach(function(x){if(!x.k)x.k=sec.kind;g.appendChild(tile(x));});se.appendChild(g);box.appendChild(se);
+  });
+  if((d.platforms||[]).length){
+    var ps=el("section","hsec");ps.appendChild(el("h2","","Browse by platform"));var pg=el("div","pgrid");
+    d.platforms.forEach(function(x){var b=el("button","pcard");b.type="button";b.appendChild(plogo(x.id,"lg"));var t=el("span","pct");t.appendChild(el("b","",x.name));
+      t.appendChild(el("span","",(x.movie?plural(x.movie,"film"):"")+(x.movie&&x.series?" · ":"")+(x.series?x.series+" series":"")));b.appendChild(t);
+      b.onclick=function(){goRow(x.series>x.movie?"series":"movie","",{on:x.id});};pg.appendChild(b);});
+    ps.appendChild(pg);box.appendChild(ps);
+  }
+  if((d.genres||[]).length){
+    var gs=el("section","hsec");gs.appendChild(el("h2","","Browse by genre"));var gg=el("div","ggrid");
+    d.genres.forEach(function(gn){var b=el("button","gcard");b.type="button";b.appendChild(catIcon(gn.toLowerCase()));b.appendChild(el("span","",gn));b.onclick=function(){goRow("movie","",{genre:gn});};gg.appendChild(b);});
+    gs.appendChild(gg);box.appendChild(gs);
+  }
+  var ab=el("section","hsec habout");ab.appendChild(el("h2","","About "+BRAND));
+  ab.appendChild(el("p","",BRAND+" is a free guide to films, series, anime and games, made by one developer as a passion project. Ratings come from IMDb, pictures and descriptions from TMDB, TVmaze and Wikipedia. No ads in your way, no tracking, nothing to sell."));
+  var al=el("a","hmore","How it works");al.href=LP+"/methodology";ab.appendChild(al);box.appendChild(ab);
+}
 async function drawFavorites(c){
   var box=el("div","favpage");c.appendChild(box);
   if(PUBLICV&&FAV.length){var nb=el("div","favnote");nb.appendChild(el("span","","Saved on this device."));var sl=el("button","linkbtn","Keep them on every device");sl.type="button";
@@ -2810,14 +2912,14 @@ function renderRequests(){TPAGE=false;closeTitlePage();
   // header: three plain tabs where the page title used to be, search on the right
   var hd=$("crumbs");hd.innerHTML="";
   var tabs=el("div","tabs");tabs.setAttribute("role","tablist");
-  [["movie","Movies","","film"],["series","Series","","tv"],["game","Games","","grid"],["fav","Favorites","","heart"]].concat(STAFF?[["list","Wishlist","amber","list"]]:[]).forEach(function(k){
-    var on=k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
+  [["home","Home","","home"],["movie","Movies","","film"],["series","Series","","tv"],["game","Games","","grid"],["fav","Favorites","","heart"]].concat(STAFF?[["list","Wishlist","amber","list"]]:[]).forEach(function(k){
+    var on=k[0]==="home"?reqTab==="home":k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
     var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.dataset.k=k[0];b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
     b.appendChild(tint(svg(k[3],"ti"),k[3]));b.appendChild(el("span","tlab",k[1]));b.title=k[1];
     if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
     if(k[0]==="fav"&&FAV.length)b.appendChild(el("span","cnt",String(FAV.length)));
     b.onclick=function(){var q0=$("filter").value.trim();      // the search follows you to the other tab
-      if(k[0]==="list")reqTab="list";else if(k[0]==="fav")reqTab="fav";else{reqTab="browse";reqKind=k[0];reqRow="";reqPage=1;}saveCat();renderRequests();
+      if(k[0]==="home")reqTab="home";else if(k[0]==="list")reqTab="list";else if(k[0]==="fav")reqTab="fav";else{reqTab="browse";reqKind=k[0];reqRow="";reqPage=1;}saveCat();renderRequests();
       if(q0&&reqTab==="browse"){var f2=$("filter");f2.value=q0;f2.dispatchEvent(new Event("input",{bubbles:true}));}};
     tabs.appendChild(b);
   });
@@ -2827,6 +2929,7 @@ function renderRequests(){TPAGE=false;closeTitlePage();
   if(reqTab==="list"&&PUBLICV)reqTab="browse";
   if(reqTab==="list"){f.hidden=true;$("luckyBtn").hidden=true;var l=el("div");l.id="reqList";c.appendChild(l);drawRequests();loadRequests().then(drawRequests);return;}
   if(reqTab==="fav"){f.hidden=true;$("luckyBtn").hidden=true;saveCat();drawFavorites(c);return;}
+  if(reqTab==="home"){f.hidden=false;f.placeholder="Search films, series, people…";$("luckyBtn").hidden=false;saveCat();catUrlSync();drawHome(c);return;}
   saveCat();$("luckyBtn").hidden=reqKind==="game";f.hidden=false;f.placeholder=reqKind==="series"?"Search any series…":reqKind==="game"?"Search any game…":"Search any movie…";f.setAttribute("aria-label",f.placeholder);
   var res=el("div");res.id="reqRes";c.appendChild(res);
   var chips=el("div","chips");chips.id="reqChips";c.appendChild(chips);
@@ -2941,7 +3044,7 @@ function rowSlug(kind,id){      // a shelf in the address: its name ("top-rated"
 function catFromUrl(){      // /series/top-rated?country=KR&genre=Drama: a link anyone can share (old /catalogue/… links too)
   var p=new URLSearchParams(location.search),m=LPATH().match(/^\/catalogue\/?([^\/]*)/),key=null,row=p.get("row")||"";
   if(m){var k=m[1];key=k==="requests"||k==="wishlist"?"wish":k==="favorites"?"fav":k==="series"?"series":k==="games"?"game":"movie";}
-  else if(GUEST){var sg=LPATH().split("/").filter(Boolean);if(!sg.length||!SEC_ANY[sg[0]])return false;key=SEC_ANY[sg[0]];
+  else if(GUEST){var sg=LPATH().split("/").filter(Boolean);if(!sg.length){reqTab="home";reqRow="";return true;}if(!SEC_ANY[sg[0]])return false;key=SEC_ANY[sg[0]];
     if(sg[1]&&!/^(?:tt|wg|nm)\d/.test(sg[1]))row=sg[1]==="all"?"__f":sg[1];}
   else return false;
   if(key==="wish")reqTab=STAFF?"list":"fav";else if(key==="fav")reqTab="fav";else if(key!=="people"){reqTab="browse";reqKind=key;}
@@ -2950,6 +3053,7 @@ function catFromUrl(){      // /series/top-rated?country=KR&genre=Drama: a link 
 function catPath(){
   var p=new URLSearchParams();
   if(reqTab==="browse"){if(reqRow)p.set("row",reqRow);if(reqRow&&reqPage>1)p.set("page",reqPage);["on","country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
+  if(GUEST&&reqTab==="home")return "/";
   if(GUEST){var key=reqTab==="list"?"wish":reqTab==="fav"?"fav":reqKind==="series"?"series":reqKind==="game"?"game":"movie";p.delete("row");
     return "/"+secw(key)+(reqTab==="browse"&&reqRow?"/"+rowSlug(reqKind,reqRow):"")+(p.toString()?"?"+p.toString():"");}
   return "/catalogue/"+(reqTab==="list"?"wishlist":reqTab==="fav"?"favorites":reqKind==="series"?"series":reqKind==="game"?"games":"movies")+(p.toString()?"?"+p.toString():"");}
@@ -3215,7 +3319,11 @@ async function drawRow(kind,row,sort,page){      // one shelf on its own: pages 
     var gb=el("button","btn sm","Go");gb.type="submit";gf.appendChild(gi);gf.appendChild(gb);
     gf.onsubmit=function(e){e.preventDefault();var n=parseInt(gi.value,10);if(n>=1&&n<=st.pages)jump(n);else gi.select();};pager.appendChild(gf);
   }
-  if("IntersectionObserver" in window){shelfObs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!st.loading&&st.last<st.pages&&st.tiles.length)load(st.last+1);});},{rootMargin:"600px 0px"});shelfObs.observe(sent);}
+  var moreBtn=el("button","btn showmore","Show more");moreBtn.type="button";moreBtn.hidden=true;moreBtn.onclick=function(){moreBtn.hidden=true;load(st.last+1);};box.insertBefore(moreBtn,pager);
+  if("IntersectionObserver" in window){shelfObs=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(!e.isIntersecting||st.loading||st.last>=st.pages||!st.tiles.length)return;
+    if(st.last-st.first<2)load(st.last+1);else moreBtn.hidden=false;      // after two pages: a button, so the footer can be reached
+  });},{rootMargin:"600px 0px"});shelfObs.observe(sent);}
   await load(page);
 }
 function catKept(key){try{var x=JSON.parse(localStorage.getItem("nahoko_cat:"+key)||"null");return x&&Date.now()-x.t<12*3600e3?x.d:null;}catch(e){return null;}}
@@ -3233,6 +3341,7 @@ async function drawCatalog(tries){saveCat();
   var box=$("reqCat");if(!box)return;var kind=reqKind,row=reqRow,key=kind+"|"+row+"|"+filterQuery();
   if(row){clearTimeout(catPoll);drawRow(kind,row);return;}
   if(shelfObs){shelfObs.disconnect();shelfObs=null;}
+  if(!CATS[key]&&window.__CAT&&window.__CAT.key===key){CATS[key]=window.__CAT.d;catKeep(key,window.__CAT.d);window.__CAT=null;}      // sent inside the page
   if(!CATS[key]){var kept=catKept(key);if(kept){CATS[key]=kept;catRefresh(kind,key);}}      // shown at once from this device, refreshed quietly
   if(!CATS[key]){
     box.innerHTML="";box.appendChild(el("div","hint","Loading the catalogue…"));
@@ -3764,7 +3873,7 @@ if(GUEST){      // visitors and members: no sidebar, the name on the left of the
     var aw=el("div","awrap");aw.appendChild(av);aw.appendChild(am);acc.appendChild(aw);}
   if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});
     var bm=mt.querySelector(".brandm");if(bm){bm.setAttribute("role","link");bm.tabIndex=0;bm.title="Home";      // the logo: back to the start page
-      var home=function(){reqTab="browse";reqKind="movie";reqRow="";reqPage=1;clearFilters();$("filter").value="";TPAGE=false;go("requests");window.scrollTo(0,0);};
+      var home=function(){reqTab="home";reqKind="movie";reqRow="";reqPage=1;clearFilters();$("filter").value="";TPAGE=false;go("requests");window.scrollTo(0,0);};
       bm.onclick=home;bm.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();home();}};}
     var cr=$("crumbs");if(cr){cr.classList.add("incrumbs");mt.insertBefore(cr,mt.children[1]||null);}      // the catalogue tabs live in the logo row
     var nw=el("a","newsbtn");nw.href="/news";nw.title="News";nw.setAttribute("aria-label","News");nw.appendChild(tint(svg("news"),"news"));nw.appendChild(el("span","","News"));acc.insertBefore(nw,acc.firstChild);
@@ -3803,6 +3912,11 @@ var deepPath=LPATH();
 var deepPerson=(LPATH().match(RX_PERSON)||[])[1];
 if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";}
 (function(){var fs=$("footSign");if(fs&&PUBLICV){fs.hidden=false;$("footSignDot").hidden=false;fs.onclick=function(e){e.preventDefault();signInDialog();};}})();
+(function(){if(!window.__ADS||!GUEST)return;      // Google AdSense client id from the server (ADSENSE_CLIENT): two side columns, never inside the content
+  var sc=document.createElement("script");sc.async=true;sc.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client="+encodeURIComponent(window.__ADS);sc.crossOrigin="anonymous";document.head.appendChild(sc);
+  ["l","r"].forEach(function(side){var a=el("aside","adside "+side);a.setAttribute("aria-label","Advertisement");a.appendChild(el("span","adlab","Advertisement"));
+    var ins=el("ins","adsbygoogle");ins.style.display="block";ins.dataset.adClient=window.__ADS;ins.dataset.adFormat="vertical";ins.dataset.fullWidthResponsive="false";a.appendChild(ins);document.body.appendChild(a);
+    try{(window.adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}});})();
 if(LP)[].forEach.call(document.querySelectorAll('#sfoot a[href^="/"]'),function(a){if(/^\/(about|methodology|contact|privacy)$/.test(a.getAttribute("href")))a.setAttribute("href",LP+a.getAttribute("href"));});      // the plain pages in the same language
 (function(){var ls=$("langSel");if(!ls)return;Object.keys(LANGS).forEach(function(k){var o=document.createElement("option");o.value=k;o.textContent=LANGS[k];o.setAttribute("translate","no");if(k===LANG)o.selected=true;ls.appendChild(o);});ls.setAttribute("translate","no");ls.onchange=function(){setLang(ls.value);};})();
 cwd=(deepTitle||deepPerson)&&!GUEST?"requests":fromHash();catFromUrl();if(!deepTitle&&!deepPerson&&LPATH()+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
