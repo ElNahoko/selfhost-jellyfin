@@ -128,6 +128,8 @@ def _fetch_all():
 
 def _loop():
     time.sleep(20)
+    try: _known_names()      # ready before the first story page is opened
+    except Exception: pass
     while True:
         if not _st["running"]:
             _st["running"] = True
@@ -174,20 +176,89 @@ def related(s, n=6):
     scored = sorted(rows, key=lambda r: (-len(me & _words(r["title"])), -r["t"]))
     return scored[:n]
 
-def mentions(s):
-    """Titles named in the headline (between quotes, as the trade press writes them) that the catalogue has."""
+_names = {"t": 0, "d": None}
+
+def _known_names():
+    """Well-known titles by name (lowercase), to spot them in a headline even without quotes. Rebuilt every 30 minutes."""
+    if _names["d"] is not None:
+        if time.time() - _names["t"] > 1800 and not _names.get("busy"):      # stale: rebuilt in the background, the old one serves meanwhile
+            _names["busy"] = True; _names["t"] = time.time()
+            threading.Thread(target=lambda: (_build_names(), _names.update(busy=False)), daemon=True).start()
+        return _names["d"]
+    return _build_names()
+
+def _build_names():
+    import catalog, games
+    d, q = {}, {}      # d: names spotted anywhere; q: every name, for titles written between quotes
+    try:
+        cat = catalog.load()
+        for it in (cat or {}).get("items", {}).values():
+            n = it["n"].lower()
+            if n not in q or it["v"] > q[n][1]: q[n] = (it["id"], it["v"])
+            # without quotes only names of two words or more ("Breaking Bad", "The Ring"): one word is too often a plain word
+            if " " not in n or len(n) < 8 or not (_words(n) - STOP): continue
+            if it["v"] >= 30000 and (n not in d or it["v"] > d[n][1]): d[n] = (it["id"], it["v"])
+    except Exception:
+        pass
+    try:
+        for it in (games._items() or {}).values():
+            n = it["n"].lower()
+            if n not in q: q[n] = (it["id"], 0)
+            if " " in n and len(n) >= 8 and it["pop"] >= 20 and n not in d: d[n] = (it["id"], 0)
+    except Exception:
+        pass
+    _names["d"] = d; _names["q"] = q; _names["t"] = time.time()
+    return d
+
+def mentions(s, n=4):
+    """Titles the story is about that the catalogue has: names in quotes first (as the trade press writes them),
+    then well-known names anywhere in the headline or summary."""
     import catalog, games
     found, seen = [], set()
-    for q in re.findall(r"[‘'\"“]([^’'\"”]{2,70})[’'\"”]", s["title"]):
-        q = q.strip()
-        kinds = ("game",) if s["sec"] == "games" else ("series", "movie") if s["sec"] in ("series", "anime") else ("movie", "series")
-        for k in kinds:
-            try: hits = games.find(q, 3) if k == "game" else catalog.find(k, q, 3)
-            except Exception: hits = []
-            hit = next((h for h in hits if h["n"].lower() == q.lower()), None)
-            if hit and hit["id"] not in seen:
-                seen.add(hit["id"]); found.append(hit); break
-    return found[:4]
+    def add(tid):
+        if tid in seen or len(found) >= n: return
+        it = games.item(tid) if tid.startswith("wg") else catalog.item(tid)
+        if it: seen.add(tid); found.append(it)
+    text = s["title"] + " " + (s.get("excerpt") or "")
+    names = _known_names(); every = _names.get("q") or {}
+    for q in re.findall(r"[‘'\"“]([^’'\"”]{2,70})[’'\"”]", text):      # an exact name lookup: no search through the catalogue
+        hit = every.get(q.strip().lower().replace("’", "'"))
+        if hit and hit[0].startswith("wg") == (s["sec"] == "games"): add(hit[0])
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'’:&.-]*", text)
+    low = [w.lower().replace("’", "'").rstrip(".:") for w in words]
+    for size in range(6, 0, -1):      # longest names first, so "The Dark Knight Rises" wins over "The Dark Knight"
+        for i in range(0, len(low) - size + 1):
+            if not words[i][:1].isupper() and not words[i][:1].isdigit(): continue      # names start with a capital in a headline
+            hit = names.get(" ".join(low[i:i + size]))
+            if hit and hit[0].startswith("wg") == (s["sec"] == "games"): add(hit[0])      # game stories name games, the others films and series
+    return found
+
+def background(it):
+    """A short note about a title, written by Nahoko from its own catalogue data (not taken from the story)."""
+    import catalog
+    k = it.get("k"); bits = []
+    kind = {"movie": "film", "series": "series", "game": "game"}.get(k, "title")
+    g = [x.lower() for x in (it.get("g") or [])[:2]]
+    lead = "%s is a %s%s%s" % (it["n"], ("%s " % it["y"]) if it.get("y") else "", (" and ".join(g) + " ") if g else "", kind)
+    who = None
+    if k in ("movie", "series"):
+        try: who = catalog.cast_for(it["id"]) or {}
+        except Exception: who = {}
+        d = (who.get("directors") if k == "movie" else who.get("writers")) or []
+        if d: lead += " %s %s" % ("directed by" if k == "movie" else "created by", d[0])
+        stars = [c["n"] for c in (who.get("cast") or [])[:3]]
+        if stars: lead += ", with %s" % (", ".join(stars[:-1]) + " and " + stars[-1] if len(stars) > 1 else stars[0])
+    elif k == "game":
+        if it.get("plat"): lead += " for %s" % (", ".join(it["plat"][:3]))
+        if it.get("dev"): lead += ", made by %s" % it["dev"]
+    bits.append(lead + ".")
+    if k in ("movie", "series") and it.get("r") and it.get("v"):
+        v = it["v"]; vs = "%.1f million" % (v / 1e6) if v >= 1e6 else "%d,000" % round(v / 1000) if v >= 1000 else str(v)
+        verdict = "a favourite" if it["r"] >= 8 else "well liked" if it["r"] >= 7 else "mixed" if it["r"] >= 6 else "divisive"
+        bits.append("Audiences rate it %.1f out of 10 on IMDb (%s votes): %s." % (it["r"], vs, verdict))
+    elif k == "game" and it.get("mc"):
+        bits.append("Critics give it %d out of 100 on Metacritic." % it["mc"])
+    return " ".join(bits)
 
 # ---------- pages ----------
 def _ago(t):
@@ -217,28 +288,43 @@ def _post_card(p):
             '<span class="sec sec-nahoko">Nahoko</span><span>%s</span></div><h3>%s</h3><p>%s</p></div></a>') % (
         p["id"], _slug(p["title"]), _ago(p["t"]), _e(p["title"]), _e(_cut(p["body"].replace("\n", " "), 200)))
 
+_sidec = {"t": 0, "html": ""}
+
+def _poster(it, w=185):
+    return ('<img src="/_meta/rimg?w=%d&amp;u=%s" alt="" loading="lazy" decoding="async">' % (w, urllib.parse.quote(it["img"], safe=""))) if it.get("img") else "<i></i>"
+
 def _side():
-    """The column next to the news: what is new in the catalogue, what the family wants, our own updates."""
-    import catalog, extras
+    """The column next to the news: new in the catalogue (with posters), new games, our own updates. Kept 2 minutes."""
+    if _sidec["html"] and time.time() - _sidec["t"] < 120: return _sidec["html"]
+    import catalog, extras, games
     out = []
+    def shelf(title, items, more):
+        li = "".join('<li><a href="/title/%s">%s<span class="st"><b>%s</b><span>%s%s</span></span></a></li>' % (
+            i["id"], _poster(i), _e(i["n"]), i.get("y") or "", (" · ★ %.1f" % i["r"]) if i.get("r") else "") for i in items)
+        out.append('<section class="box"><h4>%s</h4><ul class="thumbs">%s</ul><a class="more" href="%s">See all</a></section>' % (title, li, more))
     try:
-        v = catalog.view("movie")
-        row = next((r for r in v.get("rows", []) if r["id"] == "new"), None)
-        if row:
-            li = "".join('<li><a href="/title/%s">%s</a><span>%s%s</span></li>' % (i["id"], _e(i["n"]), i.get("y") or "", (" · ★ %.1f" % i["r"]) if i.get("r") else "")
-                         for i in row["items"][:6])
-            out.append('<section class="box"><h4>New in the catalogue</h4><ol>%s</ol><a class="more" href="/catalogue/movies?row=new">See all</a></section>' % li)
+        row = next((r for r in catalog.view("movie").get("rows", []) if r["id"] == "new"), None)
+        if row: shelf("New films", row["items"][:5], "/catalogue/movies?row=new")
+    except Exception:
+        pass
+    try:
+        row = next((r for r in catalog.view("series").get("rows", []) if r["id"] == "new"), None)
+        if row: shelf("New series", row["items"][:4], "/catalogue/series?row=new")
+    except Exception:
+        pass
+    try:
+        row = next((r for r in games.view().get("rows", []) if r["id"] == "new"), None)
+        if row: shelf("New games", row["items"][:4], "/catalogue/games?row=new")
     except Exception:
         pass
     try:
         posts = extras.news()[:3]
-        li = "".join('<li><a href="/news/p/%d-%s">%s</a><span>%s</span></li>' % (p["id"], _slug(p["title"]), _e(p["title"]), _ago(p["t"])) for p in posts)
-        out.append('<section class="box"><h4>Nahoko updates</h4><ol>%s</ol><a class="more" href="/news/nahoko">All updates</a></section>' % li)
+        li = "".join('<li><a href="/news/p/%d-%s"><span class="st"><b>%s</b><span>%s</span></span></a></li>' % (p["id"], _slug(p["title"]), _e(p["title"]), _ago(p["t"])) for p in posts)
+        out.append('<section class="box"><h4>Nahoko updates</h4><ul class="thumbs plain">%s</ul><a class="more" href="/news/nahoko">All updates</a></section>' % li)
     except Exception:
         pass
-    out.append('<section class="box note"><h4>About these stories</h4><p>Headlines and short summaries come from each publisher\'s own news feed. '
-               'Tap a story to read it in full on their site.</p></section>')
-    return "".join(out)
+    _sidec["html"] = "".join(out); _sidec["t"] = time.time()
+    return _sidec["html"]
 
 def _shell(title, desc, body, sec="", canonical=""):
     tabs = "".join('<a href="/news%s"%s>%s</a>' % (("/" + k) if k else "", ' class="on"' if k == sec else "", n) for k, n in SECTIONS)
@@ -280,25 +366,41 @@ def hub(sec="", page=1):
     return _shell(name + (" · page %d" % page if page > 1 else ""), "The latest %s news, from the publishers' own feeds." % (SNAME.get(sec, "").lower() or "movie, series, anime and game"),
                   body, sec, "/news" + ("/" + sec if sec else ""))
 
+_artc = {}
+
 def article(iid):
+    """One story: its picture and summary, then Nahoko's own background on every title it mentions (poster, facts,
+    plot from the catalogue), related stories and the side column. Kept 5 minutes."""
+    hit = _artc.get(iid)
+    if hit and time.time() - hit[0] < 300: return hit[1]
     s = story(iid)
     if not s: return None
     rel = related(s); men = mentions(s)
     when = time.strftime("%d %B %Y, %H:%M", time.localtime(s["t"])).lstrip("0")
-    men_html = ""
+    bg = ""
     if men:
-        men_html = '<section class="incat"><h2>In the catalogue</h2><div class="minis">%s</div></section>' % "".join(
-            '<a class="mini" href="/title/%s">%s<b>%s</b><span>%s</span></a>' % (
-                m["id"], ('<img src="/_meta/rimg?w=185&amp;u=%s" alt="" loading="lazy">' % urllib.parse.quote(m["img"], safe="")) if m.get("img") else '<i></i>',
-                _e(m["n"]), m.get("y") or "") for m in men)
+        cards = []
+        for m in men:
+            facts = [str(m["y"])] if m.get("y") else []
+            facts += [{"movie": "Film", "series": "Series", "game": "Game"}.get(m.get("k"), "")] + (m.get("g") or [])[:3]
+            score = ('<span class="score">★ %.1f</span>' % m["r"]) if m.get("r") else ""
+            plot = _cut(m.get("o") or "", 420)
+            cards.append('<div class="bgcard"><a class="bgp" href="/title/%s">%s</a><div class="bgt"><h3><a href="/title/%s">%s</a>%s</h3>'
+                         '<div class="facts">%s</div><p class="note">%s</p>%s<a class="open" href="/title/%s">Open in Nahoko</a></div></div>' % (
+                m["id"], _poster(m, 342), m["id"], _e(m["n"]), score, " · ".join(_e(x) for x in facts if x), _e(background(m)),
+                ('<p class="plot">%s</p>' % _e(plot)) if plot else "", m["id"]))
+        bg = '<section class="bg"><h2>Background</h2>%s</section>' % "".join(cards)
     body = ('<div class="layout"><main><article class="story"><div class="meta"><a class="sec sec-%s" href="/news/%s">%s</a><span>%s · %s</span></div>'
-            '<h1>%s</h1>%s%s<p class="credit">Source: <a href="%s" rel="noopener nofollow" target="_blank">%s</a>. Headline, summary and picture belong to them.</p></article>%s'
-            '%s</main><aside>%s</aside></div>') % (
+            '<h1>%s</h1>%s%s<p class="credit">Story from <a href="%s" rel="noopener nofollow" target="_blank">%s</a>, who wrote the headline, summary and picture. '
+            'The background below is Nahoko\'s own.</p></article>%s%s</main><aside>%s</aside></div>') % (
         s["sec"], s["sec"], SNAME.get(s["sec"], ""), _e(s["src"]), when, _e(s["title"]),
         ('<figure>%s</figure>' % _img(s, "hero")) if s.get("img") else "", ('<p class="lede">%s</p>' % _e(s["excerpt"])) if s.get("excerpt") else "",
-        _e(s["link"]), _e(s["src"]), men_html,
+        _e(s["link"]), _e(s["src"]), bg,
         ('<section class="rel"><h2>Related stories</h2><div class="grid">%s</div></section>' % "".join(_card(r) for r in rel)) if rel else "", _side())
-    return _shell(s["title"], s.get("excerpt") or s["title"], body, s["sec"], "/news/a/%s-%s" % (s["id"], _slug(s["title"])))
+    page = _shell(s["title"], s.get("excerpt") or s["title"], body, s["sec"], "/news/a/%s-%s" % (s["id"], _slug(s["title"])))
+    if len(_artc) > 400: _artc.clear()
+    _artc[iid] = (time.time(), page)
+    return page
 
 def post(pid):
     import extras

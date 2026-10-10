@@ -1043,6 +1043,14 @@ body.guest .mtop{gap:18px;flex-wrap:nowrap}
 body.guest .mtop .incrumbs .tabs button.on,body.guest .mtop .incrumbs .tabs button.on span,body.guest .mtop .incrumbs .tabs button.on svg{color:#111}
 body.guest #filter{width:auto;flex:1 1 360px;max-width:620px}
 body.guest .top .tools{flex:1 1 auto;min-width:0}
+/* search in the header row (wide screens): the whole header stays on top */
+body.guest.hsearch .mtop{position:sticky;top:0;z-index:30;background:var(--bg);margin:0 -32px;padding:14px 32px;border-bottom:1px solid transparent}
+body.guest.hsearch .top{display:none}
+body.guest.hsearch .mtop .tools{flex:0 1 420px;min-width:220px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+body.guest.hsearch .mtop #filter{flex:1 1 auto;width:auto;max-width:none;min-width:0}
+body.guest.hsearch .mtop #luckyBtn{flex:none;width:44px;height:42px;padding:0!important}
+body.guest.hsearch .mtop #luckyBtn .lt{display:none}
+body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 1 auto}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -3171,7 +3179,11 @@ if(GUEST){      // visitors and members: no sidebar, the name on the left of the
   if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});
     var cr=$("crumbs");if(cr){cr.classList.add("incrumbs");mt.insertBefore(cr,mt.children[1]||null);}      // the catalogue tabs live in the logo row
     var nw=el("a","newsbtn");nw.href="/news";nw.title="News";nw.setAttribute("aria-label","News");nw.appendChild(svg("news"));nw.appendChild(el("span","","News"));acc.insertBefore(nw,acc.firstChild);
-    mt.appendChild(acc);}
+    mt.appendChild(acc);
+    var tl=$("tools"),topRow=document.querySelector(".top"),wide=matchMedia("(min-width:900px)");
+    var place=function(){if(!tl)return;if(wide.matches){if(tl.parentNode!==mt){mt.insertBefore(tl,acc);document.body.classList.add("hsearch");}}
+      else if(tl.parentNode!==topRow){topRow.appendChild(tl);document.body.classList.remove("hsearch");}};
+    place();if(wide.addEventListener)wide.addEventListener("change",place);}
   document.title=BRAND+" · films and series";
 }
 var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
@@ -3196,10 +3208,12 @@ function render(){
   tg.onclick=function(){var n=app.classList.toggle("narrow");try{localStorage.setItem("lumio_side",n?"narrow":"wide");}catch(e){}tg.title=n?"Expand the sidebar":"Collapse the sidebar";};})();
 (function(){var m=$("modal");if(!m||!window.MutationObserver)return;      // lock the page while a dialog is open
   new MutationObserver(function(){document.documentElement.classList.toggle("noscroll",!m.hidden);}).observe(m,{attributes:true,attributeFilter:["hidden"]});})();
+var deepQ=new URLSearchParams(location.search).get("q");      // a search sent from the news pages: /catalogue/movies?q=dune
 var deepTitle=(location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/)||[])[1];      // a link to one title: its page
 var deepPath=location.pathname;
 if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";}
 cwd=fromHash();catFromUrl();if(!deepTitle&&location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
+if(deepQ&&!deepTitle&&cwd==="requests"){var fq=$("filter");fq.value=deepQ.slice(0,80);fq.dispatchEvent(new Event("input",{bubbles:true}));history.replaceState(null,"",catPath());}
 if(deepTitle){history.replaceState(null,"",deepPath);TPAGE=true;
   api("GET","/_meta/title?id="+deepTitle).then(function(t){if(t&&t.n){if(t.k)reqKind=t.k;showTitle(t,{page:true});}else{TPAGE=false;go("requests");}}).catch(function(){TPAGE=false;});}
 if(ADMIN){loadSpace();setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}

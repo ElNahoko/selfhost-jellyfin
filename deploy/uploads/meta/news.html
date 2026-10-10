@@ -25,6 +25,9 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:900;letter-spacing:.14em;font-size:1.15rem}
 .brand svg{width:30px;height:30px}
 .bar .sp{flex:1}
+.hs{flex:0 1 340px;min-width:0}.hs input{width:100%;font:inherit;font-size:.95rem;color:#fff;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:9px 16px}
+.hs input:focus{outline:2px solid var(--red);outline-offset:1px;border-color:transparent}
+@media (max-width:600px){.hs{flex:1 1 auto}.brand span{display:none}}
 .bar .lnk{text-decoration:none;color:var(--muted);font-weight:600;font-size:.95rem;padding:7px 12px;border-radius:99px}
 .bar .lnk:hover{color:#fff;background:var(--card2)}
 .bar .lnk.cat{color:#fff;background:var(--red)}
@@ -94,6 +97,27 @@ footer .credit{flex-basis:100%;margin:0}footer .credit a{text-decoration:underli
 @media (max-width:600px){.wrap{padding:0 14px 40px}.bar{padding:10px 14px}.tabs{padding:0 8px}h1{font-size:1.6rem}.story h1{font-size:1.6rem}
   .grid{grid-template-columns:1fr}.card{flex-direction:row}.card .ci{width:118px;flex:none;aspect-ratio:auto}.card .cb{padding:12px}.card .cb p{display:none}
   .card.big{flex-direction:column}.card.big .ci{width:auto}.card.big .cb p{display:-webkit-box}.bar .lnk:not(.cat){display:none}}
+/* side column with posters */
+.thumbs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.thumbs li{display:block;padding:0;border:0}.thumbs li::before{display:none}
+.thumbs a{display:flex;gap:12px;align-items:center;text-decoration:none}
+.thumbs img,.thumbs i{width:46px;height:69px;flex:none;object-fit:cover;border-radius:8px;background:var(--card2);display:block}
+.thumbs .st{display:flex;flex-direction:column;min-width:0}.thumbs .st b{font-size:.92rem;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.thumbs .st span{color:var(--muted);font-size:.8rem}.thumbs a:hover b{text-decoration:underline}
+.thumbs.plain a{padding:4px 0}
+/* background on a story */
+.bg{margin-top:34px}.bg h2{font-size:1.25rem;margin:0 0 14px}
+.bgcard{display:grid;grid-template-columns:150px minmax(0,1fr);gap:20px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px}
+.bgp img,.bgp i{width:150px;aspect-ratio:2/3;object-fit:cover;border-radius:12px;background:var(--card2);display:block}
+.bgt h3{margin:0 0 6px;font-size:1.3rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.bgt h3 a{text-decoration:none}.bgt h3 a:hover{text-decoration:underline}
+.score{font-size:.9rem;color:#f5c518;font-weight:800}
+.facts{color:var(--muted);font-size:.9rem;margin-bottom:10px}
+.note{margin:0 0 10px;font-size:1.02rem;line-height:1.6;color:#e8e8e8}
+.plot{margin:0 0 14px;color:#bdbdbd;line-height:1.6}
+.open{display:inline-block;background:#fff;color:#111;text-decoration:none;font-weight:800;padding:10px 16px;border-radius:10px}.open:hover{background:#e6e6e6}
+.story h1{font-size:2.3rem}.lede{font-size:1.25rem}
+.cb h3{font-size:1.08rem}
+@media (max-width:600px){.bgcard{grid-template-columns:96px minmax(0,1fr);gap:14px;padding:14px}.bgp img,.bgp i{width:96px}.bgt h3{font-size:1.1rem}.story h1{font-size:1.7rem}.lede{font-size:1.08rem}}
 </style>
 </head>
 <body>
@@ -101,6 +125,7 @@ footer .credit{flex-basis:100%;margin:0}footer .credit a{text-decoration:underli
   <div class="bar">
     <a class="brand" href="/"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z" fill="#fff"/></svg><span>AHOKO</span></a>
     <span class="sp"></span>
+    <form class="hs" action="/catalogue/movies" method="get" role="search"><input name="q" type="search" placeholder="Search films, series, games…" aria-label="Search the catalogue" maxlength="80"></form>
     <a class="lnk" href="/about">About</a><a class="lnk" href="/contact">Contact</a><a class="lnk cat" href="/catalogue/movies">Catalogue</a>
   </div>
   <nav class="tabs" aria-label="News sections">{{TABS}}</nav>
