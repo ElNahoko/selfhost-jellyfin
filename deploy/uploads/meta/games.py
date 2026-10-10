@@ -1,26 +1,27 @@
-"""Games for the catalogue (browse and favorites; no requests, no lucky pick): the most owned Steam games.
+"""Games for the catalogue (browse, search, filters, favorites; no requests, no lucky pick), from free sources without a key:
 
-The list comes from SteamSpy (free, no key, one page of 1,000 games a minute) and is rebuilt weekly in the background.
-Year, genres, description, developer and the adult-content flags come from the Steam store, looked up a game at a time
-in the background (the store allows about 200 lookups per 5 minutes), most popular first and kept in games.db.
-A game appears only once its store page has been read, so adult games are never shown by mistake.
-The interface mirrors catalog.py: view (shelves, one shelf, inside filters), find, filters_info, item (no lucky pick for games)."""
-import html, json, os, re, sqlite3, threading, time, urllib.error, urllib.request
+  Wikidata   every notable game on PC, PlayStation 5/4, Xbox Series/One and Switch that has an English Wikipedia article:
+             platforms, release date, genres, developer, and how many Wikipedias write about it (its popularity)
+  Wikipedia  the cover (the article's main picture), a short description, and the Metacritic score from the review box
+
+The list is rebuilt weekly in the background (Wikidata: one query every few seconds). Covers, descriptions and scores are
+then read from Wikipedia, most popular games first, and kept in games.db. A game is shown once its cover is known.
+The interface mirrors catalog.py: view (shelves, one shelf, inside filters), find, filters_info, item."""
+import html, json, math, os, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
-LIST = os.path.join(DBDIR, "games.json")
+LIST = os.path.join(DBDIR, "games-wd.json")
 GDB = os.path.join(DBDIR, "games.db")
-PAGES = 8                 # 8,000 most owned games
-MIN_REVIEWS = 1500        # ... with enough reviews for the score to mean something
 MAXAGE = 7 * 86400
 HOME_N = 16
-UA = "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
-CDN = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/%d/library_600x900.jpg"
-NOT_GENRES = {"Free To Play", "Free to Play", "Early Access", "Indie"}
-ADULT = {3, 4}            # Steam content descriptors: adult-only sexual content, frequent nudity
+UA = "NahokoCatalogue/1.3 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)"
+PLATFORMS = [("PC", "PC", ["Q1406"]), ("PS5", "PlayStation 5", ["Q63184502"]), ("PS4", "PlayStation 4", ["Q5014725"]),
+             ("XBX", "Xbox", ["Q98973368", "Q64513817", "Q13361286"]), ("SW", "Nintendo Switch", ["Q19610114", "Q122761124"])]
+PNAME = {c: n for c, n, _ in PLATFORMS}
+ADULT = re.compile(r"eroge|hentai|adult|pornograph|erotic", re.I)
 
-_m = {"items": None, "t": 0, "mt": 0, "rows": None, "idx": None}
+_m = {"items": None, "t": 0, "raw": None, "mt": 0, "idx": None}
 _st = {"building": False, "t": 0, "enriching": False, "et": 0, "error": ""}
 _lock = threading.Lock()
 
@@ -28,29 +29,66 @@ def _get(url, timeout=60):
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"}), timeout=timeout) as r:
         return json.load(r)
 
+def _sparql(q):
+    for attempt in range(5):
+        try:
+            return _get("https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q), 120)["results"]["bindings"]
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 503):
+                try: wait = int(e.headers.get("Retry-After") or 60)
+                except ValueError: wait = 60
+                time.sleep(min(wait, 600) + 2); continue
+            if attempt >= 2: raise
+            time.sleep(20)
+        except Exception:
+            if attempt >= 2: raise
+            time.sleep(20)
+    return []
+
 def _db():
     c = sqlite3.connect(GDB, timeout=30)
     c.execute("PRAGMA temp_store=MEMORY")
-    c.execute("CREATE TABLE IF NOT EXISTS info(appid INTEGER PRIMARY KEY, ok INTEGER, name TEXT, y INTEGER, g TEXT, cats TEXT, dev TEXT, o TEXT, mc INTEGER, t INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS wiki(qid TEXT PRIMARY KEY, img TEXT, o TEXT, mc INTEGER, t1 INTEGER, t2 INTEGER)")
     return c
+
+def _clean_genre(g):
+    g = re.sub(r"\b(video )?game\b", "", g, flags=re.I).strip(" -")
+    return g[:1].upper() + g[1:] if g else ""
 
 # ---------- the list (weekly) ----------
 def _build_job():
     try:
         try: os.nice(10)
         except (OSError, AttributeError): pass
-        out = {}
-        for p in range(PAGES):
-            if p: time.sleep(62)
-            d = _get("https://steamspy.com/api.php?request=all&page=%d" % p, 120)
-            for x in d.values():
-                pos, neg = int(x.get("positive") or 0), int(x.get("negative") or 0)
-                if pos + neg < MIN_REVIEWS or not x.get("name"): continue
-                out[str(x["appid"])] = {"a": int(x["appid"]), "n": x["name"], "pos": pos, "neg": neg, "ccu": int(x.get("ccu") or 0),
-                                        "free": str(x.get("price") or "0") == "0" and str(x.get("initialprice") or "0") == "0", "dev": x.get("developer") or ""}
-        if len(out) > 500:
+        games = {}
+        for code, _, qs in PLATFORMS:      # which games run on which platform, and how widely known they are
+            rows = _sparql("SELECT ?g ?sl ?art WHERE { VALUES ?p { %s } ?g wdt:P400 ?p; wdt:P31 wd:Q7889; wikibase:sitelinks ?sl. "
+                           "?art schema:about ?g; schema:isPartOf <https://en.wikipedia.org/>. }" % " ".join("wd:" + q for q in qs))
+            for r in rows:
+                q = r["g"]["value"].rsplit("/", 1)[-1]
+                g = games.setdefault(q, {"q": q, "p": [], "sl": int(r["sl"]["value"]),
+                                         "wp": urllib.parse.unquote(r["art"]["value"].rsplit("/wiki/", 1)[-1]).replace("_", " ")})
+                if code not in g["p"]: g["p"].append(code)
+            time.sleep(4)
+        ids = sorted(games, key=lambda q: -games[q]["sl"])
+        for k in range(0, len(ids), 250):      # names, release dates, genres, developers
+            rows = _sparql("SELECT ?g ?gLabel ?date ?genreLabel ?devLabel WHERE { VALUES ?g { %s } "
+                           "OPTIONAL { ?g wdt:P577 ?date } OPTIONAL { ?g wdt:P136 ?genre } OPTIONAL { ?g wdt:P178 ?dev } "
+                           "SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } }" % " ".join("wd:" + q for q in ids[k:k + 250]))
+            for r in rows:
+                g = games[r["g"]["value"].rsplit("/", 1)[-1]]
+                g["n"] = (r.get("gLabel") or {}).get("value") or g.get("n") or g["wp"]
+                d = (r.get("date") or {}).get("value", "")[:10]
+                if re.fullmatch(r"\d{4}-\d\d-\d\d", d) and (not g.get("d") or d < g["d"]): g["d"] = d
+                gn = (r.get("genreLabel") or {}).get("value", "")
+                if gn and not re.fullmatch(r"Q\d+", gn) and gn not in g.setdefault("gr", []): g["gr"].append(gn)
+                dv = (r.get("devLabel") or {}).get("value", "")
+                if dv and not re.fullmatch(r"Q\d+", dv) and dv not in g.setdefault("dv", []) and len(g["dv"]) < 3: g["dv"].append(dv)
+            time.sleep(3)
+        games = {q: g for q, g in games.items() if not any(ADULT.search(x) for x in g.get("gr", []))}
+        if len(games) > 1000:
             tmp = LIST + ".tmp"
-            with open(tmp, "w") as f: json.dump({"built": int(time.time()), "games": out}, f, separators=(",", ":"))
+            with open(tmp, "w") as f: json.dump({"built": int(time.time()), "games": games}, f, separators=(",", ":"))
             os.replace(tmp, LIST)
         _st["error"] = ""
     except Exception as e:
@@ -67,11 +105,48 @@ def _ensure():
         if not fresh:
             _st["building"] = True
             threading.Thread(target=_build_job, daemon=True).start()
-    if not _st["enriching"] and now - _st["et"] > 120 and _m["items"] is not None:
+    if not _st["enriching"] and now - _st["et"] > 120 and _raw():
         _st["et"] = now; _st["enriching"] = True
         threading.Thread(target=_enrich_job, daemon=True).start()
 
-# ---------- details from the Steam store (a game at a time, in the background) ----------
+# ---------- covers, descriptions and Metacritic scores from Wikipedia (background, most popular first) ----------
+WAPI = "https://en.wikipedia.org/w/api.php"
+
+def _wapi(params):
+    params = dict(params, format="json", formatversion="2", redirects="1")
+    for attempt in range(4):
+        try:
+            return _get(WAPI + "?" + urllib.parse.urlencode(params), 60)
+        except urllib.error.HTTPError as e:
+            if e.code == 429: time.sleep(60); continue
+            if attempt >= 1: raise
+            time.sleep(10)
+        except Exception:
+            if attempt >= 2: raise
+            time.sleep(10)
+    return {}
+
+def _pages(d):
+    """title -> page, following the redirects and normalisations the API reports."""
+    q = d.get("query") or {}
+    alias = {}
+    for k in ("normalized", "redirects"):
+        for x in q.get(k) or []: alias[x["from"]] = x["to"]
+    by = {p.get("title"): p for p in q.get("pages") or []}
+    def look(t):
+        for _ in range(3): t = alias.get(t, t)
+        return by.get(t)
+    return look
+
+def _mc(text):
+    """Metacritic score from the article's review box ({{Video game reviews | MC = PS5: 92/100 ...}}), else OpenCritic."""
+    for key in ("MC", "OC"):
+        m = re.search(r"\|\s*%s\s*=([^|]*)" % key, text)
+        if m:
+            nums = [int(x) for x in re.findall(r"\b(\d{2,3})\s*/\s*100", m.group(1)) if 10 <= int(x) <= 100]
+            if nums: return round(sum(nums) / len(nums))
+    return None
+
 def _enrich_job():
     try:
         try: os.nice(10)
@@ -79,122 +154,138 @@ def _enrich_job():
         raw = _raw()
         if not raw: return
         c = _db()
-        done = {r[0] for r in c.execute("SELECT appid FROM info")}
-        todo = sorted((g for g in raw.values() if g["a"] not in done), key=lambda g: -(g["pos"] + g["neg"]))
-        for g in todo:
-            try:
-                d = _get("https://store.steampowered.com/api/appdetails?appids=%d&l=english&cc=us" % g["a"], 25).get(str(g["a"])) or {}
-            except urllib.error.HTTPError as e:
-                if e.code in (429, 403): time.sleep(300); continue
-                d = {}
-            except Exception:
-                time.sleep(20); continue
-            x = d.get("data") or {}
-            ok = 1 if d.get("success") and x.get("type") == "game" else 0
-            desc = (x.get("content_descriptors") or {}).get("ids") or []
-            if ok and (set(desc) & ADULT or str(x.get("required_age") or "0") in ("18",) and set(desc) & {1}): ok = 0
-            yr = None
-            m = re.search(r"(19|20)\d\d", (x.get("release_date") or {}).get("date") or "")
-            if m: yr = int(m.group(0))
-            gen = [y.get("description") for y in x.get("genres") or [] if y.get("description")]
-            cats = [y.get("description") for y in x.get("categories") or [] if y.get("description")]
-            o = html.unescape(re.sub(r"<[^>]+>", "", x.get("short_description") or ""))[:600]
-            c.execute("INSERT OR REPLACE INTO info VALUES(?,?,?,?,?,?,?,?,?,?)",
-                      (g["a"], ok, x.get("name") or "", yr, json.dumps(gen), json.dumps(cats), ", ".join((x.get("developers") or [])[:2]), o,
-                       (x.get("metacritic") or {}).get("score"), int(time.time())))
+        have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
+        order = sorted(raw.values(), key=lambda g: -g["sl"])
+        todo1 = [g for g in order if g["q"] not in have or not have[g["q"]][4]]
+        for k in range(0, len(todo1), 20):      # 1) cover + description, 20 articles a request
+            chunk = todo1[k:k + 20]
+            d = _wapi({"action": "query", "prop": "pageimages|extracts", "piprop": "thumbnail", "pithumbsize": "500", "pilicense": "any",
+                       "exintro": "1", "explaintext": "1", "exsentences": "3", "exlimit": "20", "titles": "|".join(g["wp"] for g in chunk)})
+            look = _pages(d); now = int(time.time())
+            for g in chunk:
+                p = look(g["wp"]) or {}
+                c.execute("INSERT INTO wiki(qid, img, o, t1) VALUES(?,?,?,?) ON CONFLICT(qid) DO UPDATE SET img=excluded.img, o=excluded.o, t1=excluded.t1",
+                          (g["q"], (p.get("thumbnail") or {}).get("source") or "", (p.get("extract") or "")[:700], now))
+            c.commit(); _m["t"] = 0 if k < 200 else _m["t"]
+            time.sleep(1)
+        have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
+        todo2 = [g for g in order if g["sl"] >= 3 and have.get(g["q"]) and have[g["q"]][1] and not have[g["q"]][5]]
+        for k in range(0, len(todo2), 8):       # 2) the Metacritic score from the review box (whole article text, 8 a request)
+            chunk = todo2[k:k + 8]
+            d = _wapi({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "titles": "|".join(g["wp"] for g in chunk)})
+            look = _pages(d); now = int(time.time())
+            for g in chunk:
+                p = look(g["wp"]) or {}
+                rv = (p.get("revisions") or [{}])[0]
+                text = ((rv.get("slots") or {}).get("main") or {}).get("content") or rv.get("content") or ""
+                c.execute("UPDATE wiki SET mc=?, t2=? WHERE qid=?", (_mc(text), now, g["q"]))
             c.commit()
-            time.sleep(1.6)
+            time.sleep(1.5)
         c.close()
+    except Exception as e:
+        _st["error"] = ("games details: " + str(e))[:200]
     finally:
         _st["enriching"] = False
 
 # ---------- items in memory ----------
 def _raw():
-    try:
-        mt = os.path.getmtime(LIST)
-    except OSError:
-        return None
-    if _m.get("raw") is None or mt != _m["mt"]:
+    try: mt = os.path.getmtime(LIST)
+    except OSError: return None
+    if _m["raw"] is None or mt != _m["mt"]:
         with open(LIST) as f: _m["raw"] = json.load(f)["games"]
-        _m["mt"] = mt
+        _m["mt"] = mt; _m["t"] = 0
     return _m["raw"]
 
 def _items():
-    """Every game whose store page was read, merged with its details (refreshed every 5 minutes while details arrive)."""
+    """Every game with a cover, merged with its Wikipedia details (refreshed every 5 minutes while details arrive)."""
     raw = _raw()
     if raw is None: return None
     if _m["items"] is not None and time.time() - _m["t"] < 300: return _m["items"]
     with _lock:
         try:
-            c = _db(); info = {r[0]: r for r in c.execute("SELECT * FROM info WHERE ok=1")}; c.close()
+            c = _db(); info = {r[0]: r for r in c.execute("SELECT qid, img, o, mc FROM wiki WHERE img != ''")}; c.close()
         except Exception:
             info = {}
         items = {}
         for g in raw.values():
-            r = info.get(g["a"])
-            if not r: continue
-            v = g["pos"] + g["neg"]; pct = g["pos"] / v
-            gen = json.loads(r[4] or "[]")
-            it = {"id": "st%d" % g["a"], "k": "game", "n": html.unescape(r[2] or g["n"]), "y": r[3], "g": [x for x in gen if x not in NOT_GENRES][:4],
-                  "r": round(pct * 10, 1), "v": v, "img": CDN % g["a"], "o": html.unescape(r[7] or ""), "dev": r[6] or g["dev"],
-                  "free": g["free"] or "Free To Play" in gen or "Free to Play" in gen, "indie": "Indie" in gen, "ccu": g["ccu"],
-                  "cats": json.loads(r[5] or "[]"), "mc": r[8]}
-            m = 6000.0
-            it["w"] = round((v / (v + m)) * it["r"] + (m / (v + m)) * 7.6, 3)
+            w = info.get(g["q"])
+            if not w: continue
+            d = g.get("d") or ""
+            gen = []
+            for x in g.get("gr", []):
+                x = _clean_genre(x)
+                if x and x not in gen: gen.append(x)
+            mc = w[3]
+            nm = g.get("n") or ""
+            if not nm or re.fullmatch(r"Q\d+", nm): nm = re.sub(r"\s*\((video )?game\)$", "", g["wp"])      # no English label: the article title
+            it = {"id": "wg" + g["q"][1:], "k": "game", "n": nm, "y": int(d[:4]) if d else None, "d": d, "g": gen[:4],
+                  "r": round(mc / 10, 1) if mc else None, "mc": mc, "pop": g["sl"], "img": w[1], "o": html.unescape(w[2] or ""),
+                  "dev": g["dv"][0] if len(g.get("dv", [])) == 1 else "",      # several studios come unordered: none is shown
+                  "p": g["p"], "wp": g["wp"]}
+            it["w"] = round((mc / 10 if mc else 6.4) + 0.9 * math.log10(g["sl"] + 1), 3)      # quality, lifted by how widely known it is
             items[it["id"]] = it
-        _m["items"] = items; _m["t"] = time.time(); _m["rows"] = None; _m["idx"] = None
+        _m["items"] = items; _m["t"] = time.time(); _m["idx"] = None
         return items
 
 def _rules():
-    this = date.today().year
-    has = lambda i, *cs: any(c in i["cats"] for c in cs)
-    g = lambda i, *gs: any(x in i["g"] for x in gs)
+    today = date.today().isoformat()
+    yago = date.fromordinal(date.today().toordinal() - 365).isoformat()
+    on = lambda i, p: p in i["p"]
+    mc = lambda i, n: (i["mc"] or 0) >= n
     R = []
     def add(id_, name, fn, sort, home=False):
         R.append({"id": id_, "name": name, "fn": fn, "sort": sort, "home": home})
-    add("new", "New and notable", lambda i: i["y"] and i["y"] >= this - 1 and i["r"] >= 7.5, "v", True)
-    add("top", "Top rated", lambda i: i["v"] >= 8000, "w", True)
-    add("popular", "Played right now", lambda i: i["ccu"] > 0, "ccu", True)
-    add("free", "Free to play", lambda i: i["free"], "v", True)
-    add("gems", "Hidden gems", lambda i: i["r"] >= 9.0 and i["v"] <= 25000, "w", True)
-    add("coop", "Play with friends", lambda i: has(i, "Online Co-op", "Co-op", "Online PvP", "Multi-player"), "w", True)
-    add("solo", "Great on your own", lambda i: has(i, "Single-player") and not has(i, "Multi-player", "MMO") and g(i, "Adventure", "RPG", "Action"), "w", True)
-    add("indie", "Indie favorites", lambda i: i["indie"], "w", True)
-    add("critics", "Critics' picks", lambda i: (i["mc"] or 0) >= 85, "mc", True)
-    add("classics", "Classics", lambda i: i["y"] and i["y"] <= 2012 and i["r"] >= 8.5, "w", True)
-    for gn in ("Action", "Adventure", "RPG", "Strategy", "Simulation", "Casual", "Sports", "Racing", "Massively Multiplayer"):
-        add("g-" + gn.lower().replace(" ", ""), "MMO" if gn == "Massively Multiplayer" else gn, (lambda x: lambda i: x in i["g"])(gn), "w")
+    add("new", "New releases", lambda i: yago <= i["d"] <= today, "pop", True)
+    add("soon", "Coming soon", lambda i: i["d"] > today, "date", True)
+    add("top", "Top rated", lambda i: mc(i, 85), "w", True)
+    add("popular", "Everyone plays these", lambda i: True, "pop", True)
+    add("ps5", "Best on PlayStation 5", lambda i: on(i, "PS5") and mc(i, 75), "w", True)
+    add("xbox", "Best on Xbox", lambda i: on(i, "XBX") and mc(i, 75), "w", True)
+    add("pc", "Best on PC", lambda i: on(i, "PC") and mc(i, 80), "w", True)
+    add("switch", "Best on Switch", lambda i: on(i, "SW") and mc(i, 75), "w", True)
+    add("gems", "Hidden gems", lambda i: mc(i, 84) and i["pop"] <= 12, "mc", True)
+    add("classics", "Classics", lambda i: i["y"] and i["y"] <= 2010 and mc(i, 88), "w", True)
+    for gn, label in (("Action-adventure", "Action-adventure"), ("Role-playing", "Role-playing"), ("First-person shooter", "Shooters"),
+                      ("Platform", "Platformers"), ("Racing", "Racing"), ("Sports", "Sports"), ("Fighting", "Fighting"),
+                      ("Survival horror", "Survival horror"), ("Strategy", "Strategy"), ("Puzzle", "Puzzle"), ("Simulation", "Simulation")):
+        add("g-" + re.sub(r"[^a-z]", "", gn.lower()), label, (lambda x: lambda i: any(x.lower() in g.lower() for g in i["g"]))(gn), "w")
     return R
 
-KEY = {"w": lambda i: (-i["w"], -i["v"]), "v": lambda i: (-i["v"], -i["r"]), "ccu": lambda i: (-i["ccu"], -i["v"]),
-       "mc": lambda i: (-(i["mc"] or 0), -i["w"])}
-SORTS = {"rating": lambda i: (-i["r"], -i["v"]), "votes": lambda i: (-i["v"], -i["r"]), "newest": lambda i: (-(i["y"] or 0), -i["v"]),
-         "name": lambda i: (i["n"].lower(),), "best": lambda i: (-i["w"], -i["v"])}
-BY = {"w": "best", "v": "votes", "ccu": "votes", "mc": "best"}
+def _dnum(i): return int(i["d"].replace("-", "")) if i["d"] else 0
+
+KEY = {"w": lambda i: (-i["w"], -i["pop"]), "pop": lambda i: (-i["pop"], -(i["mc"] or 0)), "mc": lambda i: (-(i["mc"] or 0), -i["pop"]),
+       "date": lambda i: (_dnum(i), -i["pop"])}
+SORTS = {"rating": lambda i: (-(i["mc"] or 0), -i["pop"]), "votes": lambda i: (-i["pop"], -(i["mc"] or 0)),
+         "newest": lambda i: (-_dnum(i), -i["pop"]), "name": lambda i: (i["n"].lower(),), "best": KEY["w"]}
+BY = {"w": "best", "pop": "votes", "mc": "rating", "date": "newest"}
 
 def _pool(items, f):
+    f = f or {}
+    dec = f.get("decade")
     out = []
-    dec = f.get("decade") if f else None
     for it in items.values():
-        if f:
-            if f.get("genre") and f["genre"] not in it["g"]: continue
-            if dec and not (it["y"] and dec <= it["y"] <= dec + 9): continue
-            if f.get("min") and it["r"] < f["min"]: continue
+        if f.get("platform") and f["platform"] not in it["p"]: continue
+        if f.get("genre") and f["genre"] not in it["g"]: continue
+        if dec and not (it["y"] and dec <= it["y"] <= dec + 9): continue
+        if f.get("min") and (it["r"] or 0) < f["min"]: continue
         out.append(it)
     return out
 
 def _out(it):
-    return {k: it[k] for k in ("id", "k", "n", "y", "g", "r", "v", "img", "o", "dev", "free") if k in it}
+    o = {k: it[k] for k in ("id", "k", "n", "y", "g", "img", "o", "dev", "mc", "wp") if it.get(k) is not None}
+    if it["r"]: o["r"] = it["r"]
+    o["plat"] = [PNAME[p] for p in it["p"]]
+    if it["d"] > date.today().isoformat(): o["soon"] = it["d"]
+    return o
 
 def view(row=None, sort=None, offset=0, limit=40, flt=None):
     _ensure()
     items = _items()
     if not items: return {"building": True, "rows": [], "chips": []}
-    _ensure()
     pool = _pool(items, flt)
     rules = _rules()
     chips = [{"id": r["id"], "name": r["name"], "home": r["home"]} for r in rules]
-    if row == "__f": row = None if not flt else "__f"
+    if row == "__f" and not flt: row = None
     if row:
         r = next((r for r in rules if r["id"] == row), None)
         its = [i for i in pool if r["fn"](i)] if r else pool
@@ -210,12 +301,11 @@ def view(row=None, sort=None, offset=0, limit=40, flt=None):
         its = sorted((i for i in pool if r["fn"](i)), key=KEY[r["sort"]])[:HOME_N]
         if len(its) >= 6: out.append({"id": r["id"], "name": r["name"], "items": [_out(i) for i in its]})
     if not out and pool:
-        out.append({"id": "__f", "name": "All games", "items": [_out(i) for i in sorted(pool, key=SORTS["best"])[:HOME_N]]})
+        out.append({"id": "__f", "name": "All games", "items": [_out(i) for i in sorted(pool, key=KEY["w"])[:HOME_N]]})
     return {"building": _st["building"], "ready": True, "rows": out, "chips": chips, "total_titles": len(pool)}
 
 def view_filter(f, sort=None, offset=0, limit=40):
-    items = _items() or {}
-    pool = _pool(items, f)
+    pool = _pool(_items() or {}, f)
     sort = sort if sort in SORTS else "best"
     pool.sort(key=SORTS[sort])
     return {"rows": [{"id": "filter", "name": "Results", "items": [_out(i) for i in pool[offset:offset + limit]]}], "total": len(pool),
@@ -237,7 +327,7 @@ def find(q, limit=24):
         elif nq in name: sc = 50
         else: continue
         hits.append((sc, it))
-    hits.sort(key=lambda x: (-x[0], -x[1]["v"]))
+    hits.sort(key=lambda x: (-x[0], -x[1]["pop"]))
     return [_out(it) for _, it in hits[:limit]]
 
 def filters_info():
@@ -245,16 +335,14 @@ def filters_info():
     gs = {}
     for it in items.values():
         for g in it["g"]: gs[g] = gs.get(g, 0) + 1
-    return {"countries": [], "genres": sorted(g for g, n in gs.items() if n >= 15), "decades": list(range(2020, 1979, -10))}
+    return {"countries": [{"id": c, "name": n, "platform": True} for c, n, _ in PLATFORMS],
+            "genres": sorted(g for g, n in gs.items() if n >= 25), "decades": list(range(2020, 1979, -10))}
 
 def item(i):
-    items = _items() or {}
-    it = items.get(i)
-    if not it: return None
-    out = _out(it); out["cats"] = it["cats"][:8]; out["mc"] = it["mc"]
-    return out
+    it = (_items() or {}).get(i)
+    return _out(it) if it else None
 
 def status():
-    c = _db(); n, ok = c.execute("SELECT count(*), sum(ok) FROM info").fetchone(); c.close()
-    raw = _raw() or {}
-    return {"listed": len(raw), "checked": n, "shown": ok or 0, "building": _st["building"], "enriching": _st["enriching"], "error": _st["error"]}
+    c = _db(); n, covers, scored = c.execute("SELECT count(*), sum(img != ''), sum(mc IS NOT NULL) FROM wiki").fetchone(); c.close()
+    return {"listed": len(_raw() or {}), "looked_up": n, "with_cover": covers or 0, "with_score": scored or 0,
+            "building": _st["building"], "enriching": _st["enriching"], "error": _st["error"]}

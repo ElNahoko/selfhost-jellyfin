@@ -956,7 +956,9 @@ a.dbig:hover b{text-decoration:underline}a.dbig:hover span,a.imdblink:hover{colo
 @media (max-width:860px){#fclear{order:1}}
 .sfoot{display:none;justify-content:center;gap:10px;flex-wrap:wrap;margin:56px 0 0;padding:22px 0 0;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
 body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}.sfoot a:hover{color:var(--ink)}
-.imdbtag.steamtag{background:#1b2838;color:#c7d5e0;box-shadow:inset 0 0 0 1px #66c0f4}
+.imdbtag.mctag{background:#000;color:#ffcc34;box-shadow:inset 0 0 0 1px #ffcc34}
+.plats{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.plat{font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.1);color:#e6e6e6}
+.soonb{color:#6fd3ff;font-weight:700}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1746,9 +1748,9 @@ function tile(it){
 /* ---------- title details: hero, overview, seasons and episodes ---------- */
 var EPC={},CASTC={};
 function rcls(r){return r>=9?"r9":r>=8?"r8":r>=7?"r7":r>=6?"r6":"r5";}
-function isGameIt(it){return it.k==="game"||(!it.k&&reqKind==="game")||/^st\d/.test(it.id||"");}
-function imdbUrl(it){return isGameIt(it)?"https://store.steampowered.com/app/"+String(it.id).slice(2)+"/":"https://www.imdb.com/title/"+it.id+"/";}
-function srcTag(it){return isGameIt(it)?el("i","imdbtag steamtag","Steam"):el("i","imdbtag","IMDb");}
+function isGameIt(it){return it.k==="game"||(!it.k&&reqKind==="game")||/^wg\d/.test(it.id||"");}
+function imdbUrl(it){return isGameIt(it)?"https://en.wikipedia.org/wiki/"+encodeURIComponent(String(it.wp||it.n).replace(/ /g,"_")):"https://www.imdb.com/title/"+it.id+"/";}
+function srcTag(it){return isGameIt(it)?el("i","imdbtag mctag","Metacritic"):el("i","imdbtag","IMDb");}
 function plural(n,w){return n+" "+w+(n===1?"":"s");}
 function fmtRt(rt){var h=Math.floor(rt/60),mm=rt%60;return (h?h+" h ":"")+(mm?mm+" min":"");}
 async function loadEpisodes(id){
@@ -1861,13 +1863,14 @@ async function showTitle(it0,opts){
     function epFacts(x){var f=[];if(x.season_count)f.push(plural(x.season_count,"season"));f.push(plural(x.episode_count,"episode"));if(x.minutes)f.push(fmtMins(x.minutes));return f.join(" · ");}
     function epYears(x){return x.premiered?x.premiered.slice(0,4)+(x.ended?" – "+x.ended.slice(0,4):" –"):"";}
     var yEl=el("span","yrs",epd&&epYears(epd)?epYears(epd):(it.y?String(it.y):""));if(yEl.textContent)meta.appendChild(yEl);d._yrs=yEl;
-    meta.appendChild(el("span","",isGameIt(it)?"Game":isSeries()?"Series":"Movie"));if(isGameIt(it)&&it.dev)meta.appendChild(el("span","",it.dev));
+    meta.appendChild(el("span","",isGameIt(it)?"Game":isSeries()?"Series":"Movie"));if(isGameIt(it)){if(it.soon)meta.appendChild(el("span","soonb","Out "+fmtD(it.soon,true)));if(it.dev)meta.appendChild(el("span","",it.dev));
+      if(it.plat&&it.plat.length){var pl=el("div","plats");it.plat.forEach(function(x){pl.appendChild(el("span","plat",x));});b.appendChild(meta);meta=el("div","dmeta");b.appendChild(pl);}}
     if(isSeries()){var snEl=el("span","sn");if(epd&&epd.season_count){snEl.textContent=epFacts(epd);meta.appendChild(snEl);}d._sn=snEl;d._meta=meta;d._epFacts=epFacts;d._epYears=epYears;}
     if(it.rt)meta.appendChild(el("span","",isSeries()?it.rt+" min per episode":fmtRt(it.rt)));
     b.appendChild(meta);
     var rrow=el("div","drate");
-    if(it.r){var big=el(it.id?"a":"div","dbig");if(it.id){big.href=imdbUrl(it);big.target="_blank";big.rel="noopener noreferrer";big.title=isGameIt(it)?"Open on Steam":"Open on IMDb";}
-      big.appendChild(el("b","","★ "+it.r.toFixed(1)));var vs=el("span","");vs.appendChild(srcTag(it));if(it.v)vs.appendChild(document.createTextNode(fmtVotes(it.v)+(isGameIt(it)?" reviews":" votes")));big.appendChild(vs);rrow.appendChild(big);}
+    if(it.r){var big=el(it.id?"a":"div","dbig");if(it.id){big.href=imdbUrl(it);big.target="_blank";big.rel="noopener noreferrer";big.title=isGameIt(it)?"Read about it on Wikipedia":"Open on IMDb";}
+      big.appendChild(el("b","","★ "+it.r.toFixed(1)));var vs=el("span","");vs.appendChild(srcTag(it));if(it.v)vs.appendChild(document.createTextNode(fmtVotes(it.v)+" votes"));else if(isGameIt(it))vs.appendChild(document.createTextNode("critics' score"));big.appendChild(vs);rrow.appendChild(big);}
     if(it.g&&it.g.length){var tg=el("div","dtags");it.g.slice(0,4).forEach(function(g){tg.appendChild(el("span","tag",g));});rrow.appendChild(tg);}
     if(rrow.childNodes.length)b.appendChild(rrow);
     var acts=el("div","acts wrap"),s=stateOf(it);
@@ -2311,7 +2314,8 @@ async function drawFilters(){
   panel.appendChild(head);
   var grid=el("div","fgrid");
   function field(label,dd){var f=el("div","ffield");f.appendChild(el("span","flab",label));f.appendChild(dd);grid.appendChild(f);}
-  if(fi.countries.length)field("Country",makeDD("Country",[["","Any country","globe"]].concat(fi.countries.map(function(c){return [c.id,c.name,"flag:"+c.id];})),reqF.country,function(v){reqF.country=v;apply();},true).el);
+  var gm=reqKind==="game";      // for games the first filter is the platform
+  if(fi.countries.length)field(gm?"Platform":"Country",makeDD(gm?"Platform":"Country",[["",gm?"Any platform":"Any country",gm?"tv":"globe"]].concat(fi.countries.map(function(c){return [c.id,c.name,c.platform?"tv":"flag:"+c.id];})),reqF.country,function(v){reqF.country=v;apply();},true).el);
   field("Genre",makeDD("Genre",[["","Any genre","tag"]].concat(fi.genres.map(function(g){return [g,g,"tag"];})),reqF.genre,function(v){reqF.genre=v;apply();},true).el);
   field("Decade",makeDD("Decade",[["","Any decade","cal"]].concat(fi.decades.map(function(d){return [d,d+"s","cal"];})),reqF.decade,function(v){reqF.decade=v;apply();},true).el);
   field("Rating",makeDD("Rating",[["","Any rating","star"],[6,"6 and up","star"],[7,"7 and up","star"],[8,"8 and up","star"]],reqF.min,function(v){reqF.min=v;apply();},true).el);

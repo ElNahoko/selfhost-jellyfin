@@ -107,16 +107,12 @@ def search(kind, q):
     return out
 
 def fetch_poster(src, w):
-    """TMDb poster at a given width, cached on disk (so a page never waits on TMDb for a title it has seen)."""
+    """A poster (TMDb at a given width, TVmaze, Wikipedia game covers), cached on disk (so a page never waits on TMDb for a title it has seen)."""
     src = re.sub(r"/t/p/[^/]+/", "/t/p/w%s/" % w, src, 1)
     fp = os.path.join("/db/img", hashlib.sha1(src.encode()).hexdigest() + ".jpg")
     if not os.path.exists(fp):
         os.makedirs("/db/img", exist_ok=True)
-        try:
-            data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
-        except urllib.error.HTTPError as e:      # a Steam game without a tall cover: its wide header picture instead
-            if e.code != 404 or not src.endswith("/library_600x900.jpg"): raise
-            data = urllib.request.urlopen(urllib.request.Request(src.replace("/library_600x900.jpg", "/header.jpg"), headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
+        data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": games.UA}), timeout=15).read(3_000_000)      # Wikimedia wants a real name
         with open(fp + ".tmp", "wb") as f: f.write(data)
         os.replace(fp + ".tmp", fp)
     return fp
@@ -391,8 +387,8 @@ class H(BaseHTTPRequestHandler):
                 if s["role"] != "member": return self.js([])
                 return self.js(auth.favorites(s["user"]))
             if path == "/_meta/titles":      # several titles at once (favorites)
-                ids = re.findall(r"tt\d{6,10}|st\d{1,9}", (qs.get("ids") or [""])[0])[:200]
-                return self.js([x for x in ((games.item(i) if i.startswith("st") else catalog.item(i)) for i in ids) if x])
+                ids = re.findall(r"tt\d{6,10}|wg\d{1,10}", (qs.get("ids") or [""])[0])[:200]
+                return self.js([x for x in ((games.item(i) if i.startswith("wg") else catalog.item(i)) for i in ids) if x])
             if path == "/_meta/members": return self.js(auth.list_members())
             if path == "/_meta/usage":         # what uses the server: per service (written each minute by scripts/usage.py) + what plays now
                 try:
@@ -529,6 +525,8 @@ class H(BaseHTTPRequestHandler):
                     except ValueError: return d
                 row = re.sub(r"[^a-z0-9_-]", "", (qs.get("row") or [""])[0]) or None
                 f = filt(qs); f.pop("country", None)
+                pl = (qs.get("country") or [""])[0].upper()      # for games the first filter is the platform
+                if pl in games.PNAME: f["platform"] = pl
                 if (qs.get("all") or [""])[0] == "1":
                     body = games.view_filter(f, (qs.get("sort") or [""])[0], num3("offset", 0, 8000), max(1, num3("limit", 40, 60)))
                 else:
@@ -552,7 +550,7 @@ class H(BaseHTTPRequestHandler):
                 body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row,
                                                (qs.get("sort") or [""])[0], num("offset", 0, 5000), max(1, num("limit", 40, 60)), filt(qs) or None)).encode()
                 return self.send(200, body, cache="private, max-age=20")
-            if path == "/_meta/title" and re.fullmatch(r"st\d{1,9}", (qs.get("id") or [""])[0]):
+            if path == "/_meta/title" and re.fullmatch(r"wg\d{1,10}", (qs.get("id") or [""])[0]):
                 it = games.item(qs["id"][0])
                 return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/title":
@@ -572,7 +570,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, r.read(), r.headers.get("Content-Type", "image/jpeg"), "private, max-age=86400")
             if path == "/_meta/rimg":
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
-                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "shared.akamai.steamstatic.com"): return self.send(400, b"{}")
+                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "upload.wikimedia.org", "thumb.wikimedia.org"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
                 with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
         except Exception:
@@ -609,7 +607,7 @@ class H(BaseHTTPRequestHandler):
             admin = s["role"] == "admin"
             if path == "/_meta/favorites":
                 if s["role"] != "member": return self.js({"error": "members only"}, 403)
-                ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}|st\d{1,9}", t)]
+                ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}|wg\d{1,10}", t)]
                 auth.set_favorites(s["user"], ok(b.get("add")), ok(b.get("remove")))
                 return self.js(auth.favorites(s["user"]))
             if path == "/_meta/password" and staff(s):
