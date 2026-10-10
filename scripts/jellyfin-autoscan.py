@@ -283,6 +283,24 @@ def touch(path):
         os.utime(path, None)
 
 
+SUBQ = os.environ.get("SUBQ", "/opt/jellyfin/uploads/data/subocr-queue.json")
+
+
+def queue_subtitles():
+    """New videos: ask the subtitle converter (watch.sh starts it within a minute) to turn their picture subtitles into
+    text and take the picture tracks out. Not while it runs: then the change is its own work."""
+    try:
+        busy = "subocr" in subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, timeout=20).stdout.split()
+    except Exception:
+        busy = True
+    if busy or os.path.exists(SUBQ) or not os.path.isdir(os.path.dirname(SUBQ)):
+        return
+    with open(SUBQ, "w") as f:
+        f.write('{"all": true, "reason": "new videos"}')
+    os.chmod(SUBQ, 0o666)
+    log("subtitles: converter queued for the new videos")
+
+
 def reader(q):
     cmd = ["inotifywait", "-m", "-r", "-q", "-e", "close_write,moved_to,create,delete,moved_from",
            "--format", "%w%f", WATCH]
@@ -307,6 +325,7 @@ def main():
     libs_at = 0.0
     caught_up = False
     made = {}                  # files this service created itself -> time; their events must not trigger scans
+    videos = False             # a video arrived or changed: queue the subtitle converter after the scan
 
     def refresh_libs(max_age):
         nonlocal libs, libs_at
@@ -326,8 +345,10 @@ def main():
             if time.time() - made.get(path, 0) < 120:
                 continue                                             # our own subtitle copy
             last_event = time.time()
-            if "/lost+found" in path or path.endswith(TEMP_SUFFIX):
+            if "/lost+found" in path or path.endswith(TEMP_SUFFIX) or path.endswith(".nahoko-tmp.mkv"):
                 continue                                             # temp files only keep the debounce running
+            if path.lower().endswith(".mkv"):
+                videos = True
             refresh_libs(300)
             lid = library_for(path, libs or [])
             if lid:
@@ -375,6 +396,9 @@ def main():
                 prune_missing(lid, name, hosts)
             else:
                 log("refresh FAILED for %s (Jellyfin not answering?), will retry" % name)
+        if videos and not pending:                                   # every changed library scanned: subtitles next
+            videos = False
+            queue_subtitles()
 
 
 if __name__ == "__main__":

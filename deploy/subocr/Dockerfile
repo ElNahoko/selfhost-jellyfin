@@ -1,4 +1,5 @@
-# Turns picture subtitles (PGS, from Blu-rays) into text .srt files next to each video.
+# Turns picture subtitles (PGS, from Blu-rays) into text .srt files next to each video, then takes the converted
+# picture tracks out of the video (mkvmerge, no re-encoding) so no TV can pick them any more.
 # TVs and phones draw text subtitles themselves; picture subtitles force Jellyfin to re-encode the whole video.
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra mkvtoolnix \
