@@ -959,6 +959,15 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .imdbtag.mctag{background:#000;color:#ffcc34;box-shadow:inset 0 0 0 1px #ffcc34}
 .plats{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.plat{font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.1);color:#e6e6e6}
 .soonb{color:#6fd3ff;font-weight:700}
+.lsnd{all:unset;cursor:pointer;position:absolute;top:14px;left:14px;z-index:6;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);color:#fff;transition:background .15s}
+.lsnd:hover{background:rgba(0,0,0,.7)}.lsnd svg{width:18px;height:18px}
+.dover{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0 18px}
+.dbox{background:var(--card2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:2px}.dbox svg{width:18px;height:18px;color:var(--muted);margin-bottom:6px}
+.dbox b{font-size:1.45rem;letter-spacing:-.02em}.dbox span{color:var(--muted);font-size:.82rem}
+.dsub{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:4px 0 10px}
+.dctg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px;margin-bottom:18px}
+.dcr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem}.dcr b{font-weight:600}
+.favsecs .sec{margin:22px 0 12px}.favsecs .sec:first-child{margin-top:0}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1064,6 +1073,8 @@ var queue=[], running=false;
 var META={}, SIZES={}, metaT=0, metaBusy=false, listing=[], filterText="", LIBSET={};
 
 var ICONS={
+  vol:'<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+  mute:'<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/>',
   gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
@@ -1710,15 +1721,15 @@ function signInDialog(why){
 }
 async function sendRequest(item,season){
   if(!APPROVED){
-    if(PUBLICV)signInDialog("To request a film or a series, sign in with your email. No password: we send you a code.");
-    else dialog({title:"Requests are locked",text:"Only accounts the owner allows can ask for films and series. Ask the owner to allow yours ("+ME+").",ok:"OK"});
+    if(PUBLICV)signInDialog("To add a film or a series to the wishlist, sign in with your email. No password: we send you a code.");
+    else dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can ask for films and series. Ask the owner to allow yours ("+ME+").",ok:"OK"});
     return false;
   }
   var who=await whoAmI();if(!who)return false;
   try{
     var r=await api("POST","/_meta/requests",{kind:item.k||reqKind,title:item.n,year:item.y,poster:item.img||"",who:who,tid:item.id||"",season:season||""});
-    toast(r.duplicate?"Already requested. Your vote was added.":"Requested “"+item.n+"”"+(season?" · Season "+season:""));await loadRequests();refreshTiles();return true;
-  }catch(e){toast("Could not send the request");return false;}
+    toast(r.duplicate?"Already on the wishlist. Your vote was added.":"Added “"+item.n+"” to the wishlist"+(season?" · Season "+season:""));await loadRequests();refreshTiles();return true;
+  }catch(e){toast("Could not add it to the wishlist");return false;}
 }
 function refreshTiles(){
   document.querySelectorAll(".tile").forEach(function(t){if(t._upd)t._upd();});
@@ -1877,8 +1888,8 @@ async function showTitle(it0,opts){
     var rq=el("button","btn "+(s?"":"primary"));rq.type="button";rq.disabled=s==="have";
     var rr=s==="asked"?findReq(it):null,nv=rr?(rr.votes||1):0,mine=rr?iWant(rr):false;
     if(MEMBER&&!APPROVED&&s!=="have"){      // signed in, not allowed yet: a grey, locked button that says why
-      rq.className="btn locked";rq.appendChild(svg("lock"));rq.appendChild(el("span","","I want it"));rq.title="Requests are for accounts the owner allows";
-      rq.onclick=function(){dialog({title:"Requests are locked",text:"Only accounts the owner allows can ask for films and series. Ask the owner to allow yours ("+ME+"). Meanwhile, save titles to your favorites.",ok:"OK"});};
+      rq.className="btn locked";rq.appendChild(svg("lock"));rq.appendChild(el("span","","I want it"));rq.title="The wishlist is for accounts the owner allows";
+      rq.onclick=function(){dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can ask for films and series. Ask the owner to allow yours ("+ME+"). Meanwhile, save titles to your favorites.",ok:"OK"});};
     }else if(rr){      // someone already asked: show how many want it, and let me add my voice
       rq.className="btn wantb"+(mine?" on":"");rq.appendChild(svg(mine?"check":"thumb"));
       rq.appendChild(el("span","",nv+(nv===1?" wants it":" want it")+(mine?" · you too":" · me too")));
@@ -1978,22 +1989,28 @@ async function renderSettings(){
   // data: what the background jobs have built, and buttons to run them now
   var dp=el("section","panel");var dh=el("div","shead");dh.appendChild(el("h2","sec","Catalogue data"));
   var rf=el("button","btn sm","Refresh");rf.type="button";dh.appendChild(rf);dp.appendChild(dh);
-  dp.appendChild(el("p","hint left","Everything below rebuilds itself every week and after a catalogue change. A button starts it now, at low priority; the site keeps working meanwhile."));
+  dp.appendChild(el("p","hint left","What the catalogue holds. Each line below is collected by the server on its own, every week. “Update now” only makes it start again right away (useful if something looks missing); the site keeps working meanwhile."));
+  var ov=el("div","dover");dp.appendChild(ov);var ct=el("div","dctry");dp.appendChild(ct);
   var tbl=el("div","dtable");dp.appendChild(tbl);c.appendChild(dp);
   async function drawData(){
     var st;try{st=await api("GET","/_meta/status");}catch(e){tbl.textContent="Not available.";return;}
-    tbl.innerHTML="";var n=st.counts||{};
+    tbl.innerHTML="";var n=st.counts||{},gm=st.games||{};
+    ov.innerHTML="";[["film","Films",n.movies],["tv","Series",n.series],["grid","Games",gm.with_cover],["sparkles","Anime",n.anime],["star","With a poster",n.posters!=null&&n.titles?Math.round(n.posters*100/n.titles)+"%":null]].forEach(function(x){
+      var b=el("div","dbox");b.appendChild(svg(x[0]));b.appendChild(el("b","",x[2]!=null?(typeof x[2]==="number"?x[2].toLocaleString():x[2]):"–"));b.appendChild(el("span","",x[1]));ov.appendChild(b);});
+    ct.innerHTML="";if((st.per_country||[]).length){ct.appendChild(el("h3","dsub","By country"));var tg=el("div","dctg");
+      st.per_country.forEach(function(c){var r=el("div","dcr");r.appendChild(el("span","",c.name.replace(" cinema","")));r.appendChild(el("b","",c.movie.toLocaleString()+" films · "+c.series.toLocaleString()+" series"));tg.appendChild(r);});ct.appendChild(tg);}
     var rows=[["catalog","Catalogue","IMDb titles, ratings, shelves (weekly)",n.titles?(n.movies||0).toLocaleString()+" films · "+(n.series||0).toLocaleString()+" series":"",st.catalog.building,st.catalog.built],
       ["posters","Posters and plots","TMDb through Jellyfin, a few at a time",n.posters!=null?n.posters.toLocaleString()+" of "+n.titles.toLocaleString():"",st.posters.running,null],
       ["episodes","Episode ratings","IMDb, per season and episode",n.episodes_series!=null?n.episodes_series.toLocaleString()+" series":"",st.episodes.building,st.episodes.built],
       ["tvmaze","Air dates and runtimes","TVmaze, one series every 1.5 s",n.tvmaze!=null?n.tvmaze.toLocaleString()+" of "+(n.series||0).toLocaleString()+" series":"",st.tvmaze.running,null],
       ["cast","Cast and directors","IMDb principals and names",n.cast!=null?n.cast.toLocaleString()+" titles":"",st.cast.building,st.cast.built],
       ["anime","Anime list","IMDb original titles vs English titles",n.anime!=null?n.anime+" titles":"",st.anime.building,null],
-      ["countries","Country lists","Wikidata, by original language",st.countries.complete?"ready":"collecting…",st.countries.building,null]];
+      ["countries","Country lists","Wikidata: which titles are French, Spanish, Korean…",st.countries.complete?"ready":"collecting…",st.countries.building,null],
+      ["games","Games","Wikidata + Wikipedia: PC, PlayStation, Xbox, Switch",gm.listed?(gm.with_cover||0).toLocaleString()+" of "+gm.listed.toLocaleString()+" · "+(gm.with_score||0).toLocaleString()+" with a score":"",gm.building||gm.enriching,null]];
     rows.forEach(function(r){
       var row=el("div","drow"),l=el("div","dl");l.appendChild(el("b","",r[1]));l.appendChild(el("span","",r[2]));row.appendChild(l);
       var v=el("div","dv");v.appendChild(el("b","",r[3]||"–"));v.appendChild(el("span","",r[4]?"Running…":r[5]?"Built "+ago(r[5]):""));row.appendChild(v);
-      var b=el("button","btn sm",r[4]?"Running":"Rebuild");b.type="button";b.disabled=!!r[4];
+      var b=el("button","btn sm",r[4]?"Working…":"Update now");b.type="button";b.disabled=!!r[4];
       b.onclick=async function(){b.disabled=true;try{var x=await api("POST","/_meta/admin/rebuild",{what:r[0]});toast(x.result==="started"?"Started: "+r[1]:x.result);}catch(e){toast("Could not start");}setTimeout(drawData,1500);};
       row.appendChild(b);tbl.appendChild(row);
     });
@@ -2039,7 +2056,7 @@ async function renderSettings(){
   // admins
   var ac=el("section","panel");var head=el("div","shead");head.appendChild(el("h2","sec","Admins"));
   var nb=el("button","btn sm primary","Add admin");nb.type="button";head.appendChild(nb);ac.appendChild(head);
-  ac.appendChild(el("p","hint left","Admins can upload, delete, manage profiles and requests. Everyone else only gets the catalogue."));
+  ac.appendChild(el("p","hint left","Admins can upload, delete, manage profiles and the wishlist. Everyone else only gets the catalogue."));
   var box=el("div");ac.appendChild(box);c.appendChild(ac);
   async function draw(){
     var list=[];try{list=(await api("GET","/_meta/users")).filter(function(u){return u.role==="admin";});}catch(e){}
@@ -2078,7 +2095,7 @@ async function renderProfiles(){
   head.appendChild(el("p","hint left","Uploaders can upload to the library and browse it. They don’t see disk, CPU, settings or other profiles, and can’t delete. Give them the link, a name and a password."));head.appendChild(nb);c.appendChild(head);
   var box=el("div");c.appendChild(box);
   var ms=el("section","panel");var mh=el("div","shead");mh.appendChild(el("h2","sec","Members"));ms.appendChild(mh);
-  ms.appendChild(el("p","hint left","Visitors who signed in with their email. They keep favorites; they can send requests once you approve them."));
+  ms.appendChild(el("p","hint left","Visitors who signed in with their email. They keep favorites and see the wishlist; they can add to it once you approve them."));
   var mbox=el("div");ms.appendChild(mbox);c.appendChild(ms);
   async function drawMembers(){
     var list=[];try{list=await api("GET","/_meta/members");}catch(e){}
@@ -2088,9 +2105,10 @@ async function renderProfiles(){
       var r=el("div","row"),av=el("div","av",u.email.charAt(0).toUpperCase());av.style.background="hsl("+hue(u.email)+",45%,36%)";r.appendChild(av);
       var nm=el("div","nm"),a=el("a","",u.email);a.style.cursor="default";nm.appendChild(a);
       nm.appendChild(el("small","",(u.last_login?"Last seen "+fmtDate(u.last_login*1000):"Joined "+fmtDate(u.created*1000))+" · "+u.favorites+" favorites"));r.appendChild(nm);
-      r.appendChild(el("span","tag "+(u.approved?"ok":""),u.approved?"Can request":"Favorites only"));
+      r.appendChild(el("span","tag "+(u.approved?"ok":""),u.approved?"Can add wishes":"Favorites only"));
       var ap=el("button","btn sm"+(u.approved?"":" primary"),u.approved?"Revoke":"Approve");ap.type="button";
-      ap.onclick=async function(){try{await api("POST","/_meta/members/"+encodeURIComponent(u.email),{action:u.approved?"unapprove":"approve"});}catch(e){toast("Could not update");}drawMembers();};
+      ap.onclick=async function(){ap.disabled=true;try{var x=await api("POST","/_meta/members/"+encodeURIComponent(u.email),{action:u.approved?"unapprove":"approve"});
+        toast(x&&x.ok?(u.approved?"Wishlist access removed for ":"Approved: ")+u.email+(u.approved?"":" (they see it after refreshing)"):"Could not update");}catch(e){toast("Could not update");}drawMembers();};
       var del=el("button","x");del.type="button";del.title="Remove member";del.setAttribute("aria-label","Remove "+u.email);del.appendChild(svg("trash"));
       del.onclick=async function(){if(!await dialog({title:"Remove member?",text:"“"+u.email+"” is signed out and their favorites are deleted.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/members/"+encodeURIComponent(u.email));}catch(e){toast("Could not remove");}drawMembers();};
       r.appendChild(ap);r.appendChild(del);rows.appendChild(r);
@@ -2145,7 +2163,11 @@ async function drawFavorites(c){
   var head=el("div","favhead"),ttl=el("div","favttl");var hi=el("span","favic");hi.appendChild(svg("heart"));ttl.appendChild(hi);
   var tt=el("div","");tt.appendChild(el("b","","Your favorites"));tt.appendChild(el("span","",items.length+(items.length===1?" title":" titles")+" · newest first"));ttl.appendChild(tt);head.appendChild(ttl);
   var seg=el("div","seg"),grid=el("div","tgrid favgrid"),cur="all";
-  function draw(){grid.innerHTML="";(cur==="movie"?films:cur==="series"?series:cur==="game"?gms:items).forEach(function(it){grid.appendChild(tile(it));});
+  function draw(){grid.innerHTML="";
+    var groups=[["movie","Films","film",films],["series","Series","tv",series],["game","Games","grid",gms]].filter(function(x){return x[3].length;});
+    if(cur==="all"&&groups.length>1){grid.className="favsecs";groups.forEach(function(gp){var h=el("h2","sec");h.appendChild(svg(gp[2],"ci"));h.appendChild(el("span","",gp[1]+" · "+gp[3].length));grid.appendChild(h);
+        var g2=el("div","tgrid favgrid");gp[3].forEach(function(it){g2.appendChild(tile(it));});grid.appendChild(g2);});}
+    else{grid.className="tgrid favgrid";(cur==="movie"?films:cur==="series"?series:cur==="game"?gms:items).forEach(function(it){grid.appendChild(tile(it));});}
     [].forEach.call(seg.children,function(b){b.classList.toggle("on",b.dataset.k===cur);});}
   [["all","All",items.length],["movie","Films",films.length],["series","Series",series.length],["game","Games",gms.length]].forEach(function(k){
     if(k[0]!=="all"&&!k[2])return;var b=el("button","");b.type="button";b.dataset.k=k[0];b.appendChild(el("span","",k[1]));b.appendChild(el("i","",String(k[2])));b.onclick=function(){cur=k[0];draw();};seg.appendChild(b);});
@@ -2157,7 +2179,7 @@ function renderRequests(){
   // header: three plain tabs where the page title used to be, search on the right
   var hd=$("crumbs");hd.innerHTML="";
   var tabs=el("div","tabs");tabs.setAttribute("role","tablist");
-  [["movie","Movies",""],["series","Series",""],["game","Games",""],["fav","Favorites",""]].concat(APPROVED?[["list","Requests","amber"]]:[]).forEach(function(k){
+  [["movie","Movies",""],["series","Series",""],["game","Games",""],["fav","Favorites",""]].concat(!PUBLICV?[["list","Wishlist","amber"]]:[]).forEach(function(k){
     var on=k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
     var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
     b.appendChild(el("span","",k[1]));
@@ -2168,7 +2190,7 @@ function renderRequests(){
   });
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
-  if(reqTab==="list"&&!APPROVED)reqTab="browse";
+  if(reqTab==="list"&&PUBLICV)reqTab="browse";
   if(reqTab==="list"){f.hidden=true;$("luckyBtn").hidden=true;var l=el("div");l.id="reqList";c.appendChild(l);drawRequests();loadRequests().then(drawRequests);return;}
   if(reqTab==="fav"){f.hidden=true;$("luckyBtn").hidden=true;saveCat();drawFavorites(c);return;}
   saveCat();$("luckyBtn").hidden=reqKind==="game";f.hidden=false;f.placeholder=reqKind==="series"?"Search any series…":reqKind==="game"?"Search any game…":"Search any movie…";f.setAttribute("aria-label",f.placeholder);
@@ -2279,13 +2301,13 @@ var FP_OPEN=false;
 function saveCat(){try{localStorage.setItem("lumio_cat",JSON.stringify({kind:reqKind,tab:reqTab,row:reqRow,f:reqF,fp:FP_OPEN}));}catch(e){}catUrlSync();}
 function catFromUrl(){      // /catalogue/series?row=top&country=KR&genre=Drama: a link anyone can share
   var m=location.pathname.match(/^\/catalogue\/?([^\/]*)/);if(!m)return false;var k=m[1];
-  if(k==="requests")reqTab="list";else if(k==="favorites")reqTab="fav";else{reqTab="browse";if(k==="series")reqKind="series";else if(k==="games")reqKind="game";else if(k==="movies")reqKind="movie";}
+  if(k==="requests"||k==="wishlist")reqTab="list";else if(k==="favorites")reqTab="fav";else{reqTab="browse";if(k==="series")reqKind="series";else if(k==="games")reqKind="game";else if(k==="movies")reqKind="movie";}
   var p=new URLSearchParams(location.search);reqRow=p.get("row")||"";
   ["country","genre","decade","min"].forEach(function(x){reqF[x]=p.get(x)||"";});FP_OPEN=p.get("fp")==="1";return true;}
 function catPath(){
   var p=new URLSearchParams();
   if(reqTab==="browse"){if(reqRow)p.set("row",reqRow);["country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
-  return "/catalogue/"+(reqTab==="list"?"requests":reqTab==="fav"?"favorites":reqKind==="series"?"series":reqKind==="game"?"games":"movies")+(p.toString()?"?"+p.toString():"");}
+  return "/catalogue/"+(reqTab==="list"?"wishlist":reqTab==="fav"?"favorites":reqKind==="series"?"series":reqKind==="game"?"games":"movies")+(p.toString()?"?"+p.toString():"");}
 function catUrlSync(){
   if(cwd!=="requests")return;var u=catPath();if(location.pathname+location.search!==u)history.replaceState(null,"",u);}
 function filtersOn(){return !!(reqF.country||reqF.genre||reqF.decade||reqF.min);}
@@ -2370,8 +2392,19 @@ function confetti(g,host){
   }
   g.delayedCall(1.8,function(){layer.remove();});
 }
+/* lucky-pick sounds, made in the browser (no files): a tick per poster in the reel, a bright chime when the pick lands */
+var SFX={ctx:null,on:(function(){try{return localStorage.getItem("nahoko_sfx")!=="off";}catch(e){return true;}})(),
+  c:function(){if(!SFX.on)return null;try{if(!SFX.ctx)SFX.ctx=new (window.AudioContext||window.webkitAudioContext)();if(SFX.ctx.state==="suspended")SFX.ctx.resume();return SFX.ctx;}catch(e){return null;}},
+  tone:function(f,t,dur,type,vol,to){var c=SFX.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.05);},
+  tick:function(k){var c=SFX.c();if(!c)return;var t=c.currentTime;SFX.tone(1400+(k||0)*55,t,0.035,"triangle",0.05,700);},
+  rattle:function(){var c=SFX.c();if(!c)return;var t=c.currentTime;for(var i=0;i<9;i++)SFX.tone(1200+Math.random()*500,t+i*0.07+i*i*0.004,0.035,"triangle",0.045,650);},
+  reveal:function(){var c=SFX.c();if(!c)return;var t=c.currentTime+0.02;
+    [523.25,659.25,783.99,1046.5].forEach(function(f,i){SFX.tone(f,t+i*0.065,0.7,"triangle",0.085);SFX.tone(f*2,t+i*0.065,0.35,"sine",0.02);});
+    SFX.tone(2093,t+0.28,0.5,"sine",0.035);SFX.tone(2637,t+0.36,0.45,"sine",0.025);}};
 async function feelingLucky(){
   if(reqKind==="game")return;
+  SFX.c();      // the sound must start from the click itself
   var b=$("luckyBtn");if(b.classList.contains("busy"))return;b.classList.add("busy");b.disabled=true;
   var both=await Promise.all([luckyPick(),loadGsap()]),first=both[0],g=both[1];
   b.disabled=false;b.classList.remove("busy");
@@ -2379,6 +2412,8 @@ async function feelingLucky(){
   var m=$("modal"),prev=document.activeElement,it=first,rolls=1,rolling=false,tilt=null;m.innerHTML="";
   var d=el("div","dlg lucky"+(g?" g":""));d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");d.setAttribute("aria-label","Lucky pick");
   var bgi=el("div","lbg");d.appendChild(bgi);var body=el("div","lbody");d.appendChild(body);
+  var snd=el("button","lsnd");snd.type="button";function sndPaint(){snd.innerHTML="";snd.appendChild(svg(SFX.on?"vol":"mute"));snd.title=SFX.on?"Sound on":"Sound off";snd.setAttribute("aria-label",snd.title);}
+  sndPaint();snd.onclick=function(){SFX.on=!SFX.on;try{localStorage.setItem("nahoko_sfx",SFX.on?"on":"off");}catch(e){}sndPaint();if(SFX.on)SFX.tick(4);};d.appendChild(snd);
   function done(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
   function close(){if(g&&d.isConnected){g.to(d,{opacity:0,scale:.95,y:14,duration:.22,ease:"power2.in",onComplete:done});}else done();}
   function key(e){if(theatreOpen)return;if(e.key==="Escape"){e.stopPropagation();close();}else if((e.key==="r"||e.key==="R"||e.key===" ")&&document.activeElement===document.body){e.preventDefault();roll();}}
@@ -2433,8 +2468,8 @@ async function feelingLucky(){
   async function roll(){
     if(rolling)return;rolling=true;
     var pn=luckyPick();
-    if(!g){d.classList.add("roll");var t0=Date.now(),n0=await pn;await sleep(Math.max(0,750-(Date.now()-t0)));
-      if(n0){it=n0;it._loaded=1;rolls++;paint();}else d.classList.remove("roll");rolling=false;return;}
+    if(!g){d.classList.add("roll");SFX.rattle();var t0=Date.now(),n0=await pn;await sleep(Math.max(0,750-(Date.now()-t0)));
+      if(n0){it=n0;it._loaded=1;rolls++;paint();SFX.reveal();}else d.classList.remove("roll");rolling=false;return;}
     var die=d.querySelector(".die"),rb=d.querySelector(".roll"),reel=d.querySelector(".lreel"),ri=reel&&reel.querySelector("img");
     g.fromTo(die,{rotate:0},{rotate:720,duration:1.1,ease:"power3.inOut"});
     g.fromTo(rb,{scale:.95},{scale:1,duration:.8,ease:"elastic.out(1,.45)"});
@@ -2445,15 +2480,16 @@ async function feelingLucky(){
     var delays=[50,50,55,65,80,100,125,155,195,250,320].slice(0,Math.max(frames.length,0));
     g.to(d.querySelector(".lcard"),{scale:1.04,duration:.25,ease:"power2.out"});
     if(frames.length){reel.style.display="block";
-      for(var k=0;k<frames.length;k++){ri.src=frames[k];g.fromTo(ri,{y:-26,filter:"blur(7px)"},{y:0,filter:"blur(0px)",duration:delays[k]/1000*0.9,ease:"none"});await sleep(delays[k]);}}
-    else await sleep(900);
+      for(var k=0;k<frames.length;k++){ri.src=frames[k];SFX.tick(k);g.fromTo(ri,{y:-26,filter:"blur(7px)"},{y:0,filter:"blur(0px)",duration:delays[k]/1000*0.9,ease:"none"});await sleep(delays[k]);}}
+    else{SFX.rattle();await sleep(900);}
     var n=await pn;
-    if(n){it=n;it._loaded=1;rolls++;paint(true);var cd=d.querySelector(".lcard");if(cd)g.fromTo(cd,{scale:1.1},{scale:1,duration:.7,ease:"elastic.out(1,.5)"});confetti(g,d.querySelector(".lleft"));}
+    if(n){it=n;it._loaded=1;rolls++;paint(true);var cd=d.querySelector(".lcard");if(cd)g.fromTo(cd,{scale:1.1},{scale:1,duration:.7,ease:"elastic.out(1,.5)"});confetti(g,d.querySelector(".lleft"));SFX.reveal();}
     else{if(reel)reel.style.display="none";g.to(d.querySelectorAll(".lright > *"),{opacity:1,y:0,duration:.3});g.to(d.querySelector(".lcard"),{scale:1,duration:.3});toast("Nothing more to suggest right now");}
     rolling=false;
   }
   paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
   document.addEventListener("keydown",key,true);var rb=$("rollBtn");if(rb)rb.focus({preventScroll:true});
+  SFX.reveal();
 }
 async function drawRow(kind,row,sort){
   var box=$("reqCat");if(!box)return;
@@ -2551,7 +2587,7 @@ async function doSearch(q){
   res=res.filter(function(it){return !seen[(it.n+"|"+(it.y||"")).toLowerCase()];});
   if(!local.length&&!res.length){
     var h=el("div","hint","No results for “"+q+"”. ");
-    var b2=el("button","btn sm","Request it by name");b2.type="button";
+    var b2=el("button","btn sm","Add it to the wishlist");b2.type="button";
     b2.onclick=function(){sendRequest({n:q,y:null,img:""});};h.appendChild(b2);box.appendChild(h);return;
   }
   if(!res.length)return;
@@ -2580,7 +2616,7 @@ function drawRequests(){
       kb.onclick=function(){RV.kind=k[0];kinds.querySelectorAll(".chip").forEach(function(x){x.classList.remove("on");});kb.classList.add("on");drawRequests();};kinds.appendChild(kb);
     });
     var sm=makeDD("Sort",RSORTS,RV.sort,function(v){RV.sort=v;drawRequests();});
-    var q=el("input","search rq");q.type="search";q.placeholder="Search requests";q.setAttribute("aria-label","Search requests");q.value=RV.q;
+    var q=el("input","search rq");q.type="search";q.placeholder="Search the wishlist";q.setAttribute("aria-label","Search the wishlist");q.value=RV.q;
     q.oninput=function(){RV.q=q.value.trim().toLowerCase();drawRequests();};
     tools.appendChild(kinds);tools.appendChild(sm.el);tools.appendChild(q);
     head.appendChild(tabs);head.appendChild(tools);box.appendChild(head);
@@ -2593,7 +2629,7 @@ function drawRequests(){
   var grid2=$("reqGrid");grid2.innerHTML="";
   if(!list.length){
     var e=el("div","rempty");e.appendChild(svg(RV.tab==="done"?"check":"plus","big"));
-    e.appendChild(el("b","",!reqList.length?"Nothing requested yet":RV.q||RV.kind!=="all"?"Nothing matches":RV.tab==="wait"?"All caught up":RV.tab==="done"?"Nothing added yet":"You haven’t asked for anything yet"));
+    e.appendChild(el("b","",!reqList.length?"The wishlist is empty":RV.q||RV.kind!=="all"?"Nothing matches":RV.tab==="wait"?"All caught up":RV.tab==="done"?"Nothing added yet":"You haven’t asked for anything yet"));
     e.appendChild(el("span","",!reqList.length||RV.tab==="mine"?"Open Movies or Series, then tap + on anything you want to watch.":RV.q||RV.kind!=="all"?"Try another filter.":""));
     grid2.appendChild(e);return;
   }
@@ -2607,8 +2643,8 @@ function drawRequests(){
       var ac=el("div","racts");
       var ok=el("button","rbtn good");ok.type="button";ok.title=r.status==="open"?"Mark as added":"Move back to waiting";ok.setAttribute("aria-label",ok.title);ok.appendChild(svg(r.status==="open"?"check":"clock"));
       ok.onclick=async function(e){e.stopPropagation();ok.disabled=true;try{await api("POST","/_meta/requests/"+r.id,{status:r.status==="open"?"done":"open"});}catch(e){toast("Could not update");}await loadRequests();drawRequests();};
-      var del=el("button","rbtn bad");del.type="button";del.title="Remove request";del.setAttribute("aria-label","Remove request");del.appendChild(svg("trash"));
-      del.onclick=async function(e){e.stopPropagation();if(!await dialog({title:"Remove request?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
+      var del=el("button","rbtn bad");del.type="button";del.title="Remove from the wishlist";del.setAttribute("aria-label","Remove from the wishlist");del.appendChild(svg("trash"));
+      del.onclick=async function(e){e.stopPropagation();if(!await dialog({title:"Remove this wish?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
       ac.appendChild(ok);ac.appendChild(del);pz.appendChild(ac);
     }
     c.appendChild(pz);var body=el("div","rbody");c.appendChild(body);
@@ -2618,7 +2654,7 @@ function drawRequests(){
     if(r.status==="open"){      // one small vote button: thumb + how many want it; filled when it includes you
       var wb=el("button","rvote"+(voted?" on":""));wb.type="button";wb.appendChild(svg(voted?"check":"thumb"));wb.appendChild(el("b","",String(nv)));
       wb.title=voted?"You want this too · click to take your vote back":nv+(nv===1?" person wants":" people want")+" this · click for “me too”";wb.setAttribute("aria-label",voted?"You want this too. Click to take your vote back":"Me too: add your vote");wb.setAttribute("aria-pressed",String(voted));
-      wb.onclick=async function(e){e.stopPropagation();var who=await whoAmI();if(!who)return;wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e2){toast("Could not vote");}await loadRequests();drawRequests();};
+      wb.onclick=async function(e){e.stopPropagation();if(!APPROVED){dialog({title:"The wishlist is locked",text:"Only accounts the owner allows can add wishes and votes. Ask the owner to allow yours ("+ME+").",ok:"OK"});return;}var who=await whoAmI();if(!who)return;wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e2){toast("Could not vote");}await loadRequests();drawRequests();};
       body.appendChild(wb);
     }
     c.tabIndex=0;c.setAttribute("role","button");c.title="Details";

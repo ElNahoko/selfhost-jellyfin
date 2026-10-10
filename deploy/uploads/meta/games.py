@@ -154,33 +154,36 @@ def _enrich_job():
         raw = _raw()
         if not raw: return
         c = _db()
-        have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
         order = sorted(raw.values(), key=lambda g: -g["sl"])
-        todo1 = [g for g in order if g["q"] not in have or not have[g["q"]][4]]
-        for k in range(0, len(todo1), 20):      # 1) cover + description, 20 articles a request
-            chunk = todo1[k:k + 20]
-            d = _wapi({"action": "query", "prop": "pageimages|extracts", "piprop": "thumbnail", "pithumbsize": "500", "pilicense": "any",
-                       "exintro": "1", "explaintext": "1", "exsentences": "3", "exlimit": "20", "titles": "|".join(g["wp"] for g in chunk)})
-            look = _pages(d); now = int(time.time())
-            for g in chunk:
-                p = look(g["wp"]) or {}
-                c.execute("INSERT INTO wiki(qid, img, o, t1) VALUES(?,?,?,?) ON CONFLICT(qid) DO UPDATE SET img=excluded.img, o=excluded.o, t1=excluded.t1",
-                          (g["q"], (p.get("thumbnail") or {}).get("source") or "", (p.get("extract") or "")[:700], now))
-            c.commit(); _m["t"] = 0 if k < 200 else _m["t"]
-            time.sleep(1)
-        have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
-        todo2 = [g for g in order if g["sl"] >= 3 and have.get(g["q"]) and have[g["q"]][1] and not have[g["q"]][5]]
-        for k in range(0, len(todo2), 8):       # 2) the Metacritic score from the review box (whole article text, 8 a request)
-            chunk = todo2[k:k + 8]
-            d = _wapi({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "titles": "|".join(g["wp"] for g in chunk)})
-            look = _pages(d); now = int(time.time())
-            for g in chunk:
-                p = look(g["wp"]) or {}
-                rv = (p.get("revisions") or [{}])[0]
-                text = ((rv.get("slots") or {}).get("main") or {}).get("content") or rv.get("content") or ""
-                c.execute("UPDATE wiki SET mc=?, t2=? WHERE qid=?", (_mc(text), now, g["q"]))
-            c.commit()
-            time.sleep(1.5)
+        for blk in range(0, len(order), 400):      # a block of games at a time, most popular first: covers, then their scores
+            block = order[blk:blk + 400]
+            have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
+            todo1 = [g for g in block if g["q"] not in have or not have[g["q"]][4]]
+            for k in range(0, len(todo1), 20):      # 1) cover + description, 20 articles a request
+                chunk = todo1[k:k + 20]
+                d = _wapi({"action": "query", "prop": "pageimages|extracts", "piprop": "thumbnail", "pithumbsize": "500", "pilicense": "any",
+                           "exintro": "1", "explaintext": "1", "exsentences": "3", "exlimit": "20", "titles": "|".join(g["wp"] for g in chunk)})
+                look = _pages(d); now = int(time.time())
+                for g in chunk:
+                    p = look(g["wp"]) or {}
+                    c.execute("INSERT INTO wiki(qid, img, o, t1) VALUES(?,?,?,?) ON CONFLICT(qid) DO UPDATE SET img=excluded.img, o=excluded.o, t1=excluded.t1",
+                              (g["q"], (p.get("thumbnail") or {}).get("source") or "", (p.get("extract") or "")[:700], now))
+                c.commit()
+                time.sleep(1)
+            have = {r[0]: r for r in c.execute("SELECT qid, img, o, mc, t1, t2 FROM wiki")}
+            todo2 = [g for g in block if g["sl"] >= 3 and have.get(g["q"]) and have[g["q"]][1] and not have[g["q"]][5]]
+            for k in range(0, len(todo2), 8):       # 2) the Metacritic score from the review box (whole article text, 8 a request)
+                chunk = todo2[k:k + 8]
+                d = _wapi({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "titles": "|".join(g["wp"] for g in chunk)})
+                look = _pages(d); now = int(time.time())
+                for g in chunk:
+                    p = look(g["wp"]) or {}
+                    rv = (p.get("revisions") or [{}])[0]
+                    text = ((rv.get("slots") or {}).get("main") or {}).get("content") or rv.get("content") or ""
+                    c.execute("UPDATE wiki SET mc=?, t2=? WHERE qid=?", (_mc(text), now, g["q"]))
+                c.commit()
+                time.sleep(1.5)
+            _m["t"] = 0      # show this block now
         c.close()
     except Exception as e:
         _st["error"] = ("games details: " + str(e))[:200]
@@ -341,6 +344,13 @@ def filters_info():
 def item(i):
     it = (_items() or {}).get(i)
     return _out(it) if it else None
+
+def rebuild():
+    """Admin button: read the list from Wikidata again now."""
+    if _st["building"]: return "already running"
+    _st["building"] = True; _st["t"] = time.time()
+    threading.Thread(target=_build_job, daemon=True).start()
+    return "started"
 
 def status():
     c = _db(); n, covers, scored = c.execute("SELECT count(*), sum(img != ''), sum(mc IS NOT NULL) FROM wiki").fetchone(); c.close()

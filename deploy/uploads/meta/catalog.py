@@ -818,7 +818,19 @@ def status():
             "posters": {"running": _bulk["running"]}, "tvmaze": {"running": _tvm["running"]},
             "episodes": {"building": _eps["building"], "built": built(EPS_DB)}, "cast": {"building": _cast["building"], "built": built(CAST_DB)},
             "anime": {"building": _anime["building"]},
-            "countries": {"building": _cty["building"], "complete": bool(_cty.get("d")), "fail": _cty.get("fail")}}
+            "countries": {"building": _cty["building"], "complete": bool(_cty.get("d")), "fail": _cty.get("fail")},
+            "per_country": _per_country()}
+
+def _per_country():
+    """How many films and series of each national cinema are in the catalogue (for the admin overview)."""
+    cat, cd = _mem["cat"], _cty.get("d")
+    if not cat or not cd: return []
+    out = []
+    for code, label, _ in GROUPS:
+        ids = cd.get(code) or {}
+        out.append({"code": code, "name": label, "movie": sum(1 for i in ids.get("movie", ()) if i in cat["items"]),
+                    "series": sum(1 for i in ids.get("series", ()) if i in cat["items"])})
+    return out
 
 def _titles():
     c = sqlite3.connect(TITLES_DB, timeout=10)

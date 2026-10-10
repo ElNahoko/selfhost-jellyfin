@@ -19,7 +19,7 @@ import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 import auth, catalog, games, mail
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs, quote
+from urllib.parse import urlparse, parse_qs, quote, unquote
 
 JF = os.environ.get("JELLYFIN_URL", "http://jellyfin:8096")
 KEY = os.environ["JELLYFIN_API_KEY"]
@@ -199,7 +199,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
 ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/usage", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
 STAFF_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/have", "/_meta/match", "/_meta/guess")      # admin and uploaders
-APPROVED_ONLY = ("/_meta/requests",)
+SIGNED_IN = ("/_meta/requests",)      # every signed-in member sees the wishlist; adding to it and voting need approval (see do_POST)
 SITE = os.environ.get("SITE_URL", "https://files.x0w1v75.com")
 PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
@@ -376,7 +376,7 @@ class H(BaseHTTPRequestHandler):
             s = self.sess() or PUBLIC
             admin = s["role"] == "admin"; rk = s["user"] or "ip:" + self.ip()
             if (path in ADMIN_ONLY and not admin) or ((path in STAFF_ONLY or path.startswith("/_meta/img/")) and not staff(s)) \
-               or (path in APPROVED_ONLY and not approved(s)):
+               or (path in SIGNED_IN and s["role"] == "public"):
                 return self.js({"error": "sign in" if s["role"] == "public" else "forbidden"}, 401 if s["role"] == "public" else 403)
             if path in CACHED:
                 hit = rc_get(self.path)
@@ -489,7 +489,10 @@ class H(BaseHTTPRequestHandler):
                 st["queued"] = os.path.exists("/db/subocr-queue.json")
                 return self.js(st)
             if path == "/_meta/status" and s["role"] == "admin":
-                return self.js(catalog.status())
+                st = catalog.status()
+                try: st["games"] = games.status()
+                except Exception as e: st["games"] = {"error": str(e)[:120]}
+                return self.js(st)
             if path == "/_meta/filters" and (qs.get("type") or [""])[0] == "game":
                 return self.send(200, json.dumps(games.filters_info()).encode(), cache="private, max-age=60")
             if path == "/_meta/filters":
@@ -635,7 +638,8 @@ class H(BaseHTTPRequestHandler):
                 open("/db/usage-request", "w").close()
                 return self.js({"ok": True, "t": int(time.time())})
             if path == "/_meta/admin/rebuild" and admin:
-                return self.js({"result": catalog.rebuild(clip(b.get("what"), 20))})
+                what = clip(b.get("what"), 20)
+                return self.js({"result": games.rebuild() if what == "games" else catalog.rebuild(what)})
             if path == "/_meta/requests":
                 kind = "series" if b.get("kind") == "series" else "movie"
                 title = clip(b.get("title"), 120)
@@ -672,7 +676,7 @@ class H(BaseHTTPRequestHandler):
                 return self.js({"ok": True})
             m = re.fullmatch(r"/_meta/members/(.+)", path)
             if m:
-                email = m.group(1).lower()
+                email = unquote(m.group(1)).lower()      # the address comes URL-encoded (%40 for @)
                 if b.get("action") in ("approve", "unapprove"):
                     return self.js({"ok": bool(auth.set_member(email, b["action"] == "approve"))})
             if path == "/_meta/users":
@@ -706,7 +710,7 @@ class H(BaseHTTPRequestHandler):
             return self.js({"ok": True})
         m = re.fullmatch(r"/_meta/members/(.+)", path)
         if m:
-            auth.delete_member(m.group(1).lower()); return self.js({"ok": True})
+            auth.delete_member(unquote(m.group(1)).lower()); return self.js({"ok": True})
         m = re.fullmatch(r"/_meta/users/([a-z0-9._-]{3,24})", path)
         if m:
             who = m.group(1)
