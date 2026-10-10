@@ -13,7 +13,7 @@ FILES_DOMAIN_PLACEHOLDER {
 	}
 	# Public: the catalogue app (meta tells the page who is looking: public, member, uploader, admin), its API, sign-in, SEO files.
 	# Only the file server (dufs: listings, uploads, downloads) stays behind the staff sign-in.
-	@public path /login /auth/* /_lib/* /robots.txt /sitemap.xml /sitemap-*.xml /llms.txt /favicon.ico /manifest.webmanifest /sw.js /pwa/*
+	@public path /login /auth/* /_lib/* /_app/* /robots.txt /sitemap.xml /sitemap-*.xml /llms.txt /favicon.ico /manifest.webmanifest /sw.js /pwa/*
 	handle @public {
 		reverse_proxy uploads-meta:8000
 	}
@@ -23,7 +23,7 @@ FILES_DOMAIN_PLACEHOLDER {
 	@page {
 		method GET
 		header Accept *text/html*
-		path / /index.html /catalogue /catalogue/* /title/* /person/* /profiles /settings /privacy /about /methodology /news /news/* /contact /fr /fr/* /es /es/* /de /de/* /it /it/* /pt /pt/* /ar /ar/* */
+		path / /index.html /catalogue /catalogue/* /title/* /person/* /movies /movies/* /series /series/* /games /games/* /people /people/* /favorites /wishlist /profiles /settings /privacy /about /methodology /news /news/* /contact /fr /fr/* /es /es/* /de /de/* /it /it/* /pt /pt/* /ar /ar/* */
 	}
 	handle @page {
 		reverse_proxy uploads-meta:8000

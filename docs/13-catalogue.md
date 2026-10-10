@@ -134,7 +134,7 @@ names, from the catalogue) and picks that fit its subject.
 
 ## People pages
 
-Every actor, director and writer of a catalogue title has a page at `/person/<IMDb id>-<name>` (cast cards and crew names
+Every actor, director and writer of a catalogue title has a page at `/people/<IMDb id>-<name>` (cast cards and crew names
 on title pages link to it). What they made comes from `cast.db` (IMDb principals: the first 10 billed actors, directors and
 writers of each catalogue title), so the filmography is limited to the catalogue. Portrait: TMDB through Jellyfin, TVmaze, else
 Wikidata/Commons. Birth, death, place, jobs and a short biography come from Wikidata and the Wikipedia summary of the page's
@@ -159,3 +159,33 @@ is set in `uploads-meta.env` (a free key from themoviedb.org), else from Wikidat
 
 `/methodology` ("Who we are and how it works") explains the sources, updates, which titles get in, what the ratings mean
 and how to report an error.
+
+## Addresses
+
+One address per page, the same words as the breadcrumbs: `/movies`, `/movies/top-rated` (a shelf by its name),
+`/movies/tt0111161-the-shawshank-redemption`, `/series/…`, `/games/wg…`, `/people/nm0000151-morgan-freeman`, `/favorites`,
+`/wishlist`. Other languages use their own words and the local name of the title: `/fr/films/tt0111161-les-evades`,
+`/es/peliculas/…`, `/de/filme/…`. Any other spelling (old `/title/…`, `/person/…`, `/catalogue/…` links, a wrong name, the
+wrong language's word) answers 301 to the right address. Staff keep `/catalogue/…` (their library uses `/movies/` folders).
+
+## Search
+
+Typing shows up to six titles and four people with their pictures (`/_meta/suggest`, answered from memory); Enter, or "See
+all results", opens the full results with their own address (`?q=`), from any page.
+
+## Speed
+
+The page itself is a 3 KB shell: its styles, code and each language's words are files named by their content
+(`/_app/<hash>.css|js`) that browsers keep for a year, so a visit after the first downloads almost nothing. In the
+background, the 3,000 best-known people and the 600 best-known titles in every language are prepared in advance, so their
+pages open at once. Nothing on a page is loaded from another site (pictures go through `/_meta/rimg` and are stored on
+disk); the only exception is the trailer player.
+
+## Wishlist and uploaders
+
+Visitors and members vote with the blue thumb; the admin and uploaders get a round green check instead ("uploaded",
+moves the wish to Added) and see how many want it. Uploaders can delete leftover files (`.txt`, `.nfo`, `.url`, `.html`,
+pictures) but never a video or a folder (enforced in `/auth/check`).
+
+The About, How it works, Privacy and Contact pages exist in every language (`assets/pages/<lang>/`), built from the
+English ones by `assets/pages/i18n_pages.py`.

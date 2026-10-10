@@ -1470,3 +1470,50 @@ def title_i18n(tid, lang):
     except Exception:
         pass
     return v
+
+def title_i18n_cached(tid, lang):
+    """What we already know of a title in a language (never asks the network: used to write addresses)."""
+    if lang == "en": return {}
+    try:
+        with _titles() as c:
+            r = c.execute("SELECT v FROM tl WHERE id=? AND lang=?", (tid, lang)).fetchone()
+        return json.loads(r[0]) if r else {}
+    except Exception:
+        return {}
+
+_pname = {}
+def person_name(nm):
+    """A person's name from cast.db (None when they are not in the catalogue)."""
+    if nm in _pname: return _pname[nm]
+    try:
+        c = _castdb(); r = c.execute("SELECT name FROM people WHERE nconst=? LIMIT 1", (nm,)).fetchone(); c.close()
+    except Exception:
+        return None
+    if len(_pname) > 50000: _pname.clear()
+    _pname[nm] = r[0] if r else None
+    return _pname[nm]
+
+# ---------- people in the search suggestions: the 30,000 best-known, matched by the start of a name ----------
+_pidx = {"t": 0, "v": [], "busy": False}
+def _pidx_build():
+    try: _pidx["v"] = [(_norm(n), nm, n) for nm, n in people_for_sitemap()]; _pidx["t"] = time.time()
+    finally: _pidx["busy"] = False
+
+def people_find(q, limit=4):
+    if (not _pidx["v"] or time.time() - _pidx["t"] > 12 * 3600) and not _pidx["busy"]:
+        _pidx["busy"] = True; threading.Thread(target=_pidx_build, daemon=True).start()      # built once in the background
+    nq = _norm(q)
+    if len(nq) < 2: return []
+    out = []
+    for key, nm, n in _pidx["v"]:
+        if key.startswith(nq) or (" " + nq) in (" " + key):
+            out.append({"id": nm, "n": n})
+            if len(out) >= limit: break
+    if out:
+        try:
+            c = _castdb(); ph = dict(c.execute("SELECT name, url FROM photo WHERE name IN (%s)" % ",".join("?" * len(out)), [x["n"] for x in out]).fetchall()); c.close()
+            for x in out:
+                if ph.get(x["n"]): x["p"] = ph[x["n"]]
+        except Exception:
+            pass
+    return out

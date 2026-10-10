@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141414">
+<title>من نحن وكيف يعمل · Nahoko</title>
+<meta name="description" content="من يقف وراء Nahoko، ومن أين تأتي معلوماته، وكيف تُختار العناوين وتُحدّث، وماذا تعني التقييمات.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
+<link rel="icon" href="/pwa/icon-192.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Nahoko","item":"/ar/"},{"@type":"ListItem","position":2,"name":"Who we are and how it works","item":"/ar/methodology"}]}</script>
+<style>
+:root{color-scheme:dark;--bg:#141414;--card:#1c1c1c;--ink:#f3f3f3;--muted:#a3a3a3;--line:#2e2e2e;--red:#e50914}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:680px;margin:0 auto;padding:22px 20px 64px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:900;letter-spacing:.14em;font-size:1.25rem}
+.brand svg{width:34px;height:34px}
+.back{color:var(--muted);text-decoration:none;font-size:.92rem;border:1px solid var(--line);border-radius:99px;padding:7px 14px}
+.back:hover{color:#fff;border-color:#555}
+.crumbs{font-size:.86rem;color:var(--muted);margin:0 0 22px}.crumbs a{color:var(--muted);text-decoration:none;font-weight:600}.crumbs a:hover{color:#fff}.crumbs span{margin:0 8px;color:#555}
+h1{font-size:2.1rem;line-height:1.15;margin:0 0 10px;letter-spacing:-.02em}
+.lead{color:var(--muted);font-size:1.08rem;margin:0 0 30px}
+h2{font-size:1.15rem;margin:36px 0 8px}
+p,li{color:#cfcfcf}
+ul{padding-left:20px}li{margin:6px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:22px 0}
+.card b,li b{color:#fff}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;padding:0;list-style:none}
+.toc a{display:inline-block;font-size:.85rem;color:#ddd;text-decoration:none;border:1px solid var(--line);border-radius:99px;padding:5px 12px}.toc a:hover{border-color:#666}
+a{color:#fff}
+footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:18px;font-size:.88rem}
+footer a{color:var(--muted);text-decoration:none}footer a:hover{color:#fff}
+.credit{flex-basis:100%;color:var(--muted);font-size:.8rem;margin-top:4px}.credit a{color:var(--muted);text-decoration:underline}
+ul{padding-left:0;padding-right:20px}</style>
+</head>
+<body>
+<div class="wrap">
+<header><a class="brand" href="/ar/movies"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z" fill="#fff"/></svg><span>AHOKO</span></a><a class="back" href="/ar/movies">العودة إلى الكتالوج</a></header>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/ar/movies">الرئيسية</a><span>›</span><a href="/ar/about">حول</a><span>›</span>كيف يعمل</nav>
+<h1>من نحن وكيف يعمل</h1>
+<p class="lead">Nahoko دليل مجاني للأفلام والمسلسلات والأنمي والألعاب: ما يستحق المشاهدة أو اللعب، ومن صنعه، ورأي الناس فيه.</p>
+<ul class="toc">
+<li><a href="#who">من نحن</a></li><li><a href="#sources">المصادر</a></li><li><a href="#updates">التحديثات</a></li><li><a href="#choice">أي العناوين</a></li>
+<li><a href="#ratings">التقييمات</a></li><li><a href="#people">صفحات الأشخاص</a></li><li><a href="#texts">نصوص تلقائية</a></li><li><a href="#independence">الاستقلالية</a></li><li><a href="#limits">الحدود</a></li><li><a href="#errors">الإبلاغ عن خطأ</a></li>
+</ul>
+
+<h2 id="who">من يقف وراء Nahoko</h2>
+<p>مطوّر واحد، بدافع الشغف. يعمل Nahoko على خادم شخصي صغير. لا شركة ولا مستثمرون وراءه، ولا علاقة له بـ IMDb أو TMDB أو TVmaze أو ويكيبيديا أو يوتيوب أو أي خدمة بث.</p>
+
+<h2 id="sources">من أين تأتي المعلومات</h2>
+<ul>
+<li><b>IMDb</b> (بياناته اليومية المجانية): العناوين والسنوات والأنواع والمدد والتقييمات وعدد الأصوات وطاقم العمل وقائمة حلقات كل مسلسل. المعلومات بإذن من IMDb (<a href="https://www.imdb.com" rel="noopener">imdb.com</a>). مستخدمة بإذن.</li>
+<li><b>TMDB</b>: الملصقات والملخصات والصور الشخصية. يستخدم هذا المنتج واجهة TMDB لكنه غير معتمد منها.</li>
+<li><b>TVmaze</b>: صور عريضة للمسلسلات، ومواعيد عرض الحلقات، وبعض صور الممثلين.</li>
+<li><b>AniList</b>: أي المسلسلات والأفلام أنمي.</li>
+<li><b>ويكي بيانات وويكيبيديا</b>: الألعاب، وبلدان الأفلام، ومعلومات عن الأشخاص (الميلاد، الوفاة، سيرة قصيرة). نصوص ويكيبيديا بترخيص CC BY-SA وكل نص يربط بمقالته.</li>
+<li><b>يوتيوب</b>: الإعلانات، ولقطة منها كصورة عريضة في صفحات الأفلام.</li>
+<li><b>الأخبار</b>: عناوين وملخصات قصيرة من خلاصات الناشرين العامة، مع ذكر المصدر دائمًا. لا ننسخ مقالات كاملة أبدًا.</li>
+</ul>
+
+<h2 id="updates">كيف يبقى محدّثًا</h2>
+<p>يُعاد بناء الكتالوج كل أسبوع من بيانات IMDb بهدوء في الخلفية: يبقى القديم متاحًا حتى يجهز الجديد. تُجلب الملصقات والصور أول مرة يحتاجها أحد ثم تُحفظ. تُفحص الأخبار كل 30 دقيقة. وتُحدّث معلومات الأشخاص كل شهر.</p>
+
+<h2 id="choice">أي العناوين في الكتالوج</h2>
+<p>عناوين شاهدها وقيّمها كثيرون: أفلام بعشرات آلاف الأصوات على IMDb، ومسلسلات بأقل قليلًا. ثم لكل بلد أشهر أفلامه ومسلسلاته، كي لا تغرق الأعمال الكبيرة من مصر وكوريا وإيطاليا والهند وسط هوليوود. إضافة إلى أشهر 5,000 أنمي وآلاف الألعاب للحاسوب وبلايستيشن وإكس بوكس وسويتش. <b>لا أحد يستطيع الدفع ليُدرج أو يظهر أولًا.</b></p>
+
+<h2 id="ratings">ماذا تعني التقييمات</h2>
+<ul>
+<li><b>الأفلام والمسلسلات</b>: تقييم مستخدمي IMDb من 10، مع عدد الأصوات.</li>
+<li><b>رفوف «الأعلى تقييمًا»</b>: مرتبة بنتيجة تأخذ عدد الأصوات في الحسبان، كي لا يتفوق 9.1 من 2,000 صوت على <i>12 رجلًا غاضبًا</i>.</li>
+<li><b>الحلقات</b>: تقييم IMDb لكل حلقة، في مخطط ملوّن لكل موسم (أو لكل 25 حلقة في المواسم الطويلة جدًا).</li>
+<li><b>الألعاب</b>: تقييم النقاد (Metacritic) عندما يتوفر في ويكي بيانات.</li>
+</ul>
+
+<h2 id="people">صفحات الأشخاص</h2>
+<p>لكل ممثل ومخرج وكاتب في عناوين الكتالوج صفحة: صورته، وتاريخ ومكان ميلاده، وسيرة قصيرة من ويكيبيديا، وأشهر أعماله، وكل ما صنعه وهو في الكتالوج. الأعمال محدودة بالكتالوج، فقد لا تكون كاملة.</p>
+
+<h2 id="texts">نصوص تلقائية</h2>
+<p>بعض النصوص القصيرة تُكتب تلقائيًا من بياناتنا، مثل ملاحظات «خلفية» تحت الخبر (السنة والتقييم وطاقم العناوين المذكورة). إنها حقائق من الكتالوج لا آراء. والملخصات من TMDB.</p>
+
+<h2 id="independence">الاستقلالية</h2>
+<p>لا إعلانات، ولا روابط تسويق، ولا تتبّع، ولا مواضع مدفوعة. لا يستضيف Nahoko أي فيلم ولا يبيعه. تسجيل الدخول اختياري ويحفظ مفضلتك فقط؛ راجع <a href="/ar/privacy">صفحة الخصوصية</a>.</p>
+
+<h2 id="limits">الحدود</h2>
+<ul>
+<li>قد تخطئ مصادرنا أو تكون ناقصة، ولا يمكننا أن نكون أدق منها.</li>
+<li>قد لا تكون لبعض العناوين أو الأشخاص صورة أو وصف بعد.</li>
+<li>العناوين الموجودة في الكتالوج فقط لها صفحات خاصة.</li>
+</ul>
+
+<h2 id="errors">كيف تبلغ عن خطأ</h2>
+<p>اكتب لنا عبر <a href="/ar/contact">صفحة الاتصال</a>: اذكر الصفحة وما الخطأ. ويُفضّل تصحيح الأخطاء القادمة من IMDb أو TMDB أو ويكيبيديا هناك أيضًا ليستفيد الجميع.</p>
+
+<footer><a href="/ar/movies">الكتالوج</a><a href="/news">الأخبار</a><a href="/ar/about">حول</a><a href="/ar/methodology">كيف يعمل</a><a href="/ar/contact">اتصل بنا</a><a href="/ar/privacy">الخصوصية</a><span class="credit">المعلومات بإذن من IMDb (<a href="https://www.imdb.com" rel="noopener">imdb.com</a>). مستخدمة بإذن.</span></footer>
+</div>
+</body>
+</html>

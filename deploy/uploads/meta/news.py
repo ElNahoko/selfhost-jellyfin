@@ -308,22 +308,22 @@ def _side():
     import catalog, extras, games
     out = []
     def shelf(title, items, more):
-        li = "".join('<li><a href="/title/%s">%s<span class="st"><b>%s</b><span>%s%s</span></span></a></li>' % (
-            i["id"], _poster(i), _e(i["n"]), i.get("y") or "", (" · ★ %.1f" % i["r"]) if i.get("r") else "") for i in items)
+        li = "".join('<li><a href="%s">%s<span class="st"><b>%s</b><span>%s%s</span></span></a></li>' % (
+            _tp(i), _poster(i), _e(i["n"]), i.get("y") or "", (" · ★ %.1f" % i["r"]) if i.get("r") else "") for i in items)
         out.append('<section class="box"><h4>%s</h4><ul class="thumbs">%s</ul><a class="more" href="%s">See all</a></section>' % (title, li, more))
     try:
         row = next((r for r in catalog.view("movie").get("rows", []) if r["id"] == "new"), None)
-        if row: shelf("New films", row["items"][:5], "/catalogue/movies?row=new")
+        if row: shelf("New films", row["items"][:5], "/movies?row=new")
     except Exception:
         pass
     try:
         row = next((r for r in catalog.view("series").get("rows", []) if r["id"] == "new"), None)
-        if row: shelf("New series", row["items"][:4], "/catalogue/series?row=new")
+        if row: shelf("New series", row["items"][:4], "/series?row=new")
     except Exception:
         pass
     try:
         row = next((r for r in games.view().get("rows", []) if r["id"] == "new"), None)
-        if row: shelf("New games", row["items"][:4], "/catalogue/games?row=new")
+        if row: shelf("New games", row["items"][:4], "/games?row=new")
     except Exception:
         pass
     try:
@@ -400,10 +400,10 @@ def article(iid):
             facts += [{"movie": "Film", "series": "Series", "game": "Game"}.get(m.get("k"), "")] + (m.get("g") or [])[:3]
             score = ('<span class="score">★ %.1f</span>' % m["r"]) if m.get("r") else ""
             plot = _cut(m.get("o") or "", 420)
-            cards.append('<div class="bgcard"><a class="bgp" href="/title/%s">%s</a><div class="bgt"><h3><a href="/title/%s">%s</a>%s</h3>'
-                         '<div class="facts">%s</div><p class="note">%s</p>%s<a class="open" href="/title/%s">Open in Nahoko</a></div></div>' % (
-                m["id"], _poster(m, 342), m["id"], _e(m["n"]), score, " · ".join(_e(x) for x in facts if x), _e(background(m)),
-                ('<p class="plot">%s</p>' % _e(plot)) if plot else "", m["id"]))
+            cards.append('<div class="bgcard"><a class="bgp" href="%s">%s</a><div class="bgt"><h3><a href="%s">%s</a>%s</h3>'
+                         '<div class="facts">%s</div><p class="note">%s</p>%s<a class="open" href="%s">Open in Nahoko</a></div></div>' % (
+                _tp(m), _poster(m, 342), _tp(m), _e(m["n"]), score, " · ".join(_e(x) for x in facts if x), _e(background(m)),
+                ('<p class="plot">%s</p>' % _e(plot)) if plot else "", _tp(m)))
         bg = '<section class="bg"><h2>Background</h2>%s</section>' % "".join(cards)
     body = ('<div class="layout"><main><article class="story"><div class="meta"><a class="sec sec-%s" href="/news/%s">%s</a><span>%s · %s</span></div>'
             '<h1>%s</h1>%s%s<p class="credit">Story from <a href="%s" rel="noopener nofollow" target="_blank">%s</a>, who wrote the headline, summary and picture. '
@@ -449,25 +449,25 @@ def _picks(s, skip=()):
     try:
         if s["sec"] == "games":
             rows = games.view_filter({}, "best", (int(s["id"][:3], 16) % 8) * 6, 12)["rows"][0]["items"]
-            label, more = "Games to play", "/catalogue/games"
+            label, more = "Games to play", "/games"
         else:
             kind = "series" if s["sec"] == "series" else "movie"
             genre = next((g for pat, g in TOPICS if re.search(pat, text)), None)
             if s["sec"] == "anime":
                 v = catalog.view("series", "anime"); rows = v["rows"][0]["items"] if v.get("rows") else []
-                label, more = "Anime to watch", "/catalogue/series?row=anime"
+                label, more = "Anime to watch", "/series?row=anime"
             else:
                 f = {"genre": genre} if genre else {}
                 d = catalog.view_filter(kind, f, "best", (int(s["id"][:3], 16) % 6) * 6, 12) if f else catalog.view(kind, "popular", None, (int(s["id"][:3], 16) % 6) * 6, 12)
                 rows = d["rows"][0]["items"] if d.get("rows") else []
                 label = ("%s %s on Nahoko" % (genre, "series" if kind == "series" else "films")) if genre else ("Popular %s on Nahoko" % ("series" if kind == "series" else "films"))
-                more = "/catalogue/%s%s" % ("series" if kind == "series" else "movies", ("?genre=" + urllib.parse.quote(genre)) if genre else "?row=popular")
+                more = "/%s%s" % ("series" if kind == "series" else "movies", ("?genre=" + urllib.parse.quote(genre)) if genre else "?row=popular")
     except Exception:
         return ""
     rows = [r for r in rows if r["id"] not in skip and r.get("img")][:6]
     if not rows: return ""
-    cards = "".join('<a class="pick" href="/title/%s-%s">%s<b>%s</b><span>%s%s</span></a>' % (
-        r["id"], _slug(r["n"]), _poster(r, 342), _e(r["n"]), r.get("y") or "", (" · ★ %.1f" % r["r"]) if r.get("r") else "") for r in rows)
+    cards = "".join('<a class="pick" href="%s">%s<b>%s</b><span>%s%s</span></a>' % (
+        _tp(r), _poster(r, 342), _e(r["n"]), r.get("y") or "", (" · ★ %.1f" % r["r"]) if r.get("r") else "") for r in rows)
     return '<section class="picks"><div class="ph2"><h2>%s</h2><a href="%s">See all</a></div><div class="pickgrid">%s</div></section>' % (_e(label), more, cards)
 
 def _abs_img(s, men):
@@ -480,7 +480,7 @@ def _story_ld(s, men):
     url = SITE + "/news/a/%s-%s" % (s["id"], _slug(s["title"]))
     when = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(s["t"]))
     about = [{"@type": {"movie": "Movie", "series": "TVSeries", "game": "VideoGame"}.get(m.get("k"), "CreativeWork"), "name": m["n"],
-              "url": SITE + "/title/%s-%s" % (m["id"], _slug(m["n"]))} for m in men]
+              "url": SITE + _tp(m)} for m in men]
     ld = {"@context": "https://schema.org", "@type": "NewsArticle", "headline": s["title"][:110], "description": s.get("excerpt") or s["title"],
           "image": [_abs_img(s, men)], "datePublished": when, "dateModified": when, "mainEntityOfPage": url, "url": url,
           "author": {"@type": "Organization", "name": s["src"]}, "isBasedOn": s["link"],
@@ -500,11 +500,16 @@ def _xml(urls):
 
 TITLES_PER_MAP = 10000
 
+def _tp(x):
+    """A title's address, the same rule as the app: /movies/<id>-<name>, /series/..., /games/..."""
+    i = x["id"]; sec = "games" if i.startswith("wg") else "series" if x.get("k") == "series" else "movies"
+    return "/%s/%s-%s" % (sec, i, _slug(x.get("n") or i))
+
 def _title_ids():
     import catalog, games
     cat = catalog.load() or {"items": {}}
-    ids = [(i["id"], i["n"]) for i in sorted(cat["items"].values(), key=lambda i: -i["v"])[:50000]]
-    ids += [(g["id"], g["n"]) for g in sorted((games._items() or {}).values(), key=lambda g: -g["pop"])[:10000]]
+    ids = [(i["id"], i["n"], i.get("k")) for i in sorted(cat["items"].values(), key=lambda i: -i["v"])[:50000]]
+    ids += [(g["id"], g["n"], "game") for g in sorted((games._items() or {}).values(), key=lambda g: -g["pop"])[:10000]]
     return ids
 
 _ppl = {"t": 0, "v": []}
@@ -531,7 +536,7 @@ def sitemap(name):
     """sitemap-pages.xml, sitemap-news.xml, sitemap-titles-N.xml -> XML, or None."""
     import extras
     if name == "pages":
-        return _xml([(u, None) for u in ("/", "/catalogue/movies", "/catalogue/series", "/catalogue/games", "/news", "/news/movies", "/news/series",
+        return _xml([(u, None) for u in ("/", "/movies", "/series", "/games", "/news", "/news/movies", "/news/series",
                                          "/news/anime", "/news/games", "/news/nahoko", "/about", "/methodology", "/contact", "/privacy")])
     if name == "news":
         c = _db(); rows = c.execute("SELECT id, title, t FROM items ORDER BY t DESC LIMIT 2000").fetchall(); c.close()
@@ -541,11 +546,11 @@ def sitemap(name):
     m = re.fullmatch(r"people-(\d{1,3})", name)
     if m:
         k = int(m.group(1)) - 1; ps = _people()[k * TITLES_PER_MAP:(k + 1) * TITLES_PER_MAP]
-        return _xml([("/person/%s-%s" % (i, _slug(n)), None) for i, n in ps]) if ps else None
+        return _xml([("/people/%s-%s" % (i, _slug(n)), None) for i, n in ps]) if ps else None
     m = re.fullmatch(r"titles-(\d{1,3})", name)
     if m:
         k = int(m.group(1)) - 1; ids = _title_ids()[k * TITLES_PER_MAP:(k + 1) * TITLES_PER_MAP]
-        return _xml([("/title/%s-%s" % (i, _slug(n)), None) for i, n in ids]) if ids else None
+        return _xml([(_tp({"id": i, "n": n, "k": k}), None) for i, n, k in ids]) if ids else None
     return None
 
 def llms():
@@ -559,16 +564,16 @@ The news section gathers film, TV, anime and game news from the publishers' own 
 titles each story is about.
 
 ## Main pages
-- [Films](%(s)s/catalogue/movies): shelves of new, top-rated, popular and hidden-gem films; filters by country, genre, decade and rating
-- [Series](%(s)s/catalogue/series): the same for TV series, with ratings for every episode
-- [Games](%(s)s/catalogue/games): PC, PlayStation, Xbox and Switch games with critics' scores
+- [Films](%(s)s/movies): shelves of new, top-rated, popular and hidden-gem films; filters by country, genre, decade and rating
+- [Series](%(s)s/series): the same for TV series, with ratings for every episode
+- [Games](%(s)s/games): PC, PlayStation, Xbox and Switch games with critics' scores
 - [News](%(s)s/news): film, series, anime and game news ([movies](%(s)s/news/movies), [series](%(s)s/news/series), [anime](%(s)s/news/anime), [games](%(s)s/news/games))
 - [About](%(s)s/about), [Contact](%(s)s/contact), [Privacy](%(s)s/privacy)
 
 ## Title pages
-Addresses look like %(s)s/title/tt0816692-interstellar (IMDb identifier, then the name). Each page carries schema.org data
+Addresses look like %(s)s/movies/tt0816692-interstellar or %(s)s/series/tt0903747-breaking-bad (section, IMDb identifier, then the name). Each page carries schema.org data
 (Movie, TVSeries or VideoGame) with the rating.
-People (actors, directors, writers) have pages too, like %(s)s/person/nm0000138-leonardo-dicaprio: a short bio, their best-known
+People (actors, directors, writers) have pages too, like %(s)s/people/nm0000138-leonardo-dicaprio: a short bio, their best-known
 titles and their filmography in the catalogue (schema.org Person). Ratings and titles: information courtesy of IMDb (imdb.com), used with permission.
 
 ## Sitemaps

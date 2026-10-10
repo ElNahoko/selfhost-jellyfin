@@ -232,13 +232,59 @@ def i18n(lang):
         _i18n["d"] = out; _i18n["m"] = m
     return _i18n["d"].get(lang, {})
 
+SEC = {      # /movies/tt0111161-the-shawshank-redemption, /fr/films/tt0111161-les-evades, /people/nm0000151-morgan-freeman
+    "en": {"movie": "movies", "series": "series", "game": "games", "people": "people", "fav": "favorites", "wish": "wishlist"},
+    "fr": {"movie": "films", "series": "series", "game": "jeux", "people": "personnes", "fav": "favoris", "wish": "envies"},
+    "es": {"movie": "peliculas", "series": "series", "game": "juegos", "people": "personas", "fav": "favoritos", "wish": "deseos"},
+    "de": {"movie": "filme", "series": "serien", "game": "spiele", "people": "personen", "fav": "favoriten", "wish": "wunschliste"},
+    "it": {"movie": "film", "series": "serie", "game": "giochi", "people": "persone", "fav": "preferiti", "wish": "desideri"},
+    "pt": {"movie": "filmes", "series": "series", "game": "jogos", "people": "pessoas", "fav": "favoritos", "wish": "desejos"},
+}
+SEC["ar"] = SEC["en"]      # Latin words in Arabic addresses: they stay readable when shared
+SEC_ANY = {w: k for l in SEC.values() for k, w in l.items()}
+
+def kind_key(tid, it=None):
+    if tid.startswith("wg"): return "game"
+    return "series" if (it or {}).get("k") == "series" else "movie"
+
+def title_path(tid, lang="en", it=None):
+    """The one address of a title in a language: its section word, its id, its name (the local name when we know it)."""
+    it = it or (games.item(tid) if tid.startswith("wg") else catalog.item(tid)) or {}
+    name = (catalog.title_i18n_cached(tid, lang).get("n") if lang != "en" and tid.startswith("tt") else "") or it.get("n") or tid
+    return "/%s/%s-%s" % (SEC[lang][kind_key(tid, it)], tid, slug_of(name))
+
+def person_path(nm, name, lang="en"):
+    return "/%s/%s-%s" % (SEC[lang]["people"], nm, slug_of(name))
+
 def lang_url(lang, path):
     return SITE + ("/" + lang if lang != "en" else "") + path
 
 def alternates(path):
-    """<link rel=alternate hreflang> for one page in every language (path without the language part)."""
-    return "".join('<link rel="alternate" hreflang="%s" href="%s">' % (l, lang_url(l, path)) for l in ("en",) + UI_LANGS) + \
-        '<link rel="alternate" hreflang="x-default" href="%s">' % lang_url("en", path)
+    """<link rel=alternate hreflang> for one page in every language. `path` is the English path, or a function lang -> path."""
+    fn = path if callable(path) else (lambda l: path)
+    return "".join('<link rel="alternate" hreflang="%s" href="%s">' % (l, lang_url(l, fn(l))) for l in ("en",) + UI_LANGS) + \
+        '<link rel="alternate" hreflang="x-default" href="%s">' % lang_url("en", fn("en"))
+
+def section_path(lang, segs):
+    """/movies/top-rated in another language: /films/top-rated."""
+    return "/" + "/".join([SEC[lang].get(SEC_ANY.get(segs[0], ""), segs[0])] + segs[1:]) if segs else "/"
+
+_rows = {}
+def resolve_row(kind, row, f=None):
+    """A shelf asked by its readable name (top-rated) -> its id (top). Ids still work."""
+    if not row: return row
+    key = (kind, row, json.dumps(f or {}, sort_keys=True))
+    if key in _rows: return _rows[key]
+    try:
+        d = games.view(None, "", 0, 1, f or None) if kind == "game" else catalog.view(kind, None, None, 0, 1, f or None)
+        chips = d.get("chips") or []
+    except Exception:
+        return row
+    rid = row
+    if not any(c["id"] == row for c in chips):
+        rid = next((c["id"] for c in chips if slug_of(c["name"]) == row), row)
+    if chips: _rows[key] = rid
+    return rid
 
 def slug_of(n):
     import unicodedata
@@ -254,7 +300,7 @@ def title_seo(tid, lang="en"):
     loc = catalog.title_i18n(tid, lang) if lang != "en" and tid.startswith("tt") else {}
     name = (loc.get("n") or it["n"]) + (" (%s)" % it["y"] if it.get("y") else "")
     desc = (loc.get("o") or it.get("o") or "%s on %s." % (name, mail.BRAND))[:300]
-    path = "/title/%s-%s" % (tid, slug_of(it["n"]))
+    path = title_path(tid, lang, it)
     url = lang_url(lang, path)
     img = "%s/_meta/%s?w=500&u=%s" % (SITE, "rimg", quote(it["img"], safe="")) if it.get("img") else ""
     kind = {"movie": "Movie", "series": "TVSeries", "game": "VideoGame"}.get(it.get("k"), "CreativeWork")
@@ -266,7 +312,7 @@ def title_seo(tid, lang="en"):
     kname, kpath = {"movie": ("Movies", "movies"), "series": ("Series", "series"), "game": ("Games", "games")}.get(it.get("k"), ("Movies", "movies"))
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": mail.BRAND, "item": SITE + "/"},
-        {"@type": "ListItem", "position": 2, "name": kname, "item": SITE + "/catalogue/" + kpath},
+        {"@type": "ListItem", "position": 2, "name": kname, "item": lang_url(lang, "/" + SEC[lang][kind_key(tid, it)])},
         {"@type": "ListItem", "position": 3, "name": it["n"], "item": url}]}
     e = lambda x: H.escape(str(x), quote=True)
     head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
@@ -274,13 +320,13 @@ def title_seo(tid, lang="en"):
             '<script type="application/ld+json">%s</script>') % (
         e(name), e(mail.BRAND), e(desc), e(url), "movie" if kind == "Movie" else "tv_show" if kind == "TVSeries" else "other", e(name), e(desc),
         ('<meta property="og:image" content="%s">' % e(img)) if img else "", json.dumps(ld).replace("</", "<\\/"))
-    head += '<script type="application/ld+json">%s</script>' % json.dumps(crumbs).replace("</", "<\\/") + alternates(path)
+    head += '<script type="application/ld+json">%s</script>' % json.dumps(crumbs).replace("</", "<\\/") + alternates(lambda l: title_path(tid, l, it))
     try: rel = (games.related(tid) if tid.startswith("wg") else catalog.related(tid)) or {}
     except Exception: rel = {}
     links = [x for x in (rel.get("similar") or [])[:12]] + [x for x in ((rel.get("by") or {}).get("items") or [])[:6]]
     body = '<noscript><article><h1>%s</h1><p>%s</p>%s</article></noscript>' % (
         e(name), e(desc), ('<nav><h2>Related</h2><ul>%s</ul></nav>' % "".join(
-            '<li><a href="%s/title/%s-%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", x["id"], slug_of(x["n"]), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
+            '<li><a href="%s%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", title_path(x["id"], lang, x), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
     return head, body
 
 def person_seo(nm, lang="en"):
@@ -289,7 +335,7 @@ def person_seo(nm, lang="en"):
     p = catalog.person(nm, lang)
     if not p: return "", ""
     e = lambda x: H.escape(str(x), quote=True)
-    path = "/person/%s-%s" % (nm, slug_of(p["n"]))
+    path = person_path(nm, p["n"], lang)
     url = lang_url(lang, path)
     jobs = ", ".join(p.get("jobs") or [])
     top = ", ".join(i["n"] for i in (p.get("known") or [])[:4])
@@ -304,30 +350,45 @@ def person_seo(nm, lang="en"):
     if img: ld["image"] = img
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": mail.BRAND, "item": SITE + "/"},
-        {"@type": "ListItem", "position": 2, "name": "People", "item": SITE + "/catalogue/movies"},
+        {"@type": "ListItem", "position": 2, "name": "People", "item": lang_url(lang, "/" + SEC[lang]["movie"])},
         {"@type": "ListItem", "position": 3, "name": p["n"], "item": url}]}
     title = "%s%s" % (p["n"], (" · " + jobs) if jobs else "")
     head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
             '<meta property="og:type" content="profile"><meta property="og:title" content="%s"><meta property="og:description" content="%s">%s'
             '<script type="application/ld+json">%s</script><script type="application/ld+json">%s</script>') % (
         e(title), e(mail.BRAND), e(desc), e(url), e(p["n"]), e(desc), ('<meta property="og:image" content="%s">' % e(img)) if img else "",
-        json.dumps(ld).replace("</", "<\\/"), json.dumps(crumbs).replace("</", "<\\/")) + alternates(path)
+        json.dumps(ld).replace("</", "<\\/"), json.dumps(crumbs).replace("</", "<\\/")) + alternates(lambda l: person_path(nm, p["n"], l))
     every = {i["id"]: i for r in (p.get("roles") or {}).values() for i in r}
     body = '<noscript><article><h1>%s</h1><p>%s</p><nav><h2>Filmography</h2><ul>%s</ul></nav></article></noscript>' % (
-        e(p["n"]), e(desc), "".join('<li><a href="%s/title/%s-%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", i["id"], slug_of(i["n"]), e(i["n"]), (" (%s)" % i["y"]) if i.get("y") else "")
+        e(p["n"]), e(desc), "".join('<li><a href="%s%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", title_path(i["id"], lang, i), e(i["n"]), (" (%s)" % i["y"]) if i.get("y") else "")
                                    for i in sorted(every.values(), key=lambda i: -(i.get("y") or 0))[:200]))
     return head, body
+
+def i18n_file(lang):
+    """window.__T for one language, as a file named by its content (cached for good by the browser)."""
+    data = ("window.__T=%s;" % json.dumps(i18n(lang), ensure_ascii=False)).encode()
+    name = "t-%s-%s.js" % (lang, hashlib.sha1(data).hexdigest()[:12])
+    _page.setdefault("files", {})[name] = (data, "js")
+    return name
 
 def app_page(s, head="", body="", lang="en"):
     """The app, told who is looking (public, member, uploader, admin). `head` adds page-specific tags (SEO)."""
     p = os.path.join(ASSETS, "index.html")
     m = os.path.getmtime(p)
-    if m != _page["m"]:
-        _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
+    if m != _page["m"]:      # the styles and the code leave the page for files the browser keeps a year (named by their content)
+        raw = open(p, encoding="utf-8").read()
+        st = re.search(r"<style>(.*?)</style>", raw, re.S)
+        sc = max(re.finditer(r"<script>(.*?)</script>", raw, re.S), key=lambda x: len(x.group(1)))
+        files = {}
+        for body_, ext in ((st.group(1), "css"), (sc.group(1), "js")):
+            data = body_.encode(); files[ext] = (hashlib.sha1(data).hexdigest()[:12], data)
+        raw = raw.replace(sc.group(0), '<script src="/_app/%s.js"></script>' % files["js"][0], 1)
+        raw = raw.replace(st.group(0), '<link rel="stylesheet" href="/_app/%s.css">' % files["css"][0], 1)
+        _page.update(html=raw, m=m, files={"%s.%s" % (h, e): (d, e) for e, (h, d) in files.items()})
     inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;window.__WATCH=%s;</script>' % (
         json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND), json.dumps(WATCH))
-    if lang != "en":      # the interface in that language: its words travel with the page
-        inj += '<script>window.__LANG=%s;window.__T=%s;</script>' % (json.dumps(lang), json.dumps(i18n(lang), ensure_ascii=False).replace("</", "<\\/"))
+    if lang != "en":      # the interface in that language: its words come in a file of their own, kept by the browser
+        inj += '<script>window.__LANG=%s;</script><script src="/_app/%s"></script>' % (json.dumps(lang), i18n_file(lang))
     html = _page["html"].replace('<html lang="en">', '<html lang="%s"%s>' % (lang, ' dir="rtl"' if lang == "ar" else ""), 1)
     return html.replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
 
@@ -336,7 +397,7 @@ def staff(s): return s["role"] in ("admin", "uploader")
 # answers that are the same for everyone, kept a short while (the catalogue changes slowly; computing a view walks 30,000 titles)
 _rc = {}
 CACHED = {"/_meta/catalog": 60, "/_meta/search": 600, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
-          "/_meta/episodes": 600, "/_meta/cast": 3600, "/_meta/related": 1800, "/_meta/person": 3600}
+          "/_meta/episodes": 600, "/_meta/cast": 3600, "/_meta/related": 1800, "/_meta/person": 3600, "/_meta/suggest": 300}
 def rc_get(key):
     v = _rc.get(key)
     return v[1] if v and v[0] > time.time() else None
@@ -421,6 +482,27 @@ def cover_url(tid, warm=False):
         try: fetch_poster(got, "500")
         except Exception: pass
     return got
+
+def _warm_people():
+    """In the background, slowly (Wikidata asks for calm): the best-known people's pages and the best-known titles in every
+    language are prepared before anyone opens them, so they open at once. Everything is kept in our own database."""
+    time.sleep(300)
+    while True:
+        try:
+            for nm, _ in catalog.people_for_sitemap()[:3000]:
+                try: catalog.person(nm)
+                except Exception: pass
+                time.sleep(2)
+            cat = catalog.load() or {"items": {}}
+            for it in sorted(cat["items"].values(), key=lambda i: -i["v"])[:600]:
+                for lg in UI_LANGS:
+                    if catalog.title_i18n_cached(it["id"], lg): continue
+                    try: catalog.title_i18n(it["id"], lg)
+                    except Exception: pass
+                    time.sleep(1.5)
+        except Exception:
+            pass
+        time.sleep(24 * 3600)
 
 def _warm_covers():
     """In the background: wide pictures for the best-known titles, ready before anyone opens them."""
@@ -521,8 +603,19 @@ class H(BaseHTTPRequestHandler):
         def chosen():      # an app page asked without a language part: back to the language this browser chose
             c = re.search(r"(?:^|;\s*)lang=([a-z]{2})", self.headers.get("Cookie") or "")
             if lang == "en" and c and c.group(1) in UI_LANGS:
-                self.redirect("/" + c.group(1) + path + ("?" + u.query if u.query else "")); return True
+                sg = [x for x in path.split("/") if x]
+                self.redirect("/" + c.group(1) + (section_path(c.group(1), sg) if sg and sg[0] in SEC_ANY else path) + ("?" + u.query if u.query else "")); return True
+        def moved(to):      # the permanent address of this page (old links and other spellings land there)
+            self.send_response(301); self.send_header("Location", ("/" + lang if lang != "en" else "") + to + ("?" + u.query if u.query else ""))
+            self.send_header("Cache-Control", "public, max-age=86400"); self.send_header("Content-Length", "0"); self.end_headers()
         try:
+            if path.startswith("/_app/"):         # the app's styles, code and words (see app_page)
+                if not _page.get("files"): app_page(PUBLIC)
+                tm = re.fullmatch(r"t-([a-z]{2})-[0-9a-f]{12}\.js", path[6:])
+                if tm and tm.group(1) in UI_LANGS: i18n_file(tm.group(1))      # after a restart: made again on demand
+                f = _page["files"].get(path[6:])
+                if not f: return self.send(404, b"{}", cache="no-store")
+                return self.send(200, f[0], "text/css; charset=utf-8" if f[1] == "css" else "application/javascript; charset=utf-8", "public, max-age=31536000, immutable")
             if path == "/_lib/gsap.min.js":         # the animation library (downloaded at setup, not shipped in the repo)
                 try:
                     with open(os.path.join(HERE, "lib", "gsap.min.js"), "rb") as f: data = f.read()
@@ -542,7 +635,8 @@ class H(BaseHTTPRequestHandler):
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
             if path in ("/about", "/privacy", "/contact", "/methodology"):          # plain pages, the same for everyone
-                with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
+                fp = os.path.join(ASSETS, "pages", lang, path[1:] + ".html") if lang != "en" else ""      # translated pages: pages/<lang>/
+                with open(fp if fp and os.path.exists(fp) else os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
                 return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
             if path == "/robots.txt": return self.send(200, news.robots().encode(), "text/plain; charset=utf-8", "public, max-age=3600")
             if path == "/llms.txt": return self.send(200, news.llms().encode(), "text/plain; charset=utf-8", "public, max-age=3600")
@@ -566,22 +660,45 @@ class H(BaseHTTPRequestHandler):
                 page = news.post(int(m.group(1)))
                 if not page: return self.redirect("/news/nahoko")
                 return self.send(200, page.encode(), "text/html; charset=utf-8", "public, max-age=120")
-            m = re.fullmatch(r"/title/((?:tt|wg)\d{1,10})(?:-[a-z0-9-]*)?", path)
-            if m:                                        # one title: the app draws it, robots get its facts and links
+            segs = [x for x in path.split("/") if x]
+            m = re.fullmatch(r"/(?:title|person)/((?:tt|wg)\d{1,10}|nm\d{5,10})(?:-[a-z0-9-]*)?/?", path)
+            if m:                                        # the old addresses of titles and people: moved for good
+                i = m.group(1)
+                if i.startswith("nm"):
+                    pn = catalog.person_name(i)
+                    return moved(person_path(i, pn, lang)) if pn else self.redirect("/")
+                return moved(title_path(i, lang)) if (games.item(i) if i.startswith("wg") else catalog.item(i)) else self.redirect("/")
+            if segs and segs[0] == "catalogue" and not staff(self.sess() or PUBLIC):      # the old catalogue addresses
+                k = {"series": "series", "games": "game", "favorites": "fav", "wishlist": "wish", "requests": "wish"}.get(segs[1] if len(segs) > 1 else "", "movie")
+                return moved("/" + SEC[lang][k])
+            if len(segs) in (1, 2) and segs[0] in SEC_ANY:
+                key = SEC_ANY[segs[0]]
+                m = re.fullmatch(r"((?:tt|wg)\d{1,10}|nm\d{5,10})(?:-[a-z0-9-]*)?", segs[1]) if len(segs) == 2 else None
+                if m:                                    # one title or one person: the app draws it, robots get the facts and links
+                    i = m.group(1)
+                    if chosen(): return
+                    if i.startswith("nm"):
+                        pn = catalog.person_name(i)
+                        if not pn: return self.redirect("/" + (lang + "/" if lang != "en" else "") + SEC[lang]["movie"])
+                        want = person_path(i, pn, lang)
+                        if path != want: return moved(want)
+                        try: hd, bd = person_seo(i, lang)
+                        except Exception: hd, bd = "", ""
+                    else:
+                        it = games.item(i) if i.startswith("wg") else catalog.item(i)
+                        if not it: return self.redirect("/" + (lang + "/" if lang != "en" else "") + SEC[lang][key if key in ("movie", "series", "game") else "movie"])
+                        want = title_path(i, lang, it)
+                        if path != want: return moved(want)
+                        try: hd, bd = title_seo(i, lang)
+                        except Exception: hd, bd = "", ""
+                    return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
                 if chosen(): return
-                try: hd, bd = title_seo(m.group(1), lang)
-                except Exception: hd, bd = "", ""
-                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
-            m = re.fullmatch(r"/person/(nm\d{5,10})(?:-[a-z0-9-]*)?", path)
-            if m:                                        # one person: the app draws it, robots get the facts and the filmography
+                want = section_path(lang, segs)
+                if path.rstrip("/") != want and not staff(self.sess() or PUBLIC): return moved(want)      # /fr/movies -> /fr/films
+                return self.send(200, app_page(self.sess() or PUBLIC, alternates(lambda l: section_path(l, segs)), "", lang), "text/html; charset=utf-8")
+            if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith("/catalogue") or path.endswith("/"):
                 if chosen(): return
-                try: hd, bd = person_seo(m.group(1), lang)
-                except Exception: hd, bd = "", ""
-                if not hd: return self.redirect("/")
-                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
-            if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
-                if chosen(): return
-                hd = alternates(path if path != "/index.html" else "/") if path == "/" or path.startswith("/catalogue") else ""
+                hd = alternates("/") if path in ("/", "/index.html") else ""
                 return self.send(200, app_page(self.sess() or PUBLIC, hd, "", lang), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
                 s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
@@ -590,7 +707,8 @@ class H(BaseHTTPRequestHandler):
                         return self.redirect("/login?next=" + quote(uri, safe="/"))
                     return self.js({"error": "sign in"}, 401)
                 if meth not in ("GET", "HEAD", "OPTIONS") and not self.origin_ok(): return self.js({"error": "forbidden"}, 403)
-                if s["role"] == "uploader" and meth == "DELETE": return self.js({"error": "uploaders cannot delete"}, 403)
+                if s["role"] == "uploader" and meth == "DELETE" and not re.search(r"\.(txt|nfo|url|html?|jpe?g|png)$", unquote(uri.split("?")[0]), re.I):
+                    return self.js({"error": "uploaders can only delete leftover files (txt, nfo, pictures)"}, 403)      # never a video or a folder
                 return self.send(200, b"{}", headers={"X-Role": s["role"]})
             if not path.startswith("/_meta/"): return self.send(404, b"{}")
             s = self.sess() or PUBLIC
@@ -686,6 +804,17 @@ class H(BaseHTTPRequestHandler):
                 lim = (qs.get("limit") or ["24"])[0]
                 body = json.dumps(catalog.find(kind, clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode()
                 return self.send(200, body, cache="private, max-age=60")
+            if path == "/_meta/suggest":      # the search box, as you type: a few titles and people, with their pictures
+                q = clip((qs.get("q") or [""])[0], 60); typ = (qs.get("type") or ["movie"])[0]
+                if len(q) < 2: return self.js({"titles": [], "people": []})
+                keep = ("id", "n", "y", "k", "r", "img")
+                if typ == "game":
+                    titles = games.find(q, 6)
+                else:
+                    a = catalog.find("series" if typ == "series" else "movie", q, 6); b = catalog.find("movie" if typ == "series" else "series", q, 3)
+                    titles = a[:4] + b[:2]; titles += [x for x in a[4:] + b[2:] if x not in titles][:6 - len(titles)]
+                out = {"titles": [{k: x[k] for k in keep if k in x} for x in titles[:6]], "people": catalog.people_find(q, 4) if typ != "game" else []}
+                return self.send(200, json.dumps(out).encode(), cache="private, max-age=300")
             if path == "/_meta/person":
                 pid = (qs.get("id") or [""])[0]; lg = (qs.get("lang") or ["en"])[0]
                 d = catalog.person(pid, lg) if re.fullmatch(r"nm\d{5,10}", pid) else None
@@ -772,6 +901,7 @@ class H(BaseHTTPRequestHandler):
                 f = filt(qs); f.pop("country", None)
                 pl = (qs.get("country") or [""])[0].upper()      # for games the first filter is the platform
                 if pl in games.PNAME: f["platform"] = pl
+                row = resolve_row("game", row, f)
                 if (qs.get("all") or [""])[0] == "1":
                     body = games.view_filter(f, (qs.get("sort") or [""])[0], num3("offset", 0, 8000), max(1, num3("limit", 40, 60)))
                 else:
@@ -789,6 +919,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, slim(body), cache="private, max-age=20")
             if path == "/_meta/catalog":
                 row = re.sub(r"[^a-z0-9-]", "", (qs.get("row") or [""])[0]) or None
+                row = resolve_row("series" if (qs.get("type") or [""])[0] == "series" else "movie", row, filt(qs) or None)
                 def num(k, d, hi):
                     try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
                     except ValueError: return d
@@ -991,4 +1122,5 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     threading.Thread(target=stats_loop, daemon=True).start()
     threading.Thread(target=_warm_covers, daemon=True).start()
+    threading.Thread(target=_warm_people, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()

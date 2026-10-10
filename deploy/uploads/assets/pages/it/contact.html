@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141414">
+<title>Contatti · Nahoko</title>
+<meta name="description" content="Write to the owner of Nahoko.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
+<link rel="icon" href="/pwa/icon-192.png">
+<style>
+:root{color-scheme:dark;--bg:#141414;--card:#1c1c1c;--ink:#f3f3f3;--muted:#a3a3a3;--line:#2e2e2e;--red:#e50914}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:680px;margin:0 auto;padding:22px 20px 64px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:44px}
+.brand{display:flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:900;letter-spacing:.14em;font-size:1.25rem}
+.brand svg{width:34px;height:34px}
+.back{color:var(--muted);text-decoration:none;font-size:.92rem;border:1px solid var(--line);border-radius:99px;padding:7px 14px}
+.back:hover{color:#fff;border-color:#555}
+h1{font-size:2.1rem;line-height:1.15;margin:0 0 10px;letter-spacing:-.02em}
+.lead{color:var(--muted);font-size:1.08rem;margin:0 0 34px}
+h2{font-size:1.05rem;margin:34px 0 8px}
+p,li{color:#cfcfcf}
+ul{padding-left:20px}li{margin:6px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:22px 0}
+.card b{color:#fff}
+.big{font-size:1.25rem;font-weight:800;color:#fff;margin:0 0 4px}
+a{color:#fff}
+footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--line);display:flex;gap:18px;font-size:.88rem}
+footer a{color:var(--muted);text-decoration:none}footer a:hover{color:#fff}
+footer{flex-wrap:wrap}
+.credit{flex-basis:100%;color:var(--muted);font-size:.8rem;margin-top:4px}.credit a{color:var(--muted);text-decoration:underline}
+form.card{display:flex;flex-direction:column;gap:16px}
+label{display:flex;flex-direction:column;gap:6px;font-weight:600;color:#fff;font-size:.95rem}
+.opt{color:var(--muted);font-weight:400}
+input,textarea{font:inherit;color:#fff;background:#141414;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+input:focus,textarea:focus{outline:2px solid var(--red);outline-offset:1px;border-color:transparent}
+textarea{resize:vertical;min-height:140px}
+button{font:inherit;font-weight:700;color:#fff;background:var(--red);border:0;border-radius:12px;padding:13px 20px;cursor:pointer;align-self:flex-start}
+button:disabled{opacity:.6;cursor:default}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+#cmsg{margin:0;min-height:1.2em}#cmsg.ok{color:#46d369}#cmsg.err{color:#ff6b6b}
+.small{color:var(--muted);font-size:.86rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><a class="brand" href="/it/film"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z" fill="#fff"/></svg><span>AHOKO</span></a><a class="back" href="/it/film">Torna al catalogo</a></header>
+<h1>Contatti</h1>
+<p class="lead">Una domanda, un’idea, qualcosa che non funziona? Scrivi qui: il proprietario legge ogni messaggio.</p>
+<form id="cf" class="card" novalidate>
+  <label>Il tuo nome <span class="opt">(facoltativo)</span><input name="name" maxlength="80" autocomplete="name"></label>
+  <label>La tua email <span class="opt">(facoltativa, solo se vuoi una risposta)</span><input name="email" type="email" maxlength="120" autocomplete="email"></label>
+  <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+  <label>Messaggio<textarea name="message" rows="6" maxlength="4000" required></textarea></label>
+  <button type="submit">Invia</button>
+  <p id="cmsg" role="status"></p>
+</form>
+<p class="small">Il tuo messaggio è conservato solo perché il proprietario lo legga, e cancellato dopo la risposta. Vedi <a href="/it/privacy">Privacy</a>.</p>
+<script>
+document.getElementById("cf").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  var f = e.target, b = f.querySelector("button"), m = document.getElementById("cmsg");
+  m.className = ""; m.textContent = "";
+  if (f.message.value.trim().length < 5) { m.className = "err"; m.textContent = "Scrivi prima qualche parola."; return; }
+  b.disabled = true; b.textContent = "Invio…";
+  try {
+    var r = await fetch("/_meta/contact", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ name: f.name.value, email: f.email.value, message: f.message.value, website: f.website.value }) });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(d.error || "Invio non riuscito. Riprova tra poco.");
+    f.reset(); m.className = "ok"; m.textContent = "Grazie! Il tuo messaggio è stato inviato.";
+  } catch (err) { m.className = "err"; m.textContent = err.message; }
+  b.disabled = false; b.textContent = "Invia";
+});
+</script>
+<footer><a href="/it/film">Catalogo</a><a href="/news">Notizie</a><a href="/it/about">Chi siamo</a><a href="/it/methodology">Come funziona</a><a href="/it/contact">Contatti</a><a href="/it/privacy">Privacy</a><span class="credit">Informazioni per gentile concessione di IMDb (<a href="https://www.imdb.com" rel="noopener">imdb.com</a>). Usate con autorizzazione.</span></footer>
+</div>
+</body>
+</html>
