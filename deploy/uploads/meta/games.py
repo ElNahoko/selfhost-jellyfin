@@ -425,3 +425,27 @@ def _keepalive():
         time.sleep(300)
 
 threading.Thread(target=_keepalive, daemon=True).start()
+
+def related(gid, n=14):
+    """Games like this one: shared genres and platforms, the same series first, then the well known and well reviewed."""
+    items = _items() or {}
+    it = items.get(gid)
+    if not it: return None
+    gs, ps = set(it["g"]), set(it["p"])
+    def series(i): return " ".join(re.split(r"[:\-\u2013]| \d| [ivx]+\b", i["n"].lower())[0].split()[:3])
+    me = series(it)
+    sc = []
+    for o in items.values():
+        if o["id"] == gid: continue
+        s = 2.5 * len(gs & set(o["g"])) / max(1, len(gs | set(o["g"]))) + 0.8 * len(ps & set(o["p"])) / max(1, len(ps | set(o["p"])))
+        same = series(o) == me
+        if same: s += 3
+        if s < 0.9: continue
+        sc.append((s + o["w"] / 4, same, o))
+    sc.sort(key=lambda x: -x[0])
+    out = {"similar": [_out(o) for s, same, o in sc if not same][:n]}
+    ser = [o for s, same, o in sc if same]
+    if ser:
+        ser.sort(key=lambda o: o["d"] or "9999")
+        out["by"] = {"name": it["n"].split(":")[0], "role": "series", "items": [_out(o) for o in ser[:n]]}
+    return out

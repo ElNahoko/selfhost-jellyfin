@@ -12,8 +12,9 @@ It is a small Python server (no framework, no database server) plus one web page
 | `deploy/uploads/meta/games.py` | games: list, covers, scores, shelves, filters, search |
 | `deploy/uploads/meta/auth.py` | staff accounts, members (email codes), sessions, favorites |
 | `deploy/uploads/meta/mail.py` | sends the sign-in code (SMTP, Resend) |
+| `deploy/uploads/meta/extras.py` | News posts (`data/news.json`) and Contact messages (`data/messages.db`) |
 | `deploy/uploads/assets/index.html` | the whole web app (HTML, CSS and JavaScript in one file) |
-| `deploy/uploads/assets/pages/` | About and Privacy |
+| `deploy/uploads/assets/pages/` | About, Privacy, Contact, and the News page template (posts are written in by meta) |
 | `deploy/uploads/assets/pwa/` | installable app: manifest, icons, service worker (offline screen only, nothing cached) |
 | `deploy/uploads/files.caddy.example` | which paths Caddy sends to meta and which stay behind the staff sign-in |
 
@@ -65,7 +66,10 @@ On the games page every game appears once, and a shelf shows at most two games o
 | `favorites` (GET, POST) | members | the member's favorites |
 | `requests` (GET; POST to add or vote) | members see it; approved members add and vote | the wishlist |
 | `me` | everyone | who is looking (public, member, uploader, admin) |
+| `related?id=` | everyone | "More like this" and "More from the director / creator" (games: the same series) |
+| `news` (GET), `contact` (POST) | everyone | the news posts; a contact message (spam trap, 5 an hour per address) |
 | `status`, `admin/rebuild`, `members`, `users`, `usage`, `stats` | admin | the admin panels |
+| `news` (POST, DELETE), `messages` | admin | write and delete posts; read and delete contact messages |
 
 IDs: films and series use IMDb ids (`tt…`), games `wg` + their Wikidata number.
 
@@ -97,3 +101,16 @@ background job with its progress. **Update now** starts that job right away; nor
 See `SERVER.md` in the project folder (next to this repository) for deploying. In short: `index.html` and the pages need no restart;
 a `.py` change needs `docker restart uploads-meta` (check it compiles first). Bump `SCHEMA` in `catalog.py` to make the next start
 rebuild the catalogue in the background (the old one keeps being served meanwhile).
+
+## News and Contact
+
+`/news` lists the posts (written in Settings → News). `/contact` sends a message to Settings → Messages; set `CONTACT_TO`
+in `uploads-meta.env` to also receive each message by email. Every page carries the IMDb credit
+("Information courtesy of IMDb (imdb.com). Used with permission."), as the IMDb datasets licence asks.
+
+## Navigation
+
+A title's details end with "More like this" (same genres, then the same country and a close year) and "More from" its
+director (films) or creator (series); a game shows other games of its series. Genres in the details open the catalogue
+filtered by that genre. "See all" pages show 48 titles a page with numbered pages (`?page=` in the address), and a search
+stays when switching between Movies, Series and Games.

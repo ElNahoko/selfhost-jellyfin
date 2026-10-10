@@ -17,7 +17,7 @@ Writes need a JSON body and a same-site Origin, so another website cannot trigge
 """
 import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
-import auth, catalog, games, mail
+import auth, catalog, extras, games, mail
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote, unquote
 
@@ -203,11 +203,12 @@ def clip(v, n):
 ASSETS = os.environ.get("ASSETS_DIR", "/assets")
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
-ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/usage", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
+ADMIN_ONLY = ("/_meta/messages", "/_meta/space", "/_meta/stats", "/_meta/usage", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
 STAFF_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/have", "/_meta/match", "/_meta/guess")      # admin and uploaders
 SIGNED_IN = ("/_meta/requests",)      # every signed-in member sees the wishlist; adding to it and voting need approval (see do_POST)
 SITE = os.environ.get("SITE_URL", "")                 # the public address of this site (for the links in emails)
-WATCH = os.environ.get("WATCH_URL", "")               # where "Watch" opens Jellyfin, e.g. https://jellyfin.example.com/web/#/home
+WATCH = os.environ.get("WATCH_URL", "")
+CONTACT_TO = os.environ.get("CONTACT_TO", "")        # optional: also email each contact message to this address               # where "Watch" opens Jellyfin, e.g. https://jellyfin.example.com/web/#/home
 PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
 _rate = {}
@@ -227,7 +228,7 @@ def staff(s): return s["role"] in ("admin", "uploader")
 # answers that are the same for everyone, kept a short while (the catalogue changes slowly; computing a view walks 30,000 titles)
 _rc = {}
 CACHED = {"/_meta/catalog": 60, "/_meta/search": 600, "/_meta/filters": 300, "/_meta/find": 120, "/_meta/title": 300, "/_meta/titles": 120,
-          "/_meta/episodes": 600, "/_meta/cast": 3600}
+          "/_meta/episodes": 600, "/_meta/cast": 3600, "/_meta/related": 1800}
 def rc_get(key):
     v = _rc.get(key)
     return v[1] if v and v[0] > time.time() else None
@@ -365,9 +366,12 @@ class H(BaseHTTPRequestHandler):
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
-            if path in ("/about", "/privacy"):          # plain pages, the same for everyone
+            if path in ("/about", "/privacy", "/contact"):          # plain pages, the same for everyone
                 with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
                 return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
+            if path == "/news":                          # the news page, with the posts written in
+                with open(os.path.join(ASSETS, "pages", "news.html"), encoding="utf-8") as f: tpl = f.read()
+                return self.send(200, tpl.replace("<!--POSTS-->", extras.news_html()).encode(), "text/html; charset=utf-8", "no-cache")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
                 return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
@@ -389,6 +393,12 @@ class H(BaseHTTPRequestHandler):
                 hit = rc_get(self.path)
                 if hit is not None: return self.send(200, hit, cache="public, max-age=60")
                 self._rc_key = (self.path, CACHED[path])
+            if path == "/_meta/news": return self.send(200, json.dumps(extras.news()).encode(), cache="no-cache")
+            if path == "/_meta/messages": return self.js(extras.messages())
+            if path == "/_meta/related":
+                rid = (qs.get("id") or [""])[0]
+                d = games.related(rid) if re.fullmatch(r"wg\d{1,10}", rid) else catalog.related(rid) if re.fullmatch(r"tt\d{6,10}", rid) else None
+                return self.send(200, json.dumps(d or {}).encode(), cache="private, max-age=600")
             if path == "/_meta/me": return self.js(dict(s, approved=approved(s), mail=mail.configured()))
             if path == "/_meta/favorites":
                 if s["role"] != "member": return self.js([])
@@ -614,9 +624,22 @@ class H(BaseHTTPRequestHandler):
                 tok, err = auth.verify_code(b.get("email"), b.get("code"), self.ip())
                 if not tok: return self.js({"error": err}, 400)
                 return self.js({"ok": True}, headers={"Set-Cookie": auth.cookie_value(tok)})
+            if path == "/_meta/contact":               # the contact form: no account needed
+                if b.get("website"): return self.js({"ok": True})      # a hidden field only robots fill in
+                if limited("ip:" + self.ip(), "contact", 3): return self.js({"error": "Too many messages. Wait a minute."}, 429)
+                ok, err = extras.add_message(b.get("name"), b.get("email"), b.get("message"), self.ip())
+                if not ok: return self.js({"error": err}, 400)
+                if CONTACT_TO and mail.configured():
+                    try: mail.send_message(CONTACT_TO, "%s: a message from %s" % (mail.BRAND, clip(b.get("name"), 60) or "a visitor"),
+                                           (b.get("message") or "")[:4000] + "\n\n" + (b.get("email") or "(no email given)"), clip(b.get("email"), 120))
+                    except Exception: pass
+                return self.js({"ok": True})
             s = self.sess()
             if not s: return self.js({"error": "sign in"}, 401)
             admin = s["role"] == "admin"
+            if path == "/_meta/news" and admin:
+                p = extras.add_news(b.get("title"), b.get("body"), b.get("tag"))
+                return self.js(p) if p else self.js({"error": "A title and a few words are needed."}, 400)
             if path == "/_meta/favorites":
                 if s["role"] != "member": return self.js({"error": "members only"}, 403)
                 ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}|wg\d{1,10}", t)]
@@ -712,6 +735,10 @@ class H(BaseHTTPRequestHandler):
         if not s: return self.js({"error": "sign in"}, 401)
         if s["role"] != "admin": return self.js({"error": "forbidden"}, 403)
         path = urlparse(self.path).path
+        m = re.fullmatch(r"/_meta/news/(\d+)", path)
+        if m: return self.js({"ok": extras.delete_news(int(m.group(1)))})
+        m = re.fullmatch(r"/_meta/messages/(\d+)", path)
+        if m: return self.js({"ok": bool(extras.delete_message(int(m.group(1))))})
         m = re.fullmatch(r"/_meta/requests/(\d+)", path)
         if m:
             with db() as c:

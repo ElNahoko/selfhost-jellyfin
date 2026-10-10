@@ -4,7 +4,7 @@ Everything lives in /db. Rebuilt weekly in the background at low priority.
 
 Shelves are rules over that data ("hidden gems", "mind-benders", "short and sweet", ...), shown on the home view; every
 shelf can also be opened on its own with up to 60 titles."""
-import difflib, gzip, json, math, os, random, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
+import difflib, gzip, heapq, json, math, os, random, re, sqlite3, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import date
 
 DBDIR = os.environ.get("DB_DIR", "/db")
@@ -608,6 +608,7 @@ def _castdb(path=CAST_DB):
     c = sqlite3.connect(path, timeout=30)
     c.execute("PRAGMA temp_store=MEMORY")          # the container has no writable /tmp
     c.execute("CREATE TABLE IF NOT EXISTS people(tconst TEXT, ord INTEGER, nconst TEXT, name TEXT, cat TEXT, chars TEXT, PRIMARY KEY(tconst, ord))")
+    c.execute("CREATE INDEX IF NOT EXISTS people_name ON people(name, cat)")      # "more from this director"
     c.execute("CREATE TABLE IF NOT EXISTS photo(name TEXT PRIMARY KEY, url TEXT, t INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     return c
@@ -1188,3 +1189,44 @@ def item(i):
     cat = load()
     if not cat or i not in cat["items"]: return None
     return _dress(cat, i)
+
+# ---------- related titles (the details dialog: "More like this", "More from <director>") ----------
+def related(tid, n=14):
+    """Titles like this one: the same genres above all, then the same country, a close year, and good ones first.
+    Anime goes with anime. Plus the other titles of its director (films) or creator (series) that the catalogue has."""
+    cat = load()
+    if not cat or tid not in cat["items"]: return None
+    it = cat["items"][tid]; gs = set(it["g"]); y = it["y"] or 2000
+    an = _anime_set(); is_an = tid in an
+    cd = countries() or {}
+    mine = set()
+    for v in cd.values():
+        if tid in v.get(it["k"], ()): mine |= v.get(it["k"], set())
+    def score(o):
+        og = set(o["g"]); inter = len(gs & og)
+        if not inter: return None
+        s = 3.0 * inter / len(gs | og)
+        if (o["id"] in an) != is_an: s -= 1.5
+        if mine and o["id"] in mine: s += 0.8
+        s -= min(abs((o["y"] or y) - y), 40) / 25.0
+        return s + o.get("w", o["r"]) / 3.0
+    best = heapq.nlargest(n, ((sc, o["id"]) for o in cat["items"].values()
+                              if o["k"] == it["k"] and o["id"] != tid and (sc := score(o)) is not None))
+    sim = [_dress(cat, i) for _, i in best]
+    queue_resolve([cat["items"][i] for _, i in best])
+    out = {"similar": sim}
+    try:
+        cd2 = cast_for(tid) or {}
+        who = (cd2.get("directors") or [])[:1] if it["k"] == "movie" else (cd2.get("writers") or [])[:1]
+        if who:
+            c = _castdb()
+            rows = c.execute("SELECT DISTINCT tconst FROM people WHERE name=? AND cat IN (%s)" %
+                             ("'director'" if it["k"] == "movie" else "'creator','writer'"), (who[0],)).fetchall(); c.close()
+            ids = [r[0] for r in rows if r[0] != tid and r[0] in cat["items"] and r[0] not in {x["id"] for x in sim}]
+            ids.sort(key=lambda i: -cat["items"][i].get("w", 0))
+            if ids:
+                queue_resolve([cat["items"][i] for i in ids[:n]])
+                out["by"] = {"name": who[0], "role": "director" if it["k"] == "movie" else "creator", "items": [_dress(cat, i) for i in ids[:n]]}
+    except Exception:
+        pass
+    return out

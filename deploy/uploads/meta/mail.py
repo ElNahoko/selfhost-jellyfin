@@ -34,3 +34,20 @@ def send_code(to, code, site):
             s.starttls(context=ctx)
             if USER: s.login(USER, PASS)
             s.send_message(msg)
+
+def send_message(to, subject, text, reply_to=""):
+    """A plain-text note to the owner (a new contact message)."""
+    msg = EmailMessage()
+    msg["Subject"] = subject; msg["From"] = FROM; msg["To"] = to; msg["Message-ID"] = make_msgid()
+    if reply_to: msg["Reply-To"] = reply_to
+    msg.set_content(text)
+    ctx = ssl.create_default_context()
+    if PORT == 465:
+        with smtplib.SMTP_SSL(HOST, PORT, context=ctx, timeout=20) as s:
+            if USER: s.login(USER, PASS)
+            s.send_message(msg)
+    else:
+        with smtplib.SMTP(HOST, PORT, timeout=20) as s:
+            s.starttls(context=ctx)
+            if USER: s.login(USER, PASS)
+            s.send_message(msg)
