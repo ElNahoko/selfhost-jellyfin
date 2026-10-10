@@ -23,7 +23,7 @@ FILES_DOMAIN_PLACEHOLDER {
 	@page {
 		method GET
 		header Accept *text/html*
-		path / /index.html /catalogue /catalogue/* /title/* /profiles /settings /privacy */
+		path / /index.html /catalogue /catalogue/* /title/* /profiles /settings /privacy /about */
 	}
 	handle @page {
 		reverse_proxy uploads-meta:8000

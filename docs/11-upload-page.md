@@ -116,3 +116,14 @@ The built-in admin account is called `admin` (`ADMIN_USER` in `uploads-meta.env`
 - **What uses the server**: click CPU or RAM in the sidebar. The panel asks the host to measure once (it writes `data/usage-request`; the systemd unit `nahoko-usage.path` runs `scripts/usage.py`), shows each service in plain words and what Jellyfin is playing, with the reason when the server has to convert a video.
 - Jellyfin accounts have subtitles **off by default** (picture subtitles force the server to re-encode the video); pick a track when needed, preferably an SRT one.
 - Upload a film as a single file into Movies: it gets its own `Title (Year)` folder. An episode file dropped into Series goes to `Show/Season NN/`.
+
+## Games, About and Privacy
+
+- **Games** (catalogue only: browse, search, filters, favorites; no requests and no lucky pick) come from `deploy/uploads/meta/games.py`:
+  the 8,000 most owned Steam games from SteamSpy (weekly, one page a minute), with year, genres, description and adult-content flags
+  read from the Steam store in the background (about one game every 1.7 s, most popular first, kept in `data/games.db`).
+  A game is shown only once its store page has been read, so adult games never appear. Covers come from Steam's CDN through `/_meta/rimg`.
+- **Classic films**: films before 1970 need 1,000 IMDb votes (2,000 for 1970-1989) instead of 5,000, with shelves for the silent era,
+  the golden age, film noir and each decade. Shelves sort by the vote-weighted rating so famous classics come first.
+- `/about` and `/privacy` are plain pages in `deploy/uploads/assets/pages/`, served by meta (Caddy lists both paths in `@page`).
+- Installable app: `assets/pwa/` holds the manifest, icons and a service worker that only shows an "offline" screen (nothing is cached).

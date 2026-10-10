@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 14      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 15      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -142,7 +142,13 @@ def _rules(kind, this):
         add("family", "Family night", lambda i: i["v"] >= 80000 and g(i, "Family", "Animation"))
         add("true", "Based on true stories", lambda i: i["r"] >= 7.3 and g(i, "Biography", "History"))
         add("short", "Short and sweet (under 95 min)", lambda i: i["rt"] and i["rt"] <= 95 and i["r"] >= 7.3)
-        add("classics", "Classics", lambda i: i["y"] and i["y"] < 1985)
+        add("classics", "Classics", lambda i: i["y"] and i["y"] < 1985 and i["r"] >= 7.0, W, False, "all")
+        add("silent", "The silent era", lambda i: i["y"] and i["y"] < 1930 and i["r"] >= 6.8, W, False, "all")
+        add("golden", "Golden age (1930-1959)", lambda i: i["y"] and 1930 <= i["y"] <= 1959 and i["r"] >= 7.0, W, False, "all")
+        add("noir", "Film noir", lambda i: "Film-Noir" in i["g"], W, False, "all")
+        add("sixties", "The 60s", lambda i: i["y"] and 1960 <= i["y"] <= 1969 and i["r"] >= 6.8, W, False, "all")
+        add("seventies", "The 70s", lambda i: i["y"] and 1970 <= i["y"] <= 1979 and i["r"] >= 6.8, W, False, "all")
+        add("eighties", "The 80s", lambda i: i["y"] and 1980 <= i["y"] <= 1989, W)
         add("nineties", "The 90s", lambda i: i["y"] and 1990 <= i["y"] <= 1999)
         add("noughties", "The 2000s", lambda i: i["y"] and 2000 <= i["y"] <= 2009)
         for gname, label in (("Action", "Action"), ("Comedy", "Comedy"), ("Drama", "Drama"), ("Sci-Fi", "Sci-Fi"), ("Horror", "Horror"),
@@ -211,9 +217,10 @@ def refresh_rows():
 
 ANIME_MIN = 100     # animated titles enter from this many votes; the anime job keeps the Japanese ones and drops the rest
 
-def _need(kind, anim, recent):
-    if kind == "movie": return (500 if anim else 1000) if recent else (2000 if anim else 5000)
-    return (200 if anim else 400) if recent else (800 if anim else 2000)
+def _need(kind, anim, recent, year=None):
+    old, older = bool(year and year < 1970), bool(year and year < 1990)      # old films have far fewer votes: the classics get in all the same
+    if kind == "movie": return (500 if anim else 1000) if recent else (2000 if anim else 1000 if old else 2000 if older else 5000)
+    return (200 if anim else 400) if recent else (800 if anim else 600 if older else 2000)
 
 def _build():
     """IMDb ratings + basics -> catalogue. Both files are streamed into a scratch SQLite file and joined there,
@@ -249,7 +256,7 @@ def _build():
     for i, tt, name, year, rt, genres, rating, votes in db.execute("SELECT b.id, tt, name, year, rt, genres, rating, votes FROM b JOIN r ON r.id = b.id"):
         kind = want[tt]; g = genres.split(",") if genres else []
         anim, recent = "Animation" in g, bool(year and year >= this - 1)
-        need = _need(kind, anim, recent)
+        need = _need(kind, anim, recent, year)
         if i in an: anim = True
         if votes < need and not anim: continue
         it = {"id": i, "k": kind, "tt": tt, "n": name, "y": year, "rt": rt, "g": g, "r": rating, "v": votes}
@@ -956,7 +963,7 @@ def _dress(cat, i):
     if k: it["img"], it["o"] = k
     return it
 
-SORTS = {"rating": lambda i: (-i["r"], -i["v"]), "votes": lambda i: (-i["v"], -i["r"]),
+SORTS = {"rating": lambda i: (-i.get("w", i["r"]), -i["v"]),      # vote-weighted: a 9.1 from 2,000 votes does not beat 12 Angry Men "votes": lambda i: (-i["v"], -i["r"]),
          "newest": lambda i: (-(i["y"] or 0), -i["v"]), "name": lambda i: (i["n"].lower(),)}
 
 def _ordered(cat, ids, sort):

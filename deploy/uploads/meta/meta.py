@@ -17,7 +17,7 @@ Writes need a JSON body and a same-site Origin, so another website cannot trigge
 """
 import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
-import auth, catalog, mail
+import auth, catalog, games, mail
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -112,7 +112,11 @@ def fetch_poster(src, w):
     fp = os.path.join("/db/img", hashlib.sha1(src.encode()).hexdigest() + ".jpg")
     if not os.path.exists(fp):
         os.makedirs("/db/img", exist_ok=True)
-        data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
+        try:
+            data = urllib.request.urlopen(urllib.request.Request(src, headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
+        except urllib.error.HTTPError as e:      # a Steam game without a tall cover: its wide header picture instead
+            if e.code != 404 or not src.endswith("/library_600x900.jpg"): raise
+            data = urllib.request.urlopen(urllib.request.Request(src.replace("/library_600x900.jpg", "/header.jpg"), headers={"User-Agent": "upload-meta"}), timeout=15).read(2_000_000)
         with open(fp + ".tmp", "wb") as f: f.write(data)
         os.replace(fp + ".tmp", fp)
     return fp
@@ -241,7 +245,7 @@ def limited(user, key, per_min):
 
 def find_trailer(title, year, kind):
     """The best-looking trailer video for a title: first YouTube results page (no API key), scored, cached for a week."""
-    q = urllib.parse.quote("%s %s %s" % (title, year or "", "official trailer" if kind != "series" else "official trailer tv series"))
+    q = urllib.parse.quote("%s %s %s" % (title, year or "", "game trailer" if kind == "game" else "official trailer tv series" if kind == "series" else "official trailer"))
     req = urllib.request.Request("https://www.youtube.com/results?search_query=%s&sp=EgIQAQ%%253D%%253D" % q, headers={
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9", "Cookie": "CONSENT=YES+cb; SOCS=CAI"})
@@ -358,7 +362,10 @@ class H(BaseHTTPRequestHandler):
             if path == "/login":
                 if self.sess(): return self.redirect("/")
                 return self.send(200, LOGIN, "text/html; charset=utf-8")
-            if path in ("/", "/index.html", "/profiles", "/settings", "/privacy") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
+            if path in ("/about", "/privacy"):          # plain pages, the same for everyone
+                with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
+                return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
+            if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
                 return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
                 s = self.sess(); meth = self.headers.get("X-Forwarded-Method", "GET"); uri = self.headers.get("X-Forwarded-Uri", "/")
@@ -384,8 +391,8 @@ class H(BaseHTTPRequestHandler):
                 if s["role"] != "member": return self.js([])
                 return self.js(auth.favorites(s["user"]))
             if path == "/_meta/titles":      # several titles at once (favorites)
-                ids = re.findall(r"tt\d{6,10}", (qs.get("ids") or [""])[0])[:200]
-                return self.js([x for x in (catalog.item(i) for i in ids) if x])
+                ids = re.findall(r"tt\d{6,10}|st\d{1,9}", (qs.get("ids") or [""])[0])[:200]
+                return self.js([x for x in ((games.item(i) if i.startswith("st") else catalog.item(i)) for i in ids) if x])
             if path == "/_meta/members": return self.js(auth.list_members())
             if path == "/_meta/usage":         # what uses the server: per service (written each minute by scripts/usage.py) + what plays now
                 try:
@@ -429,7 +436,7 @@ class H(BaseHTTPRequestHandler):
                 return self.js({"n": pick["n"], "y": pick["y"]} if pick else {})
             if path == "/_meta/trailer":
                 title = clip((qs.get("title") or [""])[0], 100); year = clip((qs.get("year") or [""])[0], 4)
-                kind = "series" if (qs.get("kind") or [""])[0] == "series" else "movie"
+                kind = (qs.get("kind") or [""])[0]; kind = kind if kind in ("series", "game") else "movie"
                 if len(title) < 2 or limited(rk, "trailer", 30): return self.js({})
                 key = "%s|%s|%s" % (kind, title.lower(), year)
                 row = catalog.get_trailer(key)
@@ -439,6 +446,9 @@ class H(BaseHTTPRequestHandler):
                 except Exception: return self.js({})
                 catalog.save_trailer(key, res[0] if res else "", res[1] if res else "")
                 return self.send(200, json.dumps({"vid": res[0], "title": res[1]} if res else {}).encode(), cache="private, max-age=3600")
+            if path == "/_meta/find" and (qs.get("type") or [""])[0] == "game":
+                lim = (qs.get("limit") or ["24"])[0]
+                return self.send(200, json.dumps(games.find(clip((qs.get("q") or [""])[0], 80), max(1, min(int(lim) if lim.isdigit() else 24, 40)))).encode(), cache="private, max-age=60")
             if path == "/_meta/find":
                 kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
                 lim = (qs.get("limit") or ["24"])[0]
@@ -470,6 +480,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, json.dumps({"img": img}).encode(), cache="private, max-age=3600")
             if path == "/_meta/users": return self.js(auth.list_users())
             if path == "/_meta/have": return self.send(200, json.dumps(have_keys()).encode(), cache="private, max-age=30")
+            if path == "/_meta/search" and (qs.get("type") or [""])[0] == "game": return self.js([])
             if path == "/_meta/search":
                 if limited(rk, "search", 40 if s["user"] else 15): return self.js({"error": "slow down"}, 429)
                 kind = (qs.get("type") or ["movie"])[0]; q = clip((qs.get("q") or [""])[0], 80)
@@ -483,9 +494,12 @@ class H(BaseHTTPRequestHandler):
                 return self.js(st)
             if path == "/_meta/status" and s["role"] == "admin":
                 return self.js(catalog.status())
+            if path == "/_meta/filters" and (qs.get("type") or [""])[0] == "game":
+                return self.send(200, json.dumps(games.filters_info()).encode(), cache="private, max-age=60")
             if path == "/_meta/filters":
                 return self.send(200, json.dumps(catalog.filters_info("series" if (qs.get("type") or [""])[0] == "series" else "movie")).encode(), cache="private, max-age=60")
             if path in ("/_meta/lucky",):
+                if (qs.get("type") or [""])[0] == "game": return self.js({}, 404)      # no lucky pick for games
                 if limited(rk, "lucky", 60): return self.js({"error": "slow down"}, 429)
                 kind = "series" if (qs.get("type") or [""])[0] == "series" else "movie"
                 seen = set(re.findall(r"tt\d{6,10}", (qs.get("seen") or [""])[0]))
@@ -509,6 +523,17 @@ class H(BaseHTTPRequestHandler):
                     resolve_one(it); it = catalog.item(tid)
                 if it: it = dict(it, why=why)
                 return self.js(it or {}, 200 if it else 404)
+            if path == "/_meta/catalog" and (qs.get("type") or [""])[0] == "game":
+                def num3(k, d, hi):
+                    try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
+                    except ValueError: return d
+                row = re.sub(r"[^a-z0-9_-]", "", (qs.get("row") or [""])[0]) or None
+                f = filt(qs); f.pop("country", None)
+                if (qs.get("all") or [""])[0] == "1":
+                    body = games.view_filter(f, (qs.get("sort") or [""])[0], num3("offset", 0, 8000), max(1, num3("limit", 40, 60)))
+                else:
+                    body = games.view(row, (qs.get("sort") or [""])[0], num3("offset", 0, 8000), max(1, num3("limit", 40, 60)), f or None)
+                return self.send(200, json.dumps(body).encode(), cache="private, max-age=20")
             if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")) and not (qs.get("row") or [""])[0]:
                 def num2(k, d, hi):
                     try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
@@ -527,6 +552,9 @@ class H(BaseHTTPRequestHandler):
                 body = json.dumps(catalog.view("series" if (qs.get("type") or [""])[0] == "series" else "movie", row,
                                                (qs.get("sort") or [""])[0], num("offset", 0, 5000), max(1, num("limit", 40, 60)), filt(qs) or None)).encode()
                 return self.send(200, body, cache="private, max-age=20")
+            if path == "/_meta/title" and re.fullmatch(r"st\d{1,9}", (qs.get("id") or [""])[0]):
+                it = games.item(qs["id"][0])
+                return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/title":
                 tid = (qs.get("id") or [""])[0]
                 it = catalog.item(tid) if re.fullmatch(r"tt\d{6,10}", tid) else None
@@ -544,7 +572,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, r.read(), r.headers.get("Content-Type", "image/jpeg"), "private, max-age=86400")
             if path == "/_meta/rimg":
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
-                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com"): return self.send(400, b"{}")
+                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "shared.akamai.steamstatic.com"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
                 with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
         except Exception:
@@ -581,7 +609,7 @@ class H(BaseHTTPRequestHandler):
             admin = s["role"] == "admin"
             if path == "/_meta/favorites":
                 if s["role"] != "member": return self.js({"error": "members only"}, 403)
-                ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}", t)]
+                ok = lambda l: [t for t in (l or [])[:500] if isinstance(t, str) and re.fullmatch(r"tt\d{6,10}|st\d{1,9}", t)]
                 auth.set_favorites(s["user"], ok(b.get("add")), ok(b.get("remove")))
                 return self.js(auth.favorites(s["user"]))
             if path == "/_meta/password" and staff(s):
