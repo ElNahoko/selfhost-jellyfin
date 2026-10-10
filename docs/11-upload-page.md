@@ -110,9 +110,9 @@ The built-in admin account is called `admin` (`ADMIN_USER` in `uploads-meta.env`
 
 ## Nahoko (October 2026): public catalogue, accounts, email sign-in
 
-- The app is called **Nahoko** and lives at the bare domain (`https://x0w1v75.com`); `files.` and `www.` redirect there (Caddy site file, see `files.caddy.example`).
+- The app is called **Nahoko** and lives at the bare domain (for example `https://example.com`); `files.` and `www.` redirect there (Caddy site file, see `files.caddy.example`).
 - **Visitors** (no account) browse the catalogue. **Members** sign in with their email and a 6-digit code (no password): favorites are kept on their account; requests are allowed once the admin approves them (Profiles → Members). **Uploaders** (profiles with a name and password) upload and browse the library, nothing else. The **admin** has everything.
-- Email codes are sent through Resend (SMTP `smtp.resend.com:465`, user `resend`, the API key as password, `MAIL_FROM=Nahoko <login@x0w1v75.com>` in `uploads-meta.env`). The domain is verified in Resend with 3 DNS records at Dynadot (DKIM `resend._domainkey`, CNAMEs `rsend` and `send`) plus `_dmarc`.
+- Email codes are sent through Resend (SMTP `smtp.resend.com:465`, user `resend`, the API key as password, `MAIL_FROM=Nahoko <login@example.com>` in `uploads-meta.env`; `SITE_URL` is the site's address and `WATCH_URL` where the Watch button opens Jellyfin, e.g. `https://jellyfin.example.com/web/#/home`). The domain is verified in Resend with 3 DNS records at Dynadot (DKIM `resend._domainkey`, CNAMEs `rsend` and `send`) plus `_dmarc`.
 - **What uses the server**: click CPU or RAM in the sidebar. The panel asks the host to measure once (it writes `data/usage-request`; the systemd unit `nahoko-usage.path` runs `scripts/usage.py`), shows each service in plain words and what Jellyfin is playing, with the reason when the server has to convert a video.
 - Jellyfin accounts have subtitles **off by default** (picture subtitles force the server to re-encode the video); pick a track when needed, preferably an SRT one.
 - Upload a film as a single file into Movies: it gets its own `Title (Year)` folder. An episode file dropped into Series goes to `Show/Season NN/`.

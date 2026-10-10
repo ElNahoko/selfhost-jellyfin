@@ -206,7 +206,8 @@ LOGIN = open(os.path.join(HERE, "login.html"), "rb").read()
 ADMIN_ONLY = ("/_meta/space", "/_meta/stats", "/_meta/usage", "/_meta/users", "/_meta/members", "/_meta/admin/subtitles", "/_meta/status")
 STAFF_ONLY = ("/_meta/items", "/_meta/sizes", "/_meta/have", "/_meta/match", "/_meta/guess")      # admin and uploaders
 SIGNED_IN = ("/_meta/requests",)      # every signed-in member sees the wishlist; adding to it and voting need approval (see do_POST)
-SITE = os.environ.get("SITE_URL", "https://files.x0w1v75.com")
+SITE = os.environ.get("SITE_URL", "")                 # the public address of this site (for the links in emails)
+WATCH = os.environ.get("WATCH_URL", "")               # where "Watch" opens Jellyfin, e.g. https://jellyfin.example.com/web/#/home
 PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
 _rate = {}
@@ -217,8 +218,8 @@ def app_page(s, head=""):
     m = os.path.getmtime(p)
     if m != _page["m"]:
         _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
-    inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;</script>' % (
-        json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND))
+    inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;window.__WATCH=%s;</script>' % (
+        json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND), json.dumps(WATCH))
     return _page["html"].replace("<head>", "<head>" + inj + head, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")

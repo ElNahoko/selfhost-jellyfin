@@ -1076,7 +1076,7 @@ if("serviceWorker" in navigator)addEventListener("load",function(){navigator.ser
 "use strict";
 var ROLE=window.__ROLE||"public", ME=window.__ME||"", ADMIN=ROLE==="admin", STAFF=ADMIN||ROLE==="uploader", MEMBER=ROLE==="member",
     PUBLICV=ROLE==="public", APPROVED=STAFF||!!window.__APPROVED, GUEST=!STAFF, BRAND=window.__BRAND||"Nahoko";
-var JELLYFIN_URL="https://jellyfin.x0w1v75.com/web/#/home";      // straight to the home page (the bare address redirects first)
+var JELLYFIN_URL=window.__WATCH||"";      // set on the server (WATCH_URL in uploads-meta.env); no Watch button without it
 if(GUEST)document.body.className+=" guest";
 var SECTIONS=[
   {id:"movies",label:"Movies",ic:"film"},
@@ -1309,7 +1309,7 @@ function renderNav(){
       if(on)b.setAttribute("aria-current","page");
       b.onclick=function(){go(l.id);};nav.appendChild(b);
     });
-    if(STAFF){var wj=el("a",(k?"":"lib ")+"watch");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.dataset.sec="watch";
+    if(STAFF&&JELLYFIN_URL){var wj=el("a",(k?"":"lib ")+"watch");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.dataset.sec="watch";
       if(k)wj.appendChild(svg("play"));else{var ib=el("span","ib");ib.appendChild(svg("play"));wj.appendChild(ib);}wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin";nav.appendChild(wj);}
   });
 }
@@ -3027,7 +3027,7 @@ if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
   if(PUBLICV){var si=el("button","btn primary","Sign in");si.type="button";si.onclick=function(){signInDialog();};acc.appendChild(si);}
-  else{{var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
+  else{if(JELLYFIN_URL){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
     var av=el("button","avatar",(ME||"?").charAt(0).toUpperCase());av.type="button";av.title=ME;av.setAttribute("aria-label","Account");av.setAttribute("aria-expanded","false");
     var am=el("div","amenu");am.hidden=true;var ah=el("div","amhead");ah.appendChild(el("span","avatar big",(ME||"?").charAt(0).toUpperCase()));
     var at=el("div","");at.appendChild(el("b","","Signed in"));at.appendChild(el("span","",ME));ah.appendChild(at);am.appendChild(ah);
