@@ -29,34 +29,49 @@
   function runtime(ticks) { if (!ticks) return ""; var m = Math.round(ticks / 600000000); if (m < 1) return ""; return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "min" : "") : m + " min"; }
   function details(id, server) { window.location.hash = "#/details?id=" + id + (server ? "&serverId=" + server : ""); }
   function play(id, server) { try { sessionStorage.setItem("jfHeroPlay", id); } catch (x) {} veil(true); details(id, server); }
-  // While "Play" goes through the details page, a black loading screen hides it: the player appears straight away.
-  var veilT = null;
+  // From any Play button until the picture really moves, a black loading screen hides what Jellyfin shows meanwhile
+  // (the details page, then the poster squeezed in the middle under the header bar).
+  var veilT = null, veilSince = 0;
+  function playerState() {
+    var c = document.querySelector(".videoPlayerContainer"), v = c && !c.classList.contains("hide") && c.querySelector("video");
+    var osd = location.hash.indexOf("#/video") === 0, playing = !!v && !v.paused && v.currentTime > 0.3;      // the picture really moves
+    return { loading: !!v && !osd && !v.__jfhSeen, moving: osd, playing: playing, v: v };
+  }
   function veil(on) {
     var v = document.getElementById("jfh-veil");
-    clearInterval(veilT); veilT = null;
-    if (!on) { if (v) { v.classList.add("out"); setTimeout(function () { if (v.parentNode) v.remove(); }, 300); } return; }
+    if (!on) { clearInterval(veilT); veilT = null; if (v) { v.classList.add("out"); setTimeout(function () { if (v.parentNode) v.remove(); }, 300); } return; }
     if (!v) {
       v = document.createElement("div"); v.id = "jfh-veil";
       v.innerHTML = '<style>#jfh-veil{position:fixed;inset:0;z-index:2147483000;background:#000;display:grid;place-items:center;transition:opacity .25s}#jfh-veil.out{opacity:0;pointer-events:none}' +
-        '#jfh-veil i{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#e50914;animation:jfhv .8s linear infinite}@keyframes jfhv{to{transform:rotate(360deg)}}</style><i></i>';
+        '#jfh-veil b{position:absolute;bottom:12%;left:0;right:0;text-align:center;font:500 14px system-ui,sans-serif;color:rgba(255,255,255,.55)}#jfh-veil i{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#e50914;animation:jfhv .8s linear infinite}@keyframes jfhv{to{transform:rotate(360deg)}}</style><i></i><b>Starting… tap to cancel</b>';
+      v.addEventListener("click", function () { veil(false); });
       document.body.appendChild(v);
-    }
-    var t0 = Date.now();
-    veilT = setInterval(function () {      // gone once the video is up, or if nothing happened after 12 s
-      var playing = location.hash.indexOf("#/video") === 0 || document.querySelector(".videoPlayerContainer:not(.hide) video");
-      if (playing || Date.now() - t0 > 12000) veil(false);
-    }, 150);
+    } else v.classList.remove("out");
+    veilSince = Date.now(); clearInterval(veilT);
+    veilT = setInterval(function () {
+      var st = playerState();
+      if (st.moving || (st.playing && Date.now() - veilSince > 1500 && !st.v.__jfhRouted) || Date.now() - veilSince > 60000) { if (st.v) st.v.__jfhSeen = true; veil(false); }
+    }, 120);
   }
+  setInterval(function () {            // Jellyfin's own Play buttons too: cover the loading moment
+    var st = playerState();
+    // Sometimes Jellyfin starts the video but stays on the page underneath (poster squeezed under the header bar, no controls):
+    // open its full-screen player view (its own controls) once the picture moves.
+    if (st.playing && !st.moving && !st.v.__jfhRouted) { st.v.__jfhRouted = true; location.hash = "#/video"; }
+    if (veilT) return;
+    if (st.loading) { st.v.__jfhSeen = true; veil(true); }
+  }, 150);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && veilT) veil(false); });
   function href(it) { return "#/details?id=" + it.Id + (it.ServerId ? "&serverId=" + it.ServerId : ""); }
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var canHover = !(window.matchMedia && window.matchMedia("(hover: none)").matches);
-
   // item details are fetched once and reused (hovering a card warms the cache, so the panel opens instantly)
   var itemCache = {};
   function getItem(id) {
     if (!itemCache[id]) itemCache[id] = client().getItem(userId(), id).catch(function (e) { delete itemCache[id]; throw e; });
     return itemCache[id];
   }
+
   // "My list" = Jellyfin's favourite flag
   function setFav(id, on) {
     var c = client(), uid = userId();
