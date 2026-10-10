@@ -319,6 +319,56 @@ def find_trailer(title, year, kind):
         if vid and (best is None or sc > best[0]): best = (sc, vid, t)
     return (best[1], best[2]) if best and best[0] >= 2 else None
 
+def cover_url(tid, warm=False):
+    """The wide picture for a title page, like a streaming service's: a series' TVmaze background, else a frame of its
+    trailer (YouTube's 1280x720 still). Chosen once and kept; warm=True also stores the picture itself."""
+    got = catalog.get_cover(tid)
+    if got is None:
+        it = games.item(tid) if tid.startswith("wg") else catalog.item(tid)
+        url = ""
+        if it:
+            if it.get("k") == "series": url = catalog.backdrop(tid)
+            if not url:
+                kind = it.get("k") if it.get("k") in ("series", "game") else "movie"
+                key = "%s|%s|%s" % (kind, it["n"].lower(), it.get("y") or "")
+                row = catalog.get_trailer(key)
+                vid = row[0] if row else None
+                if row is None:
+                    try: res = find_trailer(it["n"], it.get("y") or "", kind)
+                    except Exception: res = None
+                    catalog.save_trailer(key, res[0] if res else "", res[1] if res else ""); vid = res[0] if res else ""
+                if vid:
+                    u = "https://i.ytimg.com/vi/%s/maxresdefault.jpg" % vid
+                    try:
+                        with urllib.request.urlopen(urllib.request.Request(u, method="HEAD", headers={"User-Agent": "upload-meta"}), timeout=8) as r:
+                            if r.status == 200: url = u
+                    except Exception: pass
+        catalog.save_cover(tid, url); got = url
+    if got and warm:
+        try: fetch_poster(got, "500")
+        except Exception: pass
+    return got
+
+def _warm_covers():
+    """In the background: wide pictures for the best-known titles, ready before anyone opens them."""
+    time.sleep(90)
+    while True:
+        try:
+            cat = catalog.load() or {"items": {}}
+            todo = sorted(cat["items"].values(), key=lambda i: -i["v"])[:6000]
+            todo += sorted((games._items() or {}).values(), key=lambda g: -g["pop"])[:1500]
+            for it in todo:
+                if catalog.get_cover(it["id"]) is not None:
+                    u = catalog.get_cover(it["id"])
+                    if u and not os.path.exists(os.path.join("/db/img", hashlib.sha1(u.encode()).hexdigest() + ".jpg")):
+                        cover_url(it["id"], True); time.sleep(0.5)
+                    continue
+                cover_url(it["id"], True)
+                time.sleep(3)      # gentle with YouTube and TVmaze
+        except Exception:
+            pass
+        time.sleep(6 * 3600)
+
 def filt(qs):
     f = {}
     c = re.sub(r"[^A-Z]", "", (qs.get("country") or [""])[0].upper())[:3]
@@ -462,7 +512,7 @@ class H(BaseHTTPRequestHandler):
             if path == "/_meta/messages": return self.js(extras.messages())
             if path == "/_meta/backdrop":
                 bid = (qs.get("id") or [""])[0]
-                u = catalog.backdrop(bid) if re.fullmatch(r"tt\d{6,10}", bid) else ""
+                u = cover_url(bid) if re.fullmatch(r"tt\d{6,10}|wg\d{1,10}", bid) else ""
                 return self.send(200, json.dumps({"u": u}).encode(), cache="private, max-age=86400")
             if path == "/_meta/related":
                 rid = (qs.get("id") or [""])[0]
@@ -643,12 +693,14 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, body, cache="private, max-age=20")
             if path == "/_meta/title" and re.fullmatch(r"wg\d{1,10}", (qs.get("id") or [""])[0]):
                 it = games.item(qs["id"][0])
+                if it and catalog.get_cover(it["id"]): it = dict(it, bd=catalog.get_cover(it["id"]))
                 return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/title":
                 tid = (qs.get("id") or [""])[0]
                 it = catalog.item(tid) if re.fullmatch(r"tt\d{6,10}", tid) else None
                 if it and catalog.known(tid) is None:
                     resolve_one(it); it = catalog.item(tid)
+                if it and catalog.get_cover(tid): it = dict(it, bd=catalog.get_cover(tid))      # the wide picture, when ready
                 return self.js(it or {}, 200 if it else 404)
             if path == "/_meta/requests":
                 with db() as c:
@@ -661,7 +713,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, r.read(), r.headers.get("Content-Type", "image/jpeg"), "private, max-age=86400")
             if path == "/_meta/rimg":
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
-                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "upload.wikimedia.org", "thumb.wikimedia.org"): return self.send(400, b"{}")
+                if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "upload.wikimedia.org", "thumb.wikimedia.org", "i.ytimg.com"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
                 try: fp = fetch_poster(src, w)
                 except Exception: return self.send(404, b"{}", cache="public, max-age=3600")      # not asked again on every redraw
@@ -828,4 +880,5 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=stats_loop, daemon=True).start()
+    threading.Thread(target=_warm_covers, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()

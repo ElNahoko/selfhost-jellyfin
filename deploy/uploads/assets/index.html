@@ -1943,6 +1943,7 @@ function tile(it){
   t._upd=upd;upd();
   add.onclick=function(e){e.stopPropagation();if(stateOf(it))return;sendRequest(it);};
   t.onclick=function(){openTitle(it);};
+  t.addEventListener("pointerenter",function(){prefetchCover(it);});t.addEventListener("touchstart",function(){prefetchCover(it);},{passive:true});
   t.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openTitle(it);}};
   return t;
 }
@@ -2047,8 +2048,12 @@ function renderEpisodes(d,host,it){
   var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860&&window.innerHeight>=820)dlg.classList.add("fixedeps");   // a short window scrolls as a whole instead
 }
 var BDROP={};      // wide background pictures already looked up (series)
+function prefetchCover(it){      // finger or mouse on a poster: its page's wide picture starts loading now
+  if(!it||!it.id||BDROP[it.id]!==undefined||prefetchCover[it.id])return;prefetchCover[it.id]=1;
+  api("GET","/_meta/backdrop?id="+it.id).then(function(x){BDROP[it.id]=x&&x.u||"";if(BDROP[it.id]){var im=new Image();im.src=rimg(BDROP[it.id],500);}}).catch(function(){});
+}
 async function showTitle(it0,opts){
-  var PAGE=!!(opts&&opts.page);
+  var PAGE=!!(opts&&opts.page);if(it0&&it0.bd&&it0.id)BDROP[it0.id]=it0.bd;
   var m=$("modal"),prev=document.activeElement,it=it0,epd=null,castd=null;if(!PAGE)m.innerHTML="";
   function close(){
     if(PAGE){document.removeEventListener("keydown",key,true);if(history.state&&history.state.title)history.back();else{TPAGE=false;go("requests");}return;}
@@ -2150,7 +2155,7 @@ async function showTitle(it0,opts){
     api("GET","/_meta/related?id="+id).then(function(x){if(alive()&&it.id===id&&x&&(x.similar||x.by)){reld=x;var h=d.querySelector(".relhost");if(h)relSections(h);}}).catch(function(){});
   }
   function fetchBackdrop(){      // a series' wide picture (TVmaze), then the cover is repainted with it
-    if(!PAGE||!it.id||isGameIt(it)||!isSeries()||BDROP[it.id]!==undefined)return;var id=it.id;
+    if(!PAGE||!it.id||BDROP[it.id]!==undefined)return;var id=it.id;
     api("GET","/_meta/backdrop?id="+id).then(function(x){BDROP[id]=x&&x.u||"";if(BDROP[id]&&alive()&&it.id===id){var b=d.querySelector(".dbg"),hd=d.querySelector(".dhead");if(b&&hd){var im=el("img");im.alt="";im.src=rimg(BDROP[id],500);
       im.onload=function(){[].forEach.call(b.querySelectorAll("img"),function(x){if(x!==im)x.remove();});b.className="dbg hero wide";hd.classList.add("hashero");};b.appendChild(im);}}}).catch(function(){});
   }
@@ -2176,7 +2181,7 @@ async function showTitle(it0,opts){
     var hit=f.filter(function(x){return x.n.toLowerCase()===it.n.toLowerCase()&&(!it.y||!x.y||x.y===it.y);})[0];
     if(hit&&alive()){it=Object.assign({},hit,{img:hit.img||it.img});paint();fetchEps();}}catch(e){}}
   if(it.id&&(!it.o||!it.img)){
-    try{var full=await api("GET","/_meta/title?id="+it.id);it=Object.assign({},it,full,{_loaded:1});}catch(e){it._loaded=1;}
+    try{var full=await api("GET","/_meta/title?id="+it.id);it=Object.assign({},it,full,{_loaded:1});if(full&&full.bd&&!BDROP[it.id])BDROP[it.id]=full.bd;}catch(e){it._loaded=1;}
     if(alive())paint();
   }
 }

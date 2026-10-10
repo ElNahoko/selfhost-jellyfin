@@ -1265,3 +1265,18 @@ def backdrop(tid):
     except Exception:
         pass
     return url
+
+def get_cover(tid):
+    """The wide picture chosen for a title page: url, '' (none exists), or None (not looked up yet)."""
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS covers(id TEXT PRIMARY KEY, url TEXT, t INTEGER)")
+            r = c.execute("SELECT url FROM covers WHERE id=?", (tid,)).fetchone()
+        return r[0] if r else None
+    except Exception:
+        return None
+
+def save_cover(tid, url):
+    with _titles() as c:
+        c.execute("CREATE TABLE IF NOT EXISTS covers(id TEXT PRIMARY KEY, url TEXT, t INTEGER)")
+        c.execute("INSERT OR REPLACE INTO covers VALUES(?,?,?)", (tid, url or "", int(time.time())))
