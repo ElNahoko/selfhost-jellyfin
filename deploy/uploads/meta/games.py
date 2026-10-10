@@ -415,3 +415,13 @@ def status():
     c = _db(); n, covers, scored = c.execute("SELECT count(*), sum(img != ''), sum(mc IS NOT NULL) FROM wiki").fetchone(); c.close()
     return {"listed": len(_raw() or {}), "looked_up": n, "with_cover": len(_items() or {}), "covers_found": covers or 0, "with_score": scored or 0,
             "building": _st["building"], "enriching": _st["enriching"] or _st["covering"], "error": _st["error"]}
+
+def _keepalive():
+    """The background jobs (list, Wikipedia details, covers) run on their own, not only when someone opens the Games tab."""
+    time.sleep(60)
+    while True:
+        try: _ensure()
+        except Exception: pass
+        time.sleep(300)
+
+threading.Thread(target=_keepalive, daemon=True).start()
