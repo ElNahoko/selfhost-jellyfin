@@ -832,12 +832,12 @@ class H(BaseHTTPRequestHandler):
                     had = c.execute("DELETE FROM request_votes WHERE req_id=? AND who=?", (int(m.group(1)), who)).rowcount
                     if not had: c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (int(m.group(1)), who))
                 return self.js({"ok": True, "voted": not had})
-            if not admin: return self.js({"error": "forbidden"}, 403)
             m = re.fullmatch(r"/_meta/requests/(\d+)", path)
-            if m:
+            if m and staff(s):      # admin and uploaders can say a wish has been uploaded
                 st = "done" if b.get("status") == "done" else "open"
                 with db() as c: c.execute("UPDATE requests SET status=? WHERE id=?", (st, int(m.group(1))))
                 return self.js({"ok": True})
+            if not admin: return self.js({"error": "forbidden"}, 403)
             m = re.fullmatch(r"/_meta/members/(.+)", path)
             if m:
                 email = unquote(m.group(1)).lower()      # the address comes URL-encoded (%40 for @)

@@ -971,6 +971,10 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .favsecs .sec{margin:22px 0 12px}.favsecs .sec:first-child{margin-top:0}
 .rvote{border-color:rgba(59,130,246,.45);color:#93c5fd;background:rgba(59,130,246,.08);transition:background .15s,border-color .15s,color .15s}
 .rvote b{color:#bfdbfe}.rvote:hover{border-color:#3b82f6;color:#bfdbfe;background:rgba(59,130,246,.16)}
+.rupl{all:unset;box-sizing:border-box;cursor:pointer;margin-top:6px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;white-space:nowrap;line-height:1.2;border-radius:99px;
+  border:1px solid rgba(34,197,94,.45);background:rgba(34,197,94,.08);color:#86efac;font-size:.8rem;font-weight:700;transition:background .15s,border-color .15s}
+.rupl svg{width:14px;height:14px}.rupl:hover{border-color:#22c55e;background:rgba(34,197,94,.16)}.rupl:disabled{opacity:.5}
+@media (max-width:600px){.rupl{padding:7px 12px;font-size:.85rem}}
 .rvote.on{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 4px 16px rgba(59,130,246,.45)}.rvote.on b{color:#fff}
 .btn.wantb{border-color:rgba(59,130,246,.55);color:#93c5fd;background:rgba(59,130,246,.1)}.btn.wantb:hover{background:rgba(59,130,246,.2)}
 .btn.wantb.on{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 6px 20px rgba(59,130,246,.4)}
@@ -2964,9 +2968,11 @@ function drawRequests(){
     if(r.status!=="open")pz.appendChild(el("span","rdone","Added"));
     if(!GUEST){      // round icon buttons on the poster: appear on hover / focus, always visible on touch screens
       var ac=el("div","racts");
-      var ok=el("button","rbtn good");ok.type="button";ok.title=r.status==="open"?"Mark as added":"Move back to waiting";ok.setAttribute("aria-label",ok.title);ok.appendChild(svg(r.status==="open"?"check":"clock"));
-      ok.onclick=async function(e){e.stopPropagation();ok.disabled=true;try{await api("POST","/_meta/requests/"+r.id,{status:r.status==="open"?"done":"open"});}catch(e){toast("Could not update");}await loadRequests();drawRequests();};
-      var del=el("button","rbtn bad");del.type="button";del.title="Remove from the wishlist";del.setAttribute("aria-label","Remove from the wishlist");del.appendChild(svg("trash"));
+      var ok=el("button","rbtn good");ok.type="button";ok.title=r.status==="open"?"Uploaded: mark as added":"Move back to waiting";ok.setAttribute("aria-label",ok.title);ok.appendChild(svg(r.status==="open"?"check":"clock"));
+      var setSt=async function(e,btn){e.stopPropagation();btn.disabled=true;var to=r.status==="open"?"done":"open";
+        try{await api("POST","/_meta/requests/"+r.id,{status:to});toast(to==="done"?"“"+r.title+"” marked as uploaded":"Back on the waiting list");}catch(e2){toast("Could not update");}await loadRequests();drawRequests();};
+      ok.onclick=function(e){setSt(e,ok);};
+      var del=el("button","rbtn bad");del.hidden=!ADMIN;del.type="button";del.title="Remove from the wishlist";del.setAttribute("aria-label","Remove from the wishlist");del.appendChild(svg("trash"));
       del.onclick=async function(e){e.stopPropagation();if(!await dialog({title:"Remove this wish?",text:"“"+r.title+"” will be taken off the list.",ok:"Remove",danger:true}))return;try{await api("DELETE","/_meta/requests/"+r.id);}catch(e){toast("Could not remove");}await loadRequests();drawRequests();};
       ac.appendChild(ok);ac.appendChild(del);pz.appendChild(ac);
     }
@@ -2981,6 +2987,10 @@ function drawRequests(){
         var up=!wb.classList.contains("on"),cnt=wb.querySelector("b");wb.classList.toggle("on",up);wb.firstChild.replaceWith(svg(up?"check":"thumb"));cnt.textContent=String(Math.max(1,(+cnt.textContent||1)+(up?1:-1)));voteFx(wb,up);
         wb.disabled=true;try{await api("POST","/_meta/requests/"+r.id+"/vote",{who:who});}catch(e2){toast("Could not vote");}await sleep(650);await loadRequests();drawRequests();};
       body.appendChild(wb);
+    }
+    if(!GUEST&&r.status==="open"){      // uploaders: one clear button once the file is on the server
+      var upd=el("button","rupl");upd.type="button";upd.appendChild(svg("check"));upd.appendChild(el("span","","Uploaded"));upd.title="I uploaded it: move to Added";
+      upd.onclick=function(e){setSt(e,upd);};body.appendChild(upd);
     }
     c.tabIndex=0;c.setAttribute("role","button");c.title="Details";
     var open2=function(){openTitle({id:r.tid||"",n:r.title,y:r.year,k:r.kind,img:r.poster||""});};
