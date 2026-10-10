@@ -980,6 +980,16 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .vburst i:nth-child(3n){background:#bfdbfe;width:4px;height:4px}
 @keyframes vspark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
 .dcr small{color:var(--muted);font-size:.78rem;margin-left:6px}
+@media (max-width:860px){      /* phones: the lucky card sits in the middle, the same space above and below, and fits the screen */
+  .modal:has(.dlg.lucky){align-items:center;padding:14px}
+  .dlg.lucky{width:100%;max-height:calc(100dvh - 28px);display:flex;flex-direction:column;border-radius:24px}
+  .lucky .lbody{max-height:none;flex:1 1 auto;min-height:0;gap:12px;padding:16px 16px 22px;overflow:auto}
+  .lucky .lleft{width:min(118px,30vw)}
+  .lucky .ltitle{font-size:1.35rem}
+  .lucky .lplot{-webkit-line-clamp:3;font-size:.92rem;line-height:1.45}
+  .lucky .lmeta{gap:10px}
+  .lucky .roll{padding:12px 18px;font-size:1rem;margin-top:0}
+}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
