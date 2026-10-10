@@ -1111,17 +1111,19 @@ body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
   .pager .pg{min-width:42px;height:42px}.pager .pgo input,.pager .pgo .btn{height:42px}
 }
 /* title page: a big cover on top, the poster large in front */
-.tpage .dhead{padding:clamp(220px,34vw,400px) 34px 26px;grid-template-columns:210px minmax(0,1fr);align-items:end;gap:30px}
-.tpage .dbg.hero{inset:0 0 auto 0;height:clamp(260px,40vw,470px);background:transparent;border:0!important;border-radius:0!important;box-shadow:none!important;
+.tpage .dhead{padding:64px 34px 26px;grid-template-columns:190px minmax(0,1fr);align-items:end;gap:30px}
+.tpage .dhead.hashero{padding-top:clamp(180px,26vw,320px)}
+.tpage .dbg.hero{inset:0 0 auto 0;height:clamp(240px,32vw,400px);background:transparent;border:0!important;border-radius:0!important;box-shadow:none!important;
   -webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent)}
 .tpage .dbg.hero img{inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;filter:blur(10px) brightness(.5) saturate(1.15);transform:scale(1.1)}
 .tpage .dbg.hero.wide img{filter:none;transform:none;object-position:center 30%}
 .tpage .dbg.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(28,28,28,0) 35%,rgba(28,28,28,.75) 72%,var(--card) 100%),linear-gradient(to right,rgba(0,0,0,.35),transparent 55%)}
-.tpage .dpst{width:210px;box-shadow:0 24px 60px rgba(0,0,0,.6);border-radius:16px}
+.tpage .dpst{width:190px;box-shadow:0 24px 60px rgba(0,0,0,.6);border-radius:16px}
 .tpage .dinfo h3{font-size:clamp(1.8rem,3.4vw,2.8rem);line-height:1.05;letter-spacing:-.02em}
 @media (max-width:860px){
-  .tpage .dhead{padding:clamp(150px,44vw,260px) 16px 18px;grid-template-columns:118px minmax(0,1fr);gap:16px;grid-template-rows:auto}
-  .tpage .dbg.hero{height:clamp(200px,58vw,320px)}
+  .tpage .dhead{padding:58px 16px 18px;grid-template-columns:118px minmax(0,1fr);gap:16px;grid-template-rows:auto}
+  .tpage .dhead.hashero{padding-top:clamp(130px,38vw,220px)}
+  .tpage .dbg.hero{height:clamp(190px,52vw,290px)}
   .tpage .dpst{width:118px;border-radius:12px}
   .tpage .dinfo h3{font-size:1.55rem}
 }
@@ -2062,7 +2064,7 @@ async function showTitle(it0,opts){
     else{var x=el("button","dclose");x.type="button";x.appendChild(svg("x"));x.title="Close";x.setAttribute("aria-label","Close");x.onclick=close;d.appendChild(x);}
     var sc=el("div","dscroll");d.appendChild(sc);
     var head=el("div","dhead"),bg=el("div","dbg");
-    if(PAGE){bg.className="dbg hero"+(BDROP[it.id]?" wide":"");var bu=BDROP[it.id]?rimg(BDROP[it.id],500):rimg(it.img,500);if(bu)cover(bg,bu);}      // a big cover on top of the page
+    if(PAGE&&BDROP[it.id]){bg.className="dbg hero wide";head.classList.add("hashero");cover(bg,rimg(BDROP[it.id],500));}      // a big cover only with a real wide picture (series)
     else if(it.img)cover(bg,rimg(it.img,185));head.appendChild(bg);
     var pz=el("div","dpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,rimg(it.img,500));head.appendChild(pz);
     var b=el("div","dinfo");b.appendChild(el("h3","",it.n));
@@ -2149,7 +2151,8 @@ async function showTitle(it0,opts){
   }
   function fetchBackdrop(){      // a series' wide picture (TVmaze), then the cover is repainted with it
     if(!PAGE||!it.id||isGameIt(it)||!isSeries()||BDROP[it.id]!==undefined)return;var id=it.id;
-    api("GET","/_meta/backdrop?id="+id).then(function(x){BDROP[id]=x&&x.u||"";if(BDROP[id]&&alive()&&it.id===id){var b=d.querySelector(".dbg.hero");if(b){b.classList.add("wide");var old=b.querySelector("img");var im=el("img");im.alt="";im.src=rimg(BDROP[id],500);im.onload=function(){if(old)old.remove();};b.appendChild(im);}}}).catch(function(){});
+    api("GET","/_meta/backdrop?id="+id).then(function(x){BDROP[id]=x&&x.u||"";if(BDROP[id]&&alive()&&it.id===id){var b=d.querySelector(".dbg"),hd=d.querySelector(".dhead");if(b&&hd){var im=el("img");im.alt="";im.src=rimg(BDROP[id],500);
+      im.onload=function(){[].forEach.call(b.querySelectorAll("img"),function(x){if(x!==im)x.remove();});b.className="dbg hero wide";hd.classList.add("hashero");};b.appendChild(im);}}}).catch(function(){});
   }
   function fetchEps(){
     epd=null;fetchCast();fetchRelated();fetchBackdrop();if(!(it.id&&isSeries()))return;var id=it.id;
