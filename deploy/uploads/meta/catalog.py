@@ -415,6 +415,7 @@ def _epdb(path=EPS_DB):
     c.execute("CREATE TABLE IF NOT EXISTS epx(series TEXT, season INTEGER, ep INTEGER, airdate TEXT, runtime INTEGER, title TEXT, PRIMARY KEY(series, season, ep))")
     c.execute("CREATE TABLE IF NOT EXISTS epx_info(series TEXT PRIMARY KEY, fetched INTEGER, tvmaze INTEGER, status TEXT, premiered TEXT, ended TEXT, runtime INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS epimg(series TEXT, season INTEGER, ep INTEGER, img TEXT, PRIMARY KEY(series, season, ep))")      # a still per episode
+    c.execute("CREATE TABLE IF NOT EXISTS net(series TEXT PRIMARY KEY, name TEXT)")      # the channel or service a series is on (TVmaze)
     return c
 
 def _build_episodes(series_ids):
@@ -458,8 +459,9 @@ def _build_episodes(series_ids):
     try:                                                  # keep the air dates and runtimes already fetched
         c.execute("ATTACH DATABASE ? AS old", (EPS_DB,))
         c.execute("INSERT OR IGNORE INTO epx SELECT * FROM old.epx"); c.execute("INSERT OR IGNORE INTO epx_info SELECT * FROM old.epx_info")
-        try: c.execute("INSERT OR IGNORE INTO epimg SELECT * FROM old.epimg")
-        except sqlite3.Error: pass
+        for t in ("epimg", "net"):
+            try: c.execute("INSERT OR IGNORE INTO %s SELECT * FROM old.%s" % (t, t))
+            except sqlite3.Error: pass
         c.commit(); c.execute("DETACH DATABASE old")
     except sqlite3.Error:
         pass
@@ -518,6 +520,8 @@ def fetch_tvmaze(sid):
         c.executemany("INSERT OR REPLACE INTO epx VALUES(?,?,?,?,?,?)",
                       [(sid, e.get("season") or 0, e.get("number") or 0, e.get("airdate") or None, e.get("runtime"), (e.get("name") or "")[:120])
                        for e in eps if e.get("number")])
+        net = (show.get("webChannel") or {}).get("name") or (show.get("network") or {}).get("name") or ""
+        c.execute("INSERT OR REPLACE INTO net VALUES(?,?)", (sid, net))
         c.execute("DELETE FROM epimg WHERE series=?", (sid,))
         c.executemany("INSERT OR REPLACE INTO epimg VALUES(?,?,?,?)", [(sid, e.get("season") or 0, e.get("number"), (e.get("image") or {}).get("medium") or "")
                                                                        for e in eps if e.get("number") and (e.get("image") or {}).get("medium")] or [(sid, -1, -1, "")])
@@ -1001,6 +1005,8 @@ def known(i):
 def _dress(cat, i):
     it = dict(cat["items"][i]); k = known(i)
     if k: it["img"], it["o"] = k
+    on = platforms_of(i)
+    if on: it["on"] = on
     return it
 
 # "rating" is vote-weighted: a 9.1 from 2,000 votes does not beat 12 Angry Men
@@ -1117,6 +1123,9 @@ def _filter_pool(kind, f):
         cd = countries()
         if cd is None or f["country"] not in cd: return cat, []
         ids = cd[f["country"]].get(kind, set())
+    if f.get("on"):
+        ps = platforms().get(f["on"], set())
+        ids = ps if ids is None else ids & ps
     dec = f.get("decade")
     out = []
     for i, it in cat["items"].items():
@@ -1202,7 +1211,10 @@ def filters_info(kind):
         if it["k"] == kind:
             for g in it["g"]: gs[g] = gs.get(g, 0) + 1
     cd = countries()
-    return {"countries": [{"id": c, "name": n} for c, n, _ in GROUPS if cd and c in cd and cd[c].get(kind)],
+    pl = platforms()
+    ons = [{"id": k, "name": n, "n": sum(1 for i in pl.get(k, ()) if i in cat["items"] and cat["items"][i]["k"] == kind)} for k, n, _ in PLATFORMS]
+    return {"platforms": [x for x in ons if x["n"] >= 5],
+            "countries": [{"id": c, "name": n} for c, n, _ in GROUPS if cd and c in cd and cd[c].get(kind)],
             "genres": sorted(g for g, n in gs.items() if n >= 40), "decades": list(range(2020, 1909, -10))}
 
 def item(i):
@@ -1525,3 +1537,94 @@ def people_find(q, limit=4):
         except Exception:
             pass
     return out
+
+
+# ---------- platforms: which streaming service made or released a title (Wikidata "distributed by" / "original broadcaster",
+# plus the network TVmaze gives for series). Kept in /db/platforms.json, collected weekly, one Wikidata query a minute. ----------
+PLATFORMS = [("netflix", "Netflix", "Q907311"), ("prime", "Prime Video", "Q4740856"), ("disney", "Disney+", "Q54958752"),
+             ("apple", "Apple TV+", "Q62446736"), ("max", "HBO Max", "Q65359104"), ("hbo", "HBO", "Q23633"),
+             ("hulu", "Hulu", "Q1630304"), ("paramount", "Paramount+", "Q27903045"), ("crunchyroll", "Crunchyroll", "Q1142035")]
+PNAMES = {k: n for k, n, _ in PLATFORMS}
+TVNET = {"netflix": "netflix", "prime video": "prime", "amazon prime video": "prime", "amazon": "prime", "disney+": "disney",
+         "apple tv+": "apple", "apple tv": "apple", "hbo max": "max", "max": "max", "hbo": "hbo", "hulu": "hulu",
+         "paramount+": "paramount", "crunchyroll": "crunchyroll"}
+PLAT_F = os.path.join(DBDIR, "platforms.json")
+_plat = {"t": 0, "d": {}, "rev": {}, "building": False, "fail": 0}
+
+def _wikidata_platform(qid):
+    q = "SELECT DISTINCT ?imdb WHERE { VALUES ?p { wdt:P750 wdt:P449 } ?f ?p wd:%s; wdt:P345 ?imdb. }" % qid
+    url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
+    last = None
+    for attempt in range(6):
+        req = urllib.request.Request(url, headers={"User-Agent": "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
+        try:
+            with urllib.request.urlopen(req, timeout=170) as r: d = json.load(r)
+            return sorted({b["imdb"]["value"] for b in d["results"]["bindings"] if b["imdb"]["value"].startswith("tt")})
+        except urllib.error.HTTPError as e:
+            last = e
+            wait = 65
+            try: wait = max(wait, min(int(e.headers.get("Retry-After", "0")), 1500) + 5)
+            except ValueError: pass
+            if e.code not in (429, 503) and attempt >= 1: break
+            time.sleep(wait if e.code in (429, 503) else 30)
+        except Exception as e:
+            last = e; time.sleep(30)
+    raise last
+
+def _platforms_job():
+    try:
+        try: os.nice(10)
+        except (OSError, AttributeError): pass
+        out = {"built": int(time.time()), "done": []}
+        try:
+            with open(PLAT_F) as f: prev = json.load(f)
+            out.update({k: v for k, v in prev.items() if k in PNAMES})
+            if time.time() - prev.get("built", 0) < 6 * 3600: out["built"], out["done"] = prev["built"], prev.get("done", [])
+        except Exception:
+            pass
+        for k, _, qid in PLATFORMS:
+            if k in out["done"]: continue
+            try:
+                ids = _wikidata_platform(qid)
+                if ids: out[k] = ids; out["done"].append(k)
+            except Exception:
+                pass
+            tmp = PLAT_F + ".tmp"
+            with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
+            os.replace(tmp, PLAT_F); _plat["t"] = 0
+            time.sleep(62)
+        if len(out["done"]) < len(PLATFORMS): _plat["fail"] = time.time()
+    finally:
+        _plat["building"] = False
+
+def platforms():
+    """{platform: set(title ids)} (Wikidata + TVmaze networks); refreshed every 10 minutes from disk; collected weekly."""
+    if time.time() - _plat["t"] > 600:
+        _plat["t"] = time.time(); d, old = {}, True
+        try:
+            with open(PLAT_F) as f: raw = json.load(f)
+            d = {k: set(v) for k, v in raw.items() if k in PNAMES}
+            old = time.time() - raw.get("built", 0) > MAXAGE or len(raw.get("done", [])) < len(PLATFORMS)
+        except Exception:
+            pass
+        try:
+            c = _epdb()
+            for sid, name in c.execute("SELECT series, name FROM net"):
+                k = TVNET.get((name or "").lower())
+                if k: d.setdefault(k, set()).add(sid)
+            c.close()
+        except Exception:
+            pass
+        rev = {}
+        for k, ids in d.items():
+            for i in ids: rev.setdefault(i, []).append(k)
+        _plat["d"], _plat["rev"] = d, rev
+        if old and not _plat["building"] and time.time() - _plat["fail"] > 1800:
+            _plat["building"] = True
+            threading.Thread(target=_platforms_job, daemon=True).start()
+    return _plat["d"]
+
+def platforms_of(tid):
+    platforms()
+    order = [k for k, _, _ in PLATFORMS]
+    return sorted(set(_plat["rev"].get(tid, [])), key=order.index)

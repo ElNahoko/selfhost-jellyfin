@@ -536,8 +536,18 @@ def sitemap(name):
     """sitemap-pages.xml, sitemap-news.xml, sitemap-titles-N.xml -> XML, or None."""
     import extras
     if name == "pages":
-        return _xml([(u, None) for u in ("/", "/movies", "/series", "/games", "/news", "/news/movies", "/news/series",
-                                         "/news/anime", "/news/games", "/news/nahoko", "/about", "/methodology", "/contact", "/privacy")])
+        import catalog, games
+        urls = ["/", "/movies", "/series", "/games", "/news", "/news/movies", "/news/series", "/news/anime", "/news/games", "/news/nahoko",
+                "/about", "/methodology", "/contact", "/privacy"]
+        for kind, sec in (("movie", "movies"), ("series", "series")):      # every shelf, and every platform, as a page of its own
+            try:
+                urls += ["/%s/%s" % (sec, _slug(c["name"])) for c in catalog.view(kind).get("chips") or []]
+                urls += ["/%s?on=%s" % (sec, p["id"]) for p in catalog.filters_info(kind).get("platforms") or []]
+            except Exception:
+                pass
+        try: urls += ["/games/%s" % _slug(c["name"]) for c in games.view(None, "", 0, 1, None).get("chips") or []]
+        except Exception: pass
+        return _xml([(u, None) for u in dict.fromkeys(urls)])
     if name == "news":
         c = _db(); rows = c.execute("SELECT id, title, t FROM items ORDER BY t DESC LIMIT 2000").fetchall(); c.close()
         urls = [("/news/a/%s-%s" % (r["id"], _slug(r["title"])), time.strftime("%Y-%m-%d", time.gmtime(r["t"]))) for r in rows]

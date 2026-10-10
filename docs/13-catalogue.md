@@ -198,3 +198,17 @@ stored on disk on first view).
 
 The About, How it works, Privacy and Contact pages exist in every language (`assets/pages/<lang>/`), built from the
 English ones by `assets/pages/i18n_pages.py`.
+
+## Platforms
+
+Which service released a title: Netflix, Prime Video, Disney+, Apple TV+, HBO Max, HBO, Hulu, Paramount+, Crunchyroll.
+From Wikidata ("distributed by" / "original broadcaster", one query per platform, weekly, `/db/platforms.json`) and, for
+series, the network or web channel TVmaze gives (`net` in `episodes.db`). Every title carries `on` (its platforms); title pages
+show them as chips (a tap lists the rest from that platform) and the catalogue filters by them (`?on=netflix`). It says where a
+title comes from, not where it streams in your country; Nahoko links to no service.
+
+## List pages for search engines
+
+`/movies`, `/movies/top-rated`, `/series?on=netflix`… are answered with their own title, description, schema.org
+CollectionPage/ItemList and the titles as plain links (`section_seo`), and every shelf and platform page is in
+`sitemap-pages.xml`. Each page has one `<title>`.

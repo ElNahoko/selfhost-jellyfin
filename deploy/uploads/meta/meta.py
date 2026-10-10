@@ -329,6 +329,55 @@ def title_seo(tid, lang="en"):
             '<li><a href="%s%s">%s%s</a></li>' % ("/" + lang if lang != "en" else "", title_path(x["id"], lang, x), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
     return head, body
 
+_secseo = {}
+def section_seo(lang, segs, qs):
+    """A list page (/movies, /movies/top-rated, /series?on=netflix): its title, description, the titles on it as plain
+    links and schema.org ItemList, so search engines and AI assistants see a real page, not an empty app."""
+    import html as H
+    key = SEC_ANY.get(segs[0]); kind = key if key in ("movie", "series", "game") else None
+    path = section_path(lang, segs)
+    alt = alternates(lambda l: section_path(l, segs) + ("?on=" + qs["on"][0] if qs.get("on") and qs["on"][0] in catalog.PNAMES else ""))
+    if not kind: return alt, ""
+    f = filt(qs) if kind != "game" else {}
+    ck = (lang, tuple(segs), json.dumps(f, sort_keys=True))
+    hit = _secseo.get(ck)
+    if hit and hit[0] > time.time(): return hit[1]
+    row = segs[1] if len(segs) > 1 else None
+    try:
+        if kind == "game": d = games.view(resolve_row("game", row, None) if row else None, "", 0, 60, None)
+        else: d = catalog.view(kind, resolve_row(kind, row, f or None) if row else None, None, 0, 60, f or None)
+    except Exception:
+        d = {"rows": []}
+    T = i18n(lang) if lang != "en" else {}
+    tr = lambda x: T.get(x, x)
+    kname = tr({"movie": "Movies", "series": "Series", "game": "Games"}[kind])
+    shelf = (d.get("rows") or [{}])[0].get("name") if row and d.get("rows") else ""
+    bits = [tr(shelf)] if shelf else []
+    if f.get("on"): bits.append(catalog.PNAMES[f["on"]])
+    if f.get("genre"): bits.append(tr(f["genre"]))
+    title = " · ".join(bits + [kname]) if bits else kname
+    seen, items = set(), []
+    for r in d.get("rows") or []:
+        for x in r.get("items") or []:
+            if x["id"] not in seen: seen.add(x["id"]); items.append(x)
+    items = items[:60]
+    url = lang_url(lang, path)
+    desc = ("%s on %s: %s. With IMDb ratings, cast, trailers%s and where they were released. Free, no account needed."
+            % (title, mail.BRAND, ", ".join(x["n"] for x in items[:5]) or "the best-known titles", ", episode ratings" if kind == "series" else ""))[:300]
+    e = lambda x: H.escape(str(x), quote=True)
+    pre = "/" + lang if lang != "en" else ""
+    ld = {"@context": "https://schema.org", "@type": "CollectionPage", "name": title, "url": url, "description": desc, "inLanguage": lang,
+          "mainEntity": {"@type": "ItemList", "numberOfItems": len(items), "itemListElement": [
+              {"@type": "ListItem", "position": n + 1, "url": SITE + pre + title_path(x["id"], lang, x), "name": x["n"]} for n, x in enumerate(items[:30])]}}
+    head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
+            '<meta property="og:title" content="%s"><meta property="og:description" content="%s"><script type="application/ld+json">%s</script>') % (
+        e(title), e(mail.BRAND), e(desc), e(url + ("?on=" + f["on"] if f.get("on") else "")), e(title), e(desc), json.dumps(ld).replace("</", "<\\/")) + alt
+    body = '<noscript><h1>%s</h1><p>%s</p><ul>%s</ul></noscript>' % (e(title), e(desc), "".join(
+        '<li><a href="%s%s">%s%s</a></li>' % (pre, title_path(x["id"], lang, x), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in items))
+    if len(_secseo) > 400: _secseo.clear()
+    _secseo[ck] = (time.time() + 900, (head, body))
+    return head, body
+
 def person_seo(nm, lang="en"):
     """For /person/<id>: name, short bio, portrait, schema.org Person, and plain links to everything they made."""
     import html as H
@@ -390,6 +439,7 @@ def app_page(s, head="", body="", lang="en"):
     if lang != "en":      # the interface in that language: its words come in a file of their own, kept by the browser
         inj += '<script>window.__LANG=%s;</script><script src="/_app/%s"></script>' % (json.dumps(lang), i18n_file(lang))
     html = _page["html"].replace('<html lang="en">', '<html lang="%s"%s>' % (lang, ' dir="rtl"' if lang == "ar" else ""), 1)
+    if "<title>" in head: html = re.sub(r"<title>[^<]*</title>", "", html, count=1)      # one title per page: the page's own
     return html.replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")
@@ -539,6 +589,8 @@ def filt(qs):
     if c: f["country"] = c
     g = clip((qs.get("genre") or [""])[0], 20)
     if g: f["genre"] = g
+    o = (qs.get("on") or [""])[0]
+    if o in catalog.PNAMES: f["on"] = o      # a streaming platform
     try:
         d = int((qs.get("decade") or [0])[0])
         if 1900 <= d <= 2030: f["decade"] = d - d % 10
@@ -695,7 +747,9 @@ class H(BaseHTTPRequestHandler):
                 if chosen(): return
                 want = section_path(lang, segs)
                 if path.rstrip("/") != want and not staff(self.sess() or PUBLIC): return moved(want)      # /fr/movies -> /fr/films
-                return self.send(200, app_page(self.sess() or PUBLIC, alternates(lambda l: section_path(l, segs)), "", lang), "text/html; charset=utf-8")
+                try: hd, bd = section_seo(lang, segs, qs)
+                except Exception: hd, bd = alternates(lambda l: section_path(l, segs)), ""
+                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd, lang), "text/html; charset=utf-8")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith("/catalogue") or path.endswith("/"):
                 if chosen(): return
                 hd = alternates("/") if path in ("/", "/index.html") else ""
@@ -907,7 +961,7 @@ class H(BaseHTTPRequestHandler):
                 else:
                     body = games.view(row, (qs.get("sort") or [""])[0], num3("offset", 0, 8000), max(1, num3("limit", 40, 60)), f or None)
                 return self.send(200, slim(json.dumps(body).encode()), cache="private, max-age=20")
-            if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min")) and not (qs.get("row") or [""])[0]:
+            if path == "/_meta/catalog" and any(k in qs for k in ("country", "genre", "decade", "min", "on")) and not (qs.get("row") or [""])[0]:
                 def num2(k, d, hi):
                     try: return max(0, min(int((qs.get(k) or [d])[0]), hi))
                     except ValueError: return d
