@@ -1009,6 +1009,14 @@ def _genre_rows(pool, limit=5):
         for g in it["g"]: cnt[g] = cnt.get(g, 0) + 1
     return [g for g, n in sorted(cnt.items(), key=lambda x: -x[1]) if n >= 10][:limit]
 
+def _local(i):
+    """Rating weighted for a smaller pool (one country, one genre): a 9.9 from a few thousand votes does not beat
+    a well-loved film; national favourites still rise. Titles without a poster yet go after the others."""
+    v = i["v"]; m = 8000.0
+    return ((v / (v + m)) * i["r"] + (m / (v + m)) * 6.6)
+
+def _has_pic(i): return i["id"] in _mem["titles"]      # titles whose poster was found (kept in memory, no database call)
+
 def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
     """The same shelves and categories, but computed only on titles that match the chosen filters (e.g. Korean cinema):
     "Top rated" becomes Korean top rated, and shelves for the genres this country is known for are added."""
@@ -1032,7 +1040,7 @@ def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
     if row:
         its, by = members(row)
         fs = dict(FSORTS); sort = sort if sort in fs else by
-        its = sorted(its, key=fs[sort]) if sort != "rating" else sorted(its, key=lambda i: (-i["r"], -i["v"]))
+        its = sorted(its, key=fs[sort]) if sort != "rating" else sorted(its, key=lambda i: (-_local(i), -i["v"]))
         page = its[offset:offset + limit]
         queue_resolve(page)
         d = [_dress(cat, i["id"]) for i in page]
@@ -1044,7 +1052,8 @@ def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
         if not r["home"]: continue
         its, by = members(r["id"])
         if len(its) < 4: continue
-        its = sorted(its, key=lambda i: (-i["r"], -i["v"])) if by == "rating" else sorted(its, key=lambda i: (-i["v"], -i["r"]))
+        its = sorted(its, key=lambda i: (-_local(i), -i["v"])) if by == "rating" else sorted(its, key=lambda i: (-i["v"], -i["r"]))
+        its = sorted(its[:60], key=lambda i: not _has_pic(i))      # the shelf shows titles with a poster first
         out.append({"id": r["id"], "name": r["name"], "items": its[:HOME_N]})
     for g in gnames:
         its, by = members("gx-" + g.lower())

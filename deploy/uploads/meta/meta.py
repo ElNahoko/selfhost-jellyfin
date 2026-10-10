@@ -404,6 +404,13 @@ class H(BaseHTTPRequestHandler):
             if path in ("/about", "/privacy", "/contact"):          # plain pages, the same for everyone
                 with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
                 return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
+            if path == "/robots.txt": return self.send(200, news.robots().encode(), "text/plain; charset=utf-8", "public, max-age=3600")
+            if path == "/llms.txt": return self.send(200, news.llms().encode(), "text/plain; charset=utf-8", "public, max-age=3600")
+            if path == "/sitemap.xml": return self.send(200, news.sitemap_index().encode(), "application/xml", "public, max-age=3600")
+            m = re.fullmatch(r"/sitemap-([a-z0-9-]{1,20})\.xml", path)
+            if m:
+                xml = news.sitemap(m.group(1))
+                return self.send(200, xml.encode(), "application/xml", "public, max-age=3600") if xml else self.send(404, b"{}")
             m = re.fullmatch(r"/news(?:/(movies|series|anime|games|nahoko))?/?", path)
             if m:                                        # the news section: all stories, or one section
                 try: pg = max(1, min(int((qs.get("page") or ["1"])[0]), 500))

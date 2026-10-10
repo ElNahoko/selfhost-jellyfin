@@ -9,6 +9,7 @@ import hashlib, html, json, math, os, re, sqlite3, threading, time, urllib.parse
 import xml.etree.ElementTree as ET
 
 DBDIR = os.environ.get("DB_DIR", "/db")
+SITE = os.environ.get("SITE_URL", "").rstrip("/")      # absolute links for search engines
 NDB = os.path.join(DBDIR, "news.db")
 IMGDIR = os.path.join(DBDIR, "img")
 UA = "Mozilla/5.0 (compatible; NahokoNews/1.0; self-hosted media catalogue)"
@@ -272,9 +273,17 @@ def _slug(t): return re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")[:70] or "s
 
 def _e(s): return html.escape(s or "", quote=True)
 
+def _ph(s, cls=""):
+    return '<div class="%s noimg ph-%s"><span>%s</span></div>' % (cls, s.get("sec", ""), _e(s["src"]))
+
 def _img(s, cls=""):
-    if s.get("img"): return '<img class="%s" src="/_meta/nimg/%s" alt="" loading="lazy" decoding="async">' % (cls, s["id"])
-    return '<div class="%s noimg"><span>%s</span></div>' % (cls, _e(s["src"]))
+    if s.get("img"):
+        return ('<img class="%s" src="/_meta/nimg/%s" alt="%s" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'">'
+                '<div class="%s noimg ph-%s" style="display:none"><span>%s</span></div>') % (cls, s["id"], _e(s["title"]), cls, s.get("sec", ""), _e(s["src"]))
+    try: m = next((x for x in mentions(s, 1) if x.get("img")), None)
+    except Exception: m = None
+    if m: return '<img class="%s poster" src="/_meta/rimg?w=500&amp;u=%s" alt="%s" loading="lazy" decoding="async">' % (cls, urllib.parse.quote(m["img"], safe=""), _e(m["n"]))
+    return _ph(s, cls)
 
 def _card(s, big=False):
     url = "/news/a/%s-%s" % (s["id"], _slug(s["title"]))
@@ -326,10 +335,15 @@ def _side():
     _sidec["html"] = "".join(out); _sidec["t"] = time.time()
     return _sidec["html"]
 
-def _shell(title, desc, body, sec="", canonical=""):
+def _shell(title, desc, body, sec="", canonical="", extra=""):
     tabs = "".join('<a href="/news%s"%s>%s</a>' % (("/" + k) if k else "", ' class="on"' if k == sec else "", n) for k, n in SECTIONS)
-    return PAGE.replace("{{TITLE}}", _e(title)).replace("{{DESC}}", _e(desc)).replace("{{TABS}}", tabs).replace("{{BODY}}", body) \
-               .replace("{{CANON}}", _e(canonical or "/news"))
+    crumbs = [("News", "/news")] + ([(SNAME.get(sec, ""), "/news/" + sec)] if sec else [])
+    ld = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": i + 1, "name": n, "item": SITE + u} for i, (n, u) in enumerate(crumbs)]}
+    extra += '<script type="application/ld+json">%s</script>' % json.dumps(ld).replace("</", "<\\/")
+    if "og:image" not in extra: extra += '<meta property="og:image" content="%s/pwa/icon-512.png">' % SITE
+    return PAGE.replace("{{TITLE}}", _e(title)).replace("{{DESC}}", _e(_cut(desc, 200))).replace("{{TABS}}", tabs).replace("{{BODY}}", body) \
+               .replace("{{CANON}}", _e(SITE + (canonical or "/news"))).replace("<!--EXTRA-->", extra)
 
 def _pager(base, page, pages):
     if pages <= 1: return ""
@@ -377,6 +391,7 @@ def article(iid):
     if not s: return None
     rel = related(s); men = mentions(s)
     when = time.strftime("%d %B %Y, %H:%M", time.localtime(s["t"])).lstrip("0")
+    picks = _picks(s, {m["id"] for m in men})
     bg = ""
     if men:
         cards = []
@@ -395,9 +410,9 @@ def article(iid):
             'The background below is Nahoko\'s own.</p></article>%s%s</main><aside>%s</aside></div>') % (
         s["sec"], s["sec"], SNAME.get(s["sec"], ""), _e(s["src"]), when, _e(s["title"]),
         ('<figure>%s</figure>' % _img(s, "hero")) if s.get("img") else "", ('<p class="lede">%s</p>' % _e(s["excerpt"])) if s.get("excerpt") else "",
-        _e(s["link"]), _e(s["src"]), bg,
+        _e(s["link"]), _e(s["src"]), bg + picks,
         ('<section class="rel"><h2>Related stories</h2><div class="grid">%s</div></section>' % "".join(_card(r) for r in rel)) if rel else "", _side())
-    page = _shell(s["title"], s.get("excerpt") or s["title"], body, s["sec"], "/news/a/%s-%s" % (s["id"], _slug(s["title"])))
+    page = _shell(s["title"], s.get("excerpt") or s["title"], body, s["sec"], "/news/a/%s-%s" % (s["id"], _slug(s["title"])), _story_ld(s, men))
     if len(_artc) > 400: _artc.clear()
     _artc[iid] = (time.time(), page)
     return page
@@ -420,3 +435,127 @@ def status():
 
 PAGE = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "news.html"), encoding="utf-8").read() \
     if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "news.html")) else "{{BODY}}"
+
+# ---------- picks under every story, and what search engines and AI assistants read ----------
+TOPICS = [(r"horror|scary|terrif|exorcis|haunt|slasher|zombie", "Horror"), (r"comed|funny|laugh|sitcom", "Comedy"),
+          (r"sci-?fi|space|alien|star wars|star trek|cyber", "Sci-Fi"), (r"romance|romantic|love stor", "Romance"),
+          (r"thriller|crime|murder|detective|heist|mafia", "Crime"), (r"documentar", "Documentary"), (r"war\b|soldier|battle", "War"),
+          (r"animat|pixar|disney|dreamworks", "Animation"), (r"fantasy|dragon|wizard|magic", "Fantasy"), (r"superhero|marvel|dc studios|batman|superman|spider-man", "Action")]
+
+def _picks(s, skip=()):
+    """Six catalogue titles that fit the story's subject (its genre words, else its section), different for each story."""
+    import catalog, games
+    text = (s["title"] + " " + (s.get("excerpt") or "")).lower()
+    try:
+        if s["sec"] == "games":
+            rows = games.view_filter({}, "best", (int(s["id"][:3], 16) % 8) * 6, 12)["rows"][0]["items"]
+            label, more = "Games to play", "/catalogue/games"
+        else:
+            kind = "series" if s["sec"] == "series" else "movie"
+            genre = next((g for pat, g in TOPICS if re.search(pat, text)), None)
+            if s["sec"] == "anime":
+                v = catalog.view("series", "anime"); rows = v["rows"][0]["items"] if v.get("rows") else []
+                label, more = "Anime to watch", "/catalogue/series?row=anime"
+            else:
+                f = {"genre": genre} if genre else {}
+                d = catalog.view_filter(kind, f, "best", (int(s["id"][:3], 16) % 6) * 6, 12) if f else catalog.view(kind, "popular", None, (int(s["id"][:3], 16) % 6) * 6, 12)
+                rows = d["rows"][0]["items"] if d.get("rows") else []
+                label = ("%s %s on Nahoko" % (genre, "series" if kind == "series" else "films")) if genre else ("Popular %s on Nahoko" % ("series" if kind == "series" else "films"))
+                more = "/catalogue/%s%s" % ("series" if kind == "series" else "movies", ("?genre=" + urllib.parse.quote(genre)) if genre else "?row=popular")
+    except Exception:
+        return ""
+    rows = [r for r in rows if r["id"] not in skip and r.get("img")][:6]
+    if not rows: return ""
+    cards = "".join('<a class="pick" href="/title/%s-%s">%s<b>%s</b><span>%s%s</span></a>' % (
+        r["id"], _slug(r["n"]), _poster(r, 342), _e(r["n"]), r.get("y") or "", (" · ★ %.1f" % r["r"]) if r.get("r") else "") for r in rows)
+    return '<section class="picks"><div class="ph2"><h2>%s</h2><a href="%s">See all</a></div><div class="pickgrid">%s</div></section>' % (_e(label), more, cards)
+
+def _abs_img(s, men):
+    if s.get("img"): return SITE + "/_meta/nimg/" + s["id"]
+    m = next((x for x in men if x.get("img")), None)
+    return (SITE + "/_meta/rimg?w=500&u=" + urllib.parse.quote(m["img"], safe="")) if m else SITE + "/pwa/icon-512.png"
+
+def _story_ld(s, men):
+    """NewsArticle data: what the story is, when, who wrote it (the publisher), what it is about (our title pages)."""
+    url = SITE + "/news/a/%s-%s" % (s["id"], _slug(s["title"]))
+    when = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(s["t"]))
+    about = [{"@type": {"movie": "Movie", "series": "TVSeries", "game": "VideoGame"}.get(m.get("k"), "CreativeWork"), "name": m["n"],
+              "url": SITE + "/title/%s-%s" % (m["id"], _slug(m["n"]))} for m in men]
+    ld = {"@context": "https://schema.org", "@type": "NewsArticle", "headline": s["title"][:110], "description": s.get("excerpt") or s["title"],
+          "image": [_abs_img(s, men)], "datePublished": when, "dateModified": when, "mainEntityOfPage": url, "url": url,
+          "author": {"@type": "Organization", "name": s["src"]}, "isBasedOn": s["link"],
+          "publisher": {"@type": "Organization", "name": "Nahoko", "logo": {"@type": "ImageObject", "url": SITE + "/pwa/icon-512.png"}},
+          "articleSection": SNAME.get(s["sec"], "")}
+    if about: ld["about"] = about
+    img = _abs_img(s, men)
+    return ('<meta property="og:type" content="article"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image">'
+            '<meta property="article:published_time" content="%s"><script type="application/ld+json">%s</script>') % (_e(img), when, json.dumps(ld).replace("</", "<\\/"))
+
+def _xml(urls):
+    out = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u, lm in urls:
+        out.append("<url><loc>%s</loc>%s</url>" % (html.escape(SITE + u), ("<lastmod>%s</lastmod>" % lm) if lm else ""))
+    out.append("</urlset>")
+    return "\n".join(out)
+
+TITLES_PER_MAP = 10000
+
+def _title_ids():
+    import catalog, games
+    cat = catalog.load() or {"items": {}}
+    ids = [(i["id"], i["n"]) for i in sorted(cat["items"].values(), key=lambda i: -i["v"])[:50000]]
+    ids += [(g["id"], g["n"]) for g in sorted((games._items() or {}).values(), key=lambda g: -g["pop"])[:10000]]
+    return ids
+
+def robots():
+    return "\n".join(["User-agent: *", "Allow: /", "Allow: /_meta/rimg", "Allow: /_meta/nimg", "Disallow: /_meta/", "Disallow: /auth/",
+                      "Disallow: /login", "Disallow: /settings", "Disallow: /profiles", "", "Sitemap: %s/sitemap.xml" % SITE, ""])
+
+def sitemap_index():
+    n = max(1, math.ceil(len(_title_ids()) / TITLES_PER_MAP))
+    parts = ["sitemap-pages.xml", "sitemap-news.xml"] + ["sitemap-titles-%d.xml" % (i + 1) for i in range(n)]
+    today = time.strftime("%Y-%m-%d")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s</sitemapindex>'
+            % "".join("<sitemap><loc>%s/%s</loc><lastmod>%s</lastmod></sitemap>" % (SITE, p, today) for p in parts))
+
+def sitemap(name):
+    """sitemap-pages.xml, sitemap-news.xml, sitemap-titles-N.xml -> XML, or None."""
+    import extras
+    if name == "pages":
+        return _xml([(u, None) for u in ("/", "/catalogue/movies", "/catalogue/series", "/catalogue/games", "/news", "/news/movies", "/news/series",
+                                         "/news/anime", "/news/games", "/news/nahoko", "/about", "/contact", "/privacy")])
+    if name == "news":
+        c = _db(); rows = c.execute("SELECT id, title, t FROM items ORDER BY t DESC LIMIT 2000").fetchall(); c.close()
+        urls = [("/news/a/%s-%s" % (r["id"], _slug(r["title"])), time.strftime("%Y-%m-%d", time.gmtime(r["t"]))) for r in rows]
+        urls += [("/news/p/%d-%s" % (p["id"], _slug(p["title"])), time.strftime("%Y-%m-%d", time.gmtime(p["t"]))) for p in extras.news()]
+        return _xml(urls)
+    m = re.fullmatch(r"titles-(\d{1,3})", name)
+    if m:
+        k = int(m.group(1)) - 1; ids = _title_ids()[k * TITLES_PER_MAP:(k + 1) * TITLES_PER_MAP]
+        return _xml([("/title/%s-%s" % (i, _slug(n)), None) for i, n in ids]) if ids else None
+    return None
+
+def llms():
+    """For AI assistants and answer engines: what this site is and where things are (llmstxt.org format)."""
+    return """# Nahoko
+
+> Nahoko is a free catalogue of films, series, anime and games, with ratings, cast, episodes, trailers and news. No ads, no tracking.
+
+Every title has its own page with its year, genres, rating, plot, cast or creator, related titles and episode ratings for series.
+The news section gathers film, TV, anime and game news from the publishers' own feeds, credited to them, with background on the
+titles each story is about.
+
+## Main pages
+- [Films](%(s)s/catalogue/movies): shelves of new, top-rated, popular and hidden-gem films; filters by country, genre, decade and rating
+- [Series](%(s)s/catalogue/series): the same for TV series, with ratings for every episode
+- [Games](%(s)s/catalogue/games): PC, PlayStation, Xbox and Switch games with critics' scores
+- [News](%(s)s/news): film, series, anime and game news ([movies](%(s)s/news/movies), [series](%(s)s/news/series), [anime](%(s)s/news/anime), [games](%(s)s/news/games))
+- [About](%(s)s/about), [Contact](%(s)s/contact), [Privacy](%(s)s/privacy)
+
+## Title pages
+Addresses look like %(s)s/title/tt0816692-interstellar (IMDb identifier, then the name). Each page carries schema.org data
+(Movie, TVSeries or VideoGame) with the rating. Ratings and titles: information courtesy of IMDb (imdb.com), used with permission.
+
+## Sitemaps
+- %(s)s/sitemap.xml
+""" % {"s": SITE}

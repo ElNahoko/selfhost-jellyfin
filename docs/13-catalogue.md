@@ -122,3 +122,11 @@ A title's details end with "More like this" (same genres, then the same country 
 director (films) or creator (series); a game shows other games of its series. Genres in the details open the catalogue
 filtered by that genre. "See all" pages show 48 titles a page with numbered pages (`?page=` in the address), and a search
 stays when switching between Movies, Series and Games.
+
+## Search engines and AI assistants
+
+`/robots.txt`, `/sitemap.xml` (pages, news stories, the 60,000 best-known title pages in files of 10,000) and `/llms.txt`
+(what the site is, for AI assistants) are made by `news.py`. Title pages (`/title/<id>-<name>`) carry Movie / TVSeries /
+VideoGame data with the rating; story pages carry NewsArticle data (headline, picture, date, the publisher as author and
+source, the titles it is about) and breadcrumbs. Every story ends with "Background" (Nahoko's own text about the titles it
+names, from the catalogue) and picks that fit its subject.

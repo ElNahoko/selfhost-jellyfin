@@ -1051,6 +1051,19 @@ body.guest.hsearch .mtop #filter{flex:1 1 auto;width:auto;max-width:none;min-wid
 body.guest.hsearch .mtop #luckyBtn{flex:none;width:44px;height:42px;padding:0!important}
 body.guest.hsearch .mtop #luckyBtn .lt{display:none}
 body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 1 auto}
+.pmark{grid-column:1/-1;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:6px 0}
+.pmark::before,.pmark::after{content:"";flex:1;height:1px;background:var(--line)}
+.pgo{display:inline-flex;align-items:center;gap:8px;margin-left:10px;color:var(--muted);font-size:.9rem;font-weight:600}
+.pgo input{width:74px;height:42px;box-sizing:border-box;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 10px;text-align:center}
+.pgo .btn{height:42px}
+@media (max-width:600px){.pgo{flex-basis:100%;justify-content:center;margin:8px 0 0}}
+/* the lucky button says what it does */
+#luckyBtn .lt{display:inline!important}
+@media (max-width:860px){#luckyBtn{width:auto!important;padding:0 14px!important;gap:6px}#luckyBtn .lt{font-size:.9rem}}
+body.guest.hsearch .mtop #luckyBtn{width:auto;padding:0 14px!important;gap:6px}
+body.guest.hsearch .mtop #luckyBtn .lt{display:inline!important;font-size:.9rem;white-space:nowrap}
+body.guest.hsearch .mtop .tools{flex:0 1 520px}
+.gacct .btn,.gacct a{white-space:nowrap;flex:none}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1098,7 +1111,7 @@ if("serviceWorker" in navigator)addEventListener("load",function(){navigator.ser
         <input class="search" id="filter" type="search" placeholder="Filter this folder" aria-label="Filter this folder">
         <button class="fclear" id="fclear" type="button" aria-label="Clear search" title="Clear" hidden></button>
         <button class="pill" id="pill" type="button" hidden aria-label="Upload progress"><span class="ring" id="ring"></span><span id="pillT"></span></button>
-        <button class="btn" id="luckyBtn" type="button" hidden title="Suggest something good"><span id="luckyIc"></span><span class="lt">I’m feeling lucky</span></button>
+        <button class="btn" id="luckyBtn" type="button" hidden title="Can't choose? Get a good pick"><span id="luckyIc"></span><span class="lt">Surprise me</span></button>
         <button class="btn" id="newFolder" type="button">New folder</button>
         <button class="btn" id="scanBtn" type="button" title="Ask Jellyfin to look for new and removed files now"><span id="scanIc"></span>Refresh Jellyfin</button>
         <button class="btn primary" id="upBtn" type="button" aria-haspopup="true" aria-expanded="false"><span id="upIc"></span><span id="upT">Upload</span></button>
@@ -2658,51 +2671,66 @@ async function feelingLucky(){
   SFX.reveal();
 }
 var reqPage=1;
-async function drawRow(kind,row,sort,page){      // one shelf on its own, 48 titles a page, with numbered pages
+async function drawRow(kind,row,sort,page){      // one shelf on its own: pages that load as you scroll, numbered, with "go to page"
   var box=$("reqCat");if(!box)return;
   if(shelfObs){shelfObs.disconnect();shelfObs=null;}
-  var PER=48,key=kind+"|"+row+"|"+filterQuery();
+  var key=kind+"|"+row+"|"+filterQuery();
   if(page==null)page=(drawRow._k===key||drawRow._k===undefined)?reqPage:1;
   drawRow._k=key;page=Math.max(1,page|0);reqPage=page;catUrlSync();
-  var st={kind:kind,row:row,sort:sort||"",seq:++rowSeq};rowState=st;
+  var st={kind:kind,row:row,sort:sort||"",seq:++rowSeq,first:page,last:page-1,pages:1,total:0,loading:false,tiles:[]};rowState=st;
   if(CHIPS[kind])drawChips(CHIPS[kind]);
   box.innerHTML="";
   var pills2=activePills(kind,function(){drawCatalog();});if(pills2)box.appendChild(pills2);
   var head=el("div","shead rowhead"),title=el("h2","sec","Loading…");
   var dd=sortMenu(function(v){drawRow(kind,row,v,1);},row==="__f");
   head.appendChild(title);head.appendChild(dd.el);box.appendChild(head);
-  var g=el("div","tgrid");box.appendChild(g);var pager=el("nav","pager");pager.setAttribute("aria-label","Pages");box.appendChild(pager);
+  var g=el("div","tgrid");box.appendChild(g);var sent=el("div","sentinel");sent.textContent=" ";box.appendChild(sent);
+  var pager=el("nav","pager");pager.setAttribute("aria-label","Pages");box.appendChild(pager);
   function active(){return rowState===st&&$("reqCat")===box;}
-  function url(){return catUrl(kind,row)+"&sort="+encodeURIComponent(st.sort)+"&offset="+((page-1)*PER)+"&limit="+PER;}
-  var d=null;
-  for(var a=0;a<3&&!d;a++){try{d=await api("GET",url());}catch(e){await sleep(2000);}}
-  if(!active())return;
-  if(!d){title.textContent="Could not load this page";return;}
-  if(!st.sort){st.sort=d.sort;dd.set(d.sort);}
-  if(!CHIPS[kind]&&d.chips){CHIPS[kind]=d.chips;drawChips(d.chips);}
-  var r=d.rows[0];if(!r){title.textContent="Nothing here";return;}
-  var pages=Math.max(1,Math.ceil((d.total||0)/PER));
-  if(page>pages){drawRow(kind,row,st.sort,pages);return;}
-  title.textContent=(row==="__f"?"All titles":r.name)+" · "+(d.total||0).toLocaleString()+" titles"+(pages>1?" · page "+page+" of "+pages:"");
-  if(row==="__f"&&!d.total){g.replaceWith(el("div","hint",reqF.country&&d.countries_ready===false?"Country lists are still being collected. Try again in a few minutes.":"Nothing matches these filters."));return;}
-  var tiles=r.items.map(function(it){var t=tile(it);g.appendChild(t);return t;});
-  function retry(n){      // posters still being fetched: fill them in quietly
+  var cols=Math.max(1,getComputedStyle(g).gridTemplateColumns.split(" ").length);
+  var PER=Math.min(60,cols*Math.max(2,Math.round(48/cols)));      // whole rows only: no half-empty last line
+  function url(p){return catUrl(kind,row)+"&sort="+encodeURIComponent(st.sort)+"&offset="+((p-1)*PER)+"&limit="+PER;}
+  function setTitle(){title.textContent=(row==="__f"?"All titles":st.name||"")+" · "+(st.total||0).toLocaleString()+" titles"+(st.pages>1?" · page "+st.last+" of "+st.pages:"");}
+  async function load(p){
+    if(st.loading||!active())return;st.loading=true;
+    var d=null;for(var a=0;a<3&&!d;a++){try{d=await api("GET",url(p));}catch(e){await sleep(2000);}}
+    st.loading=false;if(!active())return;
+    if(!d){title.textContent="Could not load this page";return;}
+    if(!st.sort){st.sort=d.sort;dd.set(d.sort);}
+    if(!CHIPS[kind]&&d.chips){CHIPS[kind]=d.chips;drawChips(d.chips);}
+    var r=d.rows[0];if(!r){title.textContent="Nothing here";return;}
+    st.name=r.name;st.total=d.total||0;st.pages=Math.max(1,Math.ceil(st.total/PER));
+    if(p>st.pages&&st.total){drawRow(kind,row,st.sort,st.pages);return;}
+    if(row==="__f"&&!st.total){g.replaceWith(el("div","hint",reqF.country&&d.countries_ready===false?"Country lists are still being collected. Try again in a few minutes.":"Nothing matches these filters."));return;}
+    if(p!==st.first){var mk=el("div","pmark","Page "+p);mk.id="page-"+p;g.appendChild(mk);}
+    var start=st.tiles.length;
+    r.items.forEach(function(it){var t=tile(it);st.tiles.push({t:t,it:it});g.appendChild(t);});
+    st.last=p;reqPage=p;catUrlSync();setTitle();drawPager();
+    if(!d.ready)retry(p,start,0);
+    if(st.last>=st.pages){sent.remove();}
+  }
+  function retry(p,start,n){      // posters still being fetched: fill them in quietly
     if(n>=14)return;
     setTimeout(async function(){if(!active())return;
-      try{var d2=await api("GET",url());d2.rows[0].items.forEach(function(it,i){var t=tiles[i],pz=t&&t.querySelector(".pz");if(it.img&&pz&&!pz.querySelector("img"))cover(pz,rimg(it.img,185));});if(!d2.ready)retry(n+1);}catch(e){}
+      try{var d2=await api("GET",url(p));d2.rows[0].items.forEach(function(it,i){var x=st.tiles[start+i],pz=x&&x.t.querySelector(".pz");if(it.img&&pz&&!pz.querySelector("img"))cover(pz,rimg(it.img,185));});if(!d2.ready)retry(p,start,n+1);}catch(e){}
     },5000);
   }
-  if(!d.ready)retry(0);
-  if(pages>1){
-    var jump=function(p){drawRow(kind,row,st.sort,p);var y=box.getBoundingClientRect().top+window.scrollY-110;window.scrollTo({top:Math.max(0,y),behavior:"smooth"});};
+  function jump(p){drawRow(kind,row,st.sort,p);var y=box.getBoundingClientRect().top+window.scrollY-110;window.scrollTo({top:Math.max(0,y),behavior:"smooth"});}
+  function drawPager(){
+    pager.innerHTML="";if(st.pages<=1)return;var page2=st.last;
     var href=function(p){var q=new URLSearchParams(location.search);q.set("page",p);return location.pathname+"?"+q.toString();};
     var btn=function(label,p,cls,dis,aria){var b2=el("a","pg"+(cls?" "+cls:"")+(dis?" off":""),label);if(aria)b2.setAttribute("aria-label",aria);
       if(!dis){b2.href=href(p);b2.onclick=function(e){if(e.ctrlKey||e.metaKey||e.shiftKey)return;e.preventDefault();jump(p);};}pager.appendChild(b2);return b2;};
-    btn("‹",page-1,"nav",page===1,"Previous page");
-    var nums=[1,page-2,page-1,page,page+1,page+2,pages].filter(function(x,i,arr){return x>=1&&x<=pages&&arr.indexOf(x)===i;}).sort(function(x,y){return x-y;}),last=0;
-    nums.forEach(function(p2){if(p2-last>1)pager.appendChild(el("span","pgdots","…"));var b3=btn(String(p2),p2,p2===page?"on":"",false,"Page "+p2);if(p2===page)b3.setAttribute("aria-current","page");last=p2;});
-    btn("›",page+1,"nav",page===pages,"Next page");
+    btn("‹",page2-1,"nav",page2<=1,"Previous page");
+    var nums=[1,page2-2,page2-1,page2,page2+1,page2+2,st.pages].filter(function(x,i,arr){return x>=1&&x<=st.pages&&arr.indexOf(x)===i;}).sort(function(x,y){return x-y;}),last=0;
+    nums.forEach(function(p2){if(p2-last>1)pager.appendChild(el("span","pgdots","…"));var b3=btn(String(p2),p2,(p2>=st.first&&p2<=st.last)?"on":"",false,"Page "+p2);if(p2===page2)b3.setAttribute("aria-current","page");last=p2;});
+    btn("›",page2+1,"nav",page2>=st.pages,"Next page");
+    var gf=el("form","pgo");gf.appendChild(el("span","","Go to page"));var gi=el("input");gi.type="number";gi.min=1;gi.max=st.pages;gi.inputMode="numeric";gi.placeholder=String(page2);gi.setAttribute("aria-label","Page number");
+    var gb=el("button","btn sm","Go");gb.type="submit";gf.appendChild(gi);gf.appendChild(gb);
+    gf.onsubmit=function(e){e.preventDefault();var n=parseInt(gi.value,10);if(n>=1&&n<=st.pages)jump(n);else gi.select();};pager.appendChild(gf);
   }
+  if("IntersectionObserver" in window){shelfObs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!st.loading&&st.last<st.pages&&st.tiles.length)load(st.last+1);});},{rootMargin:"600px 0px"});shelfObs.observe(sent);}
+  await load(page);
 }
 async function drawCatalog(tries){saveCat();
   var box=$("reqCat");if(!box)return;var kind=reqKind,row=reqRow,key=kind+"|"+row+"|"+filterQuery();
