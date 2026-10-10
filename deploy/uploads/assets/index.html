@@ -991,7 +991,7 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
   .lucky .roll{padding:12px 18px;font-size:1rem;margin-top:0}
 }
 .sfoot .credit{flex-basis:100%;text-align:center;font-size:.78rem;margin-top:2px}.sfoot .credit a{text-decoration:underline}
-.tagbtn{cursor:pointer;border:0;font:inherit;transition:background .15s}.tagbtn:hover{background:rgba(255,255,255,.22)}
+.tagbtn{cursor:pointer;border:0;font-family:inherit;line-height:inherit;transition:background .15s}.tagbtn:hover{background:rgba(255,255,255,.22)}
 .relhost{padding:0 28px 22px}.relsec{margin-top:22px}.relh{font-size:1.02rem;margin:0 0 10px;font-weight:700}
 .relrail{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
 .relrail .tile{flex:none;width:132px}
@@ -1008,6 +1008,41 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .tabs a.newstab{display:inline-flex;align-items:center;padding:10px 2px 13px;font-size:1.08rem;font-weight:650;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .top .crumbs .tabs a.newstab{padding:6px 2px 10px;font-size:1.25rem}.tabs a.newstab:hover{color:var(--ink)}
 @media (max-width:860px){.top .crumbs .tabs a.newstab{font-size:1.02rem;flex:none}}
+/* title pages */
+.dlg.wide.tpage{position:relative;max-width:1100px;margin:6px auto 0;max-height:none;overflow:visible;box-shadow:none;border-radius:22px}
+.tpage .dscroll,.fixedeps.tpage .dscroll{max-height:none;height:auto;overflow:visible;display:block}
+.dback{all:unset;cursor:pointer;position:absolute;top:14px;left:14px;z-index:3;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 10px;border-radius:99px;background:rgba(20,20,20,.72);border:1px solid rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:.9rem}
+.dback svg{width:16px;height:16px;transform:rotate(180deg)}.dback:hover{background:rgba(40,40,40,.9)}
+.tpage .dhead{padding-top:62px}
+.tile a.tt{display:block;color:inherit;text-decoration:none}
+/* shelves: one tidy row, no sideways scrolling ("See all" has the rest) */
+.rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-template-rows:auto;grid-auto-rows:0;row-gap:0;column-gap:16px;overflow:hidden;padding:4px 0 0;margin:0 0 6px}
+.rail>*:not(:first-child){align-self:start}
+.rail .tile{width:auto}.rail .seeall{display:none}
+.relrail{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:16px;overflow:visible;padding:0}
+.relrail .tile{width:auto}
+@media (max-width:860px){.rail{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));column-gap:10px}.relrail{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.relrail .tile{width:auto}}
+/* filters: one line when there is room */
+@media (min-width:720px){.fgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* header: tabs with icons in the logo row, News on the right */
+body.guest .mtop{gap:18px;flex-wrap:nowrap}
+.mtop .crumbs.incrumbs{flex:1;min-width:0;display:flex;justify-content:center}
+.mtop .incrumbs .tabs{gap:6px;border:0;margin:0;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+.mtop .incrumbs .tabs::-webkit-scrollbar{display:none}
+.mtop .incrumbs .tabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:99px;font-weight:700;font-size:.98rem;color:var(--muted);white-space:nowrap;border:0;margin:0}
+.mtop .incrumbs .tabs button:hover{color:var(--ink);background:var(--card2)}
+.mtop .incrumbs .tabs button.on{color:#111;background:#fff}
+.mtop .incrumbs .tabs button.amber{color:var(--amber)}.mtop .incrumbs .tabs button.amber.on{color:#111;background:var(--amber)}
+.mtop .incrumbs .tabs .ti{width:18px;height:18px}
+.mtop .incrumbs .tabs .cnt{margin-left:0}
+.newsbtn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:99px;color:var(--muted);text-decoration:none;font-weight:700;font-size:.95rem}
+.newsbtn:hover{color:var(--ink);background:var(--card2)}.newsbtn svg{width:18px;height:18px}
+@media (max-width:1100px){.mtop .incrumbs .tabs .tlab,.newsbtn span{display:none}.mtop .incrumbs .tabs button{padding:10px 12px}.mtop .incrumbs .tabs button.on .tlab{display:inline}}
+@media (max-width:600px){body.guest .mtop{gap:8px}.mtop .brandm .wm{display:none}.mtop .incrumbs .tabs{gap:2px}.mtop .incrumbs .tabs button{padding:9px 10px}
+  .mtop .incrumbs .tabs button.on .tlab{display:none}.newsbtn{padding:9px}}
+body.guest .mtop .incrumbs .tabs button.on,body.guest .mtop .incrumbs .tabs button.on span,body.guest .mtop .incrumbs .tabs button.on svg{color:#111}
+body.guest #filter{width:auto;flex:1 1 360px;max-width:620px}
+body.guest .top .tools{flex:1 1 auto;min-width:0}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1114,6 +1149,8 @@ var queue=[], running=false;
 var META={}, SIZES={}, metaT=0, metaBusy=false, listing=[], filterText="", LIBSET={};
 
 var ICONS={
+  news:'<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   vol:'<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   mute:'<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/>',
@@ -1314,7 +1351,12 @@ function fromHash(){if(GUEST)return "requests";var h=pathRoute();
   if(h==="settings")return h;
   return SECTIONS.some(function(l){return h===l.id||(l.id!=="requests"&&l.id!=="profiles"&&h.indexOf(l.id+"/")===0);})?h:"movies";}
 function go(p){var u=urlFor(p);if(location.pathname+location.search!==u)history.pushState(null,"",u);cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();window.scrollTo(0,0);}
-window.addEventListener("popstate",function(){cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();});
+window.addEventListener("popstate",function(){
+  var tm=location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/);
+  if(tm){api("GET","/_meta/title?id="+tm[1]).then(function(t){if(t&&t.n)showTitle(t,{page:true});}).catch(function(){});return;}      // back/forward onto a title page
+  var wasPage=TPAGE;cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();
+  if(wasPage&&TSCROLL)setTimeout(function(){window.scrollTo(0,TSCROLL);},60);      // back to the list where it was
+});
 
 var openReq=0;
 try{var _c=JSON.parse(sessionStorage.getItem("lm")||"null");if(_c){META=_c.m||{};SIZES=_c.s||{};Object.keys(META).forEach(function(k){var v=META[k];if(v.t==="Movie"||v.t==="Series")LIBSET[v.t+"|"+(v.n||"").toLowerCase()+"|"+(v.y||"")]=1;});}}catch(e){}
@@ -1777,6 +1819,15 @@ function refreshTiles(){
   document.querySelectorAll(".tile").forEach(function(t){if(t._upd)t._upd();});
   var l=$("reqList");if(l)drawRequests();
 }
+var TPAGE=false,TSCROLL=0;      // a title page is on screen; where the list was scrolled before it
+function slugOf(n){return String(n||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60)||"title";}
+function titleUrl(it){return "/title/"+it.id+"-"+slugOf(it.n);}
+function openTitle(it){      // a tap on a title: its page (a modal only for titles the catalogue does not know)
+  if(!it||!it.id){showTitle(it);return;}
+  if(!TPAGE)TSCROLL=window.scrollY;
+  history.pushState({title:it.id},"",titleUrl(it));
+  showTitle(it,{page:true});
+}
 function tile(it){
   var t=el("div","tile");t.tabIndex=0;t.setAttribute("role","button");t.setAttribute("aria-label",it.n+(it.y?" ("+it.y+")":""));
   var p=el("div","pz"),ph=el("div","ph",it.n.charAt(0).toUpperCase());
@@ -1786,7 +1837,8 @@ function tile(it){
   var add=el("button","add");add.type="button";if(APPROVED&&!isGameIt(it))p.appendChild(add);
   var fv=el("button","fav");fv.type="button";if(it.id)p.appendChild(fv);
   fv.onclick=function(e){e.stopPropagation();favToggle(it);};
-  t.appendChild(p);t.appendChild(el("div","tt",it.n));t.appendChild(el("div","ty",it.y?String(it.y):""));
+  var tl=el("a","tt",it.n);if(it.id)tl.href=titleUrl(it);tl.onclick=function(e){e.preventDefault();};      // a real link (robots follow it); the tile opens it
+  t.appendChild(p);t.appendChild(tl);t.appendChild(el("div","ty",it.y?String(it.y):""));
   function upd(){
     var s=stateOf(it);add.className="add"+(s?" "+s:"");add.innerHTML="";add.appendChild(svg(s==="have"?"check":s==="asked"?"clock":"add"));
     add.title=s==="have"?"Already in the library":s==="asked"?"Already asked for":"I want it";add.setAttribute("aria-label",add.title);
@@ -1794,8 +1846,8 @@ function tile(it){
   }
   t._upd=upd;upd();
   add.onclick=function(e){e.stopPropagation();if(stateOf(it))return;sendRequest(it);};
-  t.onclick=function(){showTitle(it);};
-  t.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();showTitle(it);}};
+  t.onclick=function(){openTitle(it);};
+  t.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openTitle(it);}};
   return t;
 }
 /* ---------- title details: hero, overview, seasons and episodes ---------- */
@@ -1899,15 +1951,20 @@ function renderEpisodes(d,host,it){
   var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860&&window.innerHeight>=820)dlg.classList.add("fixedeps");   // a short window scrolls as a whole instead
 }
 async function showTitle(it0,opts){
-  var m=$("modal"),prev=document.activeElement,it=it0,epd=null,castd=null;m.innerHTML="";
-  function close(){m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
-  function key(e){if(theatreOpen)return;if(e.key==="Escape"){e.stopPropagation();close();}}
-  function alive(){return !m.hidden&&m.contains(d);}
+  var PAGE=!!(opts&&opts.page);
+  var m=$("modal"),prev=document.activeElement,it=it0,epd=null,castd=null;if(!PAGE)m.innerHTML="";
+  function close(){
+    if(PAGE){document.removeEventListener("keydown",key,true);if(history.state&&history.state.title)history.back();else{TPAGE=false;go("requests");}return;}
+    m.hidden=true;m.innerHTML="";document.removeEventListener("keydown",key,true);if(prev&&prev.focus)prev.focus();}
+  function key(e){if(theatreOpen)return;if(e.key==="Escape"&&(!PAGE||m.hidden)){e.stopPropagation();close();}}
+  function alive(){return PAGE?d.isConnected:(!m.hidden&&m.contains(d));}
   function isSeries(){return it.k==="series"||(!it.k&&reqKind==="series");}
-  var d=el("div","dlg wide");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  var d=el("div","dlg wide"+(PAGE?" tpage":""));if(!PAGE){d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");}
   function paint(){
     d.innerHTML="";
-    var x=el("button","dclose");x.type="button";x.appendChild(svg("x"));x.title="Close";x.setAttribute("aria-label","Close");x.onclick=close;d.appendChild(x);
+    if(PAGE){var bk=el("button","dback");bk.type="button";bk.appendChild(svg("arrow"));bk.appendChild(el("span","","Back"));bk.onclick=close;d.appendChild(bk);
+      document.title=it.n+(it.y?" ("+it.y+")":"")+" · "+BRAND;}
+    else{var x=el("button","dclose");x.type="button";x.appendChild(svg("x"));x.title="Close";x.setAttribute("aria-label","Close");x.onclick=close;d.appendChild(x);}
     var sc=el("div","dscroll");d.appendChild(sc);
     var head=el("div","dhead"),bg=el("div","dbg");if(it.img)cover(bg,rimg(it.img,185));head.appendChild(bg);
     var pz=el("div","dpst");pz.appendChild(el("div","ph",it.n.charAt(0).toUpperCase()));cover(pz,rimg(it.img,500));head.appendChild(pz);
@@ -1925,7 +1982,7 @@ async function showTitle(it0,opts){
     if(it.r){var big=el(it.id?"a":"div","dbig");if(it.id){big.href=imdbUrl(it);big.target="_blank";big.rel="noopener noreferrer";big.title=isGameIt(it)?"Read about it on Wikipedia":"Open on IMDb";}
       big.appendChild(el("b","","★ "+it.r.toFixed(1)));var vs=el("span","");vs.appendChild(srcTag(it));if(it.v)vs.appendChild(document.createTextNode(fmtVotes(it.v)+" votes"));else if(isGameIt(it))vs.appendChild(document.createTextNode("critics' score"));big.appendChild(vs);rrow.appendChild(big);}
     if(it.g&&it.g.length){var tg=el("div","dtags");it.g.slice(0,4).forEach(function(g){var gb=el("button","tag tagbtn",g);gb.type="button";gb.title="Browse "+g;
-        gb.onclick=function(){close();reqTab="browse";reqKind=it.k||reqKind;clearFilters();reqF.genre=g;reqRow="";reqPage=1;$("filter").value="";if(cwd!=="requests")go("requests");else{saveCat();renderRequests();}window.scrollTo(0,0);};
+        gb.onclick=function(){if(PAGE){TPAGE=false;document.removeEventListener("keydown",key,true);}else close();reqTab="browse";reqKind=it.k||reqKind;clearFilters();reqF.genre=g;reqRow="";reqPage=1;$("filter").value="";if(cwd!=="requests")go("requests");else{saveCat();renderRequests();}window.scrollTo(0,0);};
         tg.appendChild(gb);});rrow.appendChild(tg);}
     if(rrow.childNodes.length)b.appendChild(rrow);
     var acts=el("div","acts wrap"),s=stateOf(it);
@@ -1985,7 +2042,7 @@ async function showTitle(it0,opts){
   function relSections(host){      // rails of related titles under the details; a tap opens that title
     host.innerHTML="";if(!reld)return;
     function rail(title,items){if(!items||!items.length)return;var sec=el("section","relsec");sec.appendChild(el("h3","relh",title));
-      var r=el("div","relrail");items.forEach(function(x){if(!x.k)x.k=it.k;r.appendChild(tile(x));});sec.appendChild(r);host.appendChild(sec);}
+      var r=el("div","relrail");items.slice(0,12).forEach(function(x){if(!x.k)x.k=it.k;r.appendChild(tile(x));});sec.appendChild(r);host.appendChild(sec);}
     rail(isGameIt(it)?"Games like this":"More like this",reld.similar);
     if(reld.by)rail(reld.by.role==="series"?"More of "+reld.by.name:reld.by.role==="director"?"More from "+reld.by.name:"More by "+reld.by.name,reld.by.items);
   }
@@ -1999,7 +2056,15 @@ async function showTitle(it0,opts){
       if(d._sn&&d._meta&&!d._sn.parentNode&&x.season_count){d._sn.textContent=d._epFacts(x);d._meta.insertBefore(d._sn,d._meta.children[2]||null);}
       if(d._yrs&&d._epYears(x)){d._yrs.textContent=d._epYears(x);if(!d._yrs.parentNode&&d._meta)d._meta.insertBefore(d._yrs,d._meta.firstChild);}}});
   }
-  paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};
+  if(PAGE){      // the title page takes the place of the list
+    TPAGE=true;var c=$("content");c.innerHTML="";$("hero").hidden=true;
+    var tk=isGameIt(it)?"game":isSeries()?"series":"movie";reqKind=tk;reqTab="browse";      // the header tab follows the title on screen
+    [].forEach.call(document.querySelectorAll(".tabs button[data-k]"),function(b){var on=b.dataset.k===tk;b.classList.toggle("on",on);b.setAttribute("aria-selected",String(on));});
+    ["reqChips","reqMore","reqFilt"].forEach(function(id){var x=$(id);if(x)x.remove();});
+    paint();c.appendChild(d);window.scrollTo(0,0);
+    if(it.id&&location.pathname.indexOf("/title/"+it.id)!==0)history.replaceState(history.state,"",titleUrl(it));
+  }else{paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};}
+  if(window._tkey)document.removeEventListener("keydown",window._tkey,true);window._tkey=key;      // one Escape handler: the title on screen
   document.addEventListener("keydown",key,true);
   fetchEps();
   if(!it.id&&it.n){try{var f=await api("GET","/_meta/find?type="+(it.k||reqKind)+"&q="+encodeURIComponent(it.n)+"&limit=6");
@@ -2258,15 +2323,15 @@ async function drawFavorites(c){
   if([films.length,series.length,gms.length].filter(Boolean).length>1)head.appendChild(seg);
   box.appendChild(head);box.appendChild(grid);draw();
 }
-function renderRequests(){
+function renderRequests(){TPAGE=false;
   var c=$("content");c.innerHTML="";$("hero").hidden=true;clearTimeout(catPoll);if(shelfObs){shelfObs.disconnect();shelfObs=null;}
   // header: three plain tabs where the page title used to be, search on the right
   var hd=$("crumbs");hd.innerHTML="";
   var tabs=el("div","tabs");tabs.setAttribute("role","tablist");
-  [["movie","Movies",""],["series","Series",""],["game","Games",""],["fav","Favorites",""]].concat(!PUBLICV?[["list","Wishlist","amber"]]:[]).forEach(function(k){
+  [["movie","Movies","","film"],["series","Series","","tv"],["game","Games","","grid"],["fav","Favorites","","heart"]].concat(!PUBLICV?[["list","Wishlist","amber","list"]]:[]).forEach(function(k){
     var on=k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
-    var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
-    b.appendChild(el("span","",k[1]));
+    var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.dataset.k=k[0];b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
+    b.appendChild(svg(k[3],"ti"));b.appendChild(el("span","tlab",k[1]));b.title=k[1];
     if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
     if(k[0]==="fav"&&FAV.length)b.appendChild(el("span","cnt",String(FAV.length)));
     b.onclick=function(){var q0=$("filter").value.trim();      // the search follows you to the other tab
@@ -2274,7 +2339,6 @@ function renderRequests(){
       if(q0&&reqTab==="browse"){var f2=$("filter");f2.value=q0;f2.dispatchEvent(new Event("input",{bubbles:true}));}};
     tabs.appendChild(b);
   });
-  var nws=el("a","newstab","News");nws.href="/news";tabs.appendChild(nws);      // the news section, its own pages
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
   if(reqTab==="list"&&PUBLICV)reqTab="browse";
@@ -2396,7 +2460,7 @@ function catPath(){
   if(reqTab==="browse"){if(reqRow)p.set("row",reqRow);if(reqRow&&reqPage>1)p.set("page",reqPage);["country","genre","decade","min"].forEach(function(k){if(reqF[k])p.set(k,reqF[k]);});if(FP_OPEN)p.set("fp","1");}
   return "/catalogue/"+(reqTab==="list"?"wishlist":reqTab==="fav"?"favorites":reqKind==="series"?"series":reqKind==="game"?"games":"movies")+(p.toString()?"?"+p.toString():"");}
 function catUrlSync(){
-  if(cwd!=="requests")return;var u=catPath();if(location.pathname+location.search!==u)history.replaceState(null,"",u);}
+  if(cwd!=="requests"||TPAGE)return;var u=catPath();if(location.pathname+location.search!==u)history.replaceState(null,"",u);}
 function filtersOn(){return !!(reqF.country||reqF.genre||reqF.decade||reqF.min);}
 function filterQuery(){var q="";["country","genre","decade","min"].forEach(function(k){if(reqF[k])q+="&"+k+"="+encodeURIComponent(reqF[k]);});return q;}
 function clearFilters(){reqF={country:"",genre:"",decade:"",min:""};}
@@ -2623,7 +2687,9 @@ async function drawRow(kind,row,sort,page){      // one shelf on its own, 48 tit
   if(!d.ready)retry(0);
   if(pages>1){
     var jump=function(p){drawRow(kind,row,st.sort,p);var y=box.getBoundingClientRect().top+window.scrollY-110;window.scrollTo({top:Math.max(0,y),behavior:"smooth"});};
-    var btn=function(label,p,cls,dis,aria){var b2=el("button","pg"+(cls?" "+cls:""),label);b2.type="button";if(aria)b2.setAttribute("aria-label",aria);if(dis)b2.disabled=true;else b2.onclick=function(){jump(p);};pager.appendChild(b2);return b2;};
+    var href=function(p){var q=new URLSearchParams(location.search);q.set("page",p);return location.pathname+"?"+q.toString();};
+    var btn=function(label,p,cls,dis,aria){var b2=el("a","pg"+(cls?" "+cls:"")+(dis?" off":""),label);if(aria)b2.setAttribute("aria-label",aria);
+      if(!dis){b2.href=href(p);b2.onclick=function(e){if(e.ctrlKey||e.metaKey||e.shiftKey)return;e.preventDefault();jump(p);};}pager.appendChild(b2);return b2;};
     btn("‹",page-1,"nav",page===1,"Previous page");
     var nums=[1,page-2,page-1,page,page+1,page+2,pages].filter(function(x,i,arr){return x>=1&&x<=pages&&arr.indexOf(x)===i;}).sort(function(x,y){return x-y;}),last=0;
     nums.forEach(function(p2){if(p2-last>1)pager.appendChild(el("span","pgdots","…"));var b3=btn(String(p2),p2,p2===page?"on":"",false,"Page "+p2);if(p2===page)b3.setAttribute("aria-current","page");last=p2;});
@@ -2756,7 +2822,7 @@ function drawRequests(){
       body.appendChild(wb);
     }
     c.tabIndex=0;c.setAttribute("role","button");c.title="Details";
-    var open2=function(){showTitle({id:r.tid||"",n:r.title,y:r.year,k:r.kind,img:r.poster||""});};
+    var open2=function(){openTitle({id:r.tid||"",n:r.title,y:r.year,k:r.kind,img:r.poster||""});};
     c.onclick=open2;c.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();open2();}};
     return c;
   }
@@ -3102,7 +3168,10 @@ if(GUEST){      // visitors and members: no sidebar, the name on the left of the
     av.onclick=function(e){e.stopPropagation();am.hidden=!am.hidden;av.setAttribute("aria-expanded",String(!am.hidden));};
     document.addEventListener("click",function(e){if(!am.hidden&&!am.contains(e.target)){am.hidden=true;av.setAttribute("aria-expanded","false");}});
     var aw=el("div","awrap");aw.appendChild(av);aw.appendChild(am);acc.appendChild(aw);}
-  if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});mt.appendChild(acc);}
+  if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});
+    var cr=$("crumbs");if(cr){cr.classList.add("incrumbs");mt.insertBefore(cr,mt.children[1]||null);}      // the catalogue tabs live in the logo row
+    var nw=el("a","newsbtn");nw.href="/news";nw.title="News";nw.setAttribute("aria-label","News");nw.appendChild(svg("news"));nw.appendChild(el("span","","News"));acc.insertBefore(nw,acc.firstChild);
+    mt.appendChild(acc);}
   document.title=BRAND+" · films and series";
 }
 var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
@@ -3127,10 +3196,12 @@ function render(){
   tg.onclick=function(){var n=app.classList.toggle("narrow");try{localStorage.setItem("lumio_side",n?"narrow":"wide");}catch(e){}tg.title=n?"Expand the sidebar":"Collapse the sidebar";};})();
 (function(){var m=$("modal");if(!m||!window.MutationObserver)return;      // lock the page while a dialog is open
   new MutationObserver(function(){document.documentElement.classList.toggle("noscroll",!m.hidden);}).observe(m,{attributes:true,attributeFilter:["hidden"]});})();
-var deepTitle=(location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/)||[])[1];      // a shared link to one title
-if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";history.replaceState(null,"","/catalogue/"+(reqKind==="game"?"games":reqKind==="series"?"series":"movies"));}
-cwd=fromHash();catFromUrl();if(location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
-if(deepTitle)api("GET","/_meta/title?id="+deepTitle).then(function(t){if(t&&t.n)showTitle(t);}).catch(function(){});
+var deepTitle=(location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/)||[])[1];      // a link to one title: its page
+var deepPath=location.pathname;
+if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";}
+cwd=fromHash();catFromUrl();if(!deepTitle&&location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
+if(deepTitle){history.replaceState(null,"",deepPath);TPAGE=true;
+  api("GET","/_meta/title?id="+deepTitle).then(function(t){if(t&&t.n){if(t.k)reqKind=t.k;showTitle(t,{page:true});}else{TPAGE=false;go("requests");}}).catch(function(){TPAGE=false;});}
 if(ADMIN){loadSpace();setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
 favSync();paintWho();if(STAFF)showResume();
 })();

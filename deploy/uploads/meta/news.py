@@ -292,12 +292,11 @@ def article(iid):
                 m["id"], ('<img src="/_meta/rimg?w=185&amp;u=%s" alt="" loading="lazy">' % urllib.parse.quote(m["img"], safe="")) if m.get("img") else '<i></i>',
                 _e(m["n"]), m.get("y") or "") for m in men)
     body = ('<div class="layout"><main><article class="story"><div class="meta"><a class="sec sec-%s" href="/news/%s">%s</a><span>%s · %s</span></div>'
-            '<h1>%s</h1>%s%s<a class="readon" href="%s" rel="noopener nofollow" target="_blank">Read the full story on %s ↗</a>'
-            '<p class="credit">Headline, summary and picture: %s. Nahoko only links to it.</p></article>%s'
+            '<h1>%s</h1>%s%s<p class="credit">Source: <a href="%s" rel="noopener nofollow" target="_blank">%s</a>. Headline, summary and picture belong to them.</p></article>%s'
             '%s</main><aside>%s</aside></div>') % (
         s["sec"], s["sec"], SNAME.get(s["sec"], ""), _e(s["src"]), when, _e(s["title"]),
         ('<figure>%s</figure>' % _img(s, "hero")) if s.get("img") else "", ('<p class="lede">%s</p>' % _e(s["excerpt"])) if s.get("excerpt") else "",
-        _e(s["link"]), _e(s["src"]), _e(s["src"]), men_html,
+        _e(s["link"]), _e(s["src"]), men_html,
         ('<section class="rel"><h2>Related stories</h2><div class="grid">%s</div></section>' % "".join(_card(r) for r in rel)) if rel else "", _side())
     return _shell(s["title"], s.get("excerpt") or s["title"], body, s["sec"], "/news/a/%s-%s" % (s["id"], _slug(s["title"])))
 

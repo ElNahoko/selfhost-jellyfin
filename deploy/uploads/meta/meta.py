@@ -213,7 +213,42 @@ PUBLIC = {"user": "", "role": "public"}
 _page = {"m": 0, "html": ""}
 _rate = {}
 
-def app_page(s, head=""):
+def slug_of(n):
+    import unicodedata
+    n = unicodedata.normalize("NFD", str(n or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", n).strip("-")[:60] or "title"
+
+def title_seo(tid):
+    """For /title/<id>: what search engines read (the app draws the page itself): name, description, picture,
+    structured data, and plain links to related titles, so robots can walk from title to title."""
+    import html as H
+    it = games.item(tid) if tid.startswith("wg") else catalog.item(tid)
+    if not it: return "", ""
+    name = it["n"] + (" (%s)" % it["y"] if it.get("y") else "")
+    desc = (it.get("o") or "%s on %s." % (name, mail.BRAND))[:300]
+    url = "%s/title/%s-%s" % (SITE, tid, slug_of(it["n"]))
+    img = "%s/_meta/%s?w=500&u=%s" % (SITE, "rimg", quote(it["img"], safe="")) if it.get("img") else ""
+    kind = {"movie": "Movie", "series": "TVSeries", "game": "VideoGame"}.get(it.get("k"), "CreativeWork")
+    ld = {"@context": "https://schema.org", "@type": kind, "name": it["n"], "url": url, "description": desc}
+    if it.get("y"): ld["datePublished"] = str(it["y"])
+    if img: ld["image"] = img
+    if it.get("g"): ld["genre"] = it["g"]
+    if it.get("r") and it.get("v"): ld["aggregateRating"] = {"@type": "AggregateRating", "ratingValue": it["r"], "bestRating": 10, "ratingCount": it["v"]}
+    e = lambda x: H.escape(str(x), quote=True)
+    head = ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">'
+            '<meta property="og:type" content="video.%s"><meta property="og:title" content="%s"><meta property="og:description" content="%s">%s'
+            '<script type="application/ld+json">%s</script>') % (
+        e(name), e(mail.BRAND), e(desc), e(url), "movie" if kind == "Movie" else "tv_show" if kind == "TVSeries" else "other", e(name), e(desc),
+        ('<meta property="og:image" content="%s">' % e(img)) if img else "", json.dumps(ld).replace("</", "<\\/"))
+    try: rel = (games.related(tid) if tid.startswith("wg") else catalog.related(tid)) or {}
+    except Exception: rel = {}
+    links = [x for x in (rel.get("similar") or [])[:12]] + [x for x in ((rel.get("by") or {}).get("items") or [])[:6]]
+    body = '<noscript><article><h1>%s</h1><p>%s</p>%s</article></noscript>' % (
+        e(name), e(desc), ('<nav><h2>Related</h2><ul>%s</ul></nav>' % "".join(
+            '<li><a href="/title/%s-%s">%s%s</a></li>' % (x["id"], slug_of(x["n"]), e(x["n"]), (" (%s)" % x["y"]) if x.get("y") else "") for x in links)) if links else "")
+    return head, body
+
+def app_page(s, head="", body=""):
     """The app, told who is looking (public, member, uploader, admin). `head` adds page-specific tags (SEO)."""
     p = os.path.join(ASSETS, "index.html")
     m = os.path.getmtime(p)
@@ -221,7 +256,7 @@ def app_page(s, head=""):
         _page["html"] = open(p, encoding="utf-8").read(); _page["m"] = m
     inj = '<script>window.__ROLE=%s;window.__ME=%s;window.__APPROVED=%s;window.__BRAND=%s;window.__WATCH=%s;</script>' % (
         json.dumps(s["role"]), json.dumps(s["user"]), "true" if approved(s) else "false", json.dumps(mail.BRAND), json.dumps(WATCH))
-    return _page["html"].replace("<head>", "<head>" + inj + head, 1).encode()
+    return _page["html"].replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")
 
@@ -384,6 +419,11 @@ class H(BaseHTTPRequestHandler):
                 page = news.post(int(m.group(1)))
                 if not page: return self.redirect("/news/nahoko")
                 return self.send(200, page.encode(), "text/html; charset=utf-8", "public, max-age=120")
+            m = re.fullmatch(r"/title/((?:tt|wg)\d{1,10})(?:-[a-z0-9-]*)?", path)
+            if m:                                        # one title: the app draws it, robots get its facts and links
+                try: hd, bd = title_seo(m.group(1))
+                except Exception: hd, bd = "", ""
+                return self.send(200, app_page(self.sess() or PUBLIC, hd, bd), "text/html; charset=utf-8")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
                 return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
