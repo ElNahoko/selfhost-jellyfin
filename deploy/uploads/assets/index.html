@@ -2826,13 +2826,26 @@ async function drawRow(kind,row,sort,page){      // one shelf on its own: pages 
   if("IntersectionObserver" in window){shelfObs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!st.loading&&st.last<st.pages&&st.tiles.length)load(st.last+1);});},{rootMargin:"600px 0px"});shelfObs.observe(sent);}
   await load(page);
 }
+function catKept(key){try{var x=JSON.parse(localStorage.getItem("nahoko_cat:"+key)||"null");return x&&Date.now()-x.t<12*3600e3?x.d:null;}catch(e){return null;}}
+function catKeep(key,d){try{localStorage.setItem("nahoko_cat:"+key,JSON.stringify({t:Date.now(),d:d}));}catch(e){}}
+function catRefresh(kind,key){      // the fresh shelves replace the kept ones; the page is redrawn only if nobody has scrolled yet
+  api("GET",catUrl(kind,"")).then(function(d){if(!d||!d.rows||!d.rows.length||d.building)return;catKeep(key,d);var old=CATS[key];CATS[key]=d;
+    if(old&&JSON.stringify(old.rows.map(function(r){return r.items.map(function(i){return i.id;});}))!==JSON.stringify(d.rows.map(function(r){return r.items.map(function(i){return i.id;});}))
+      &&window.scrollY<40&&reqRow===""&&reqKind===kind&&cwd==="requests"&&!TPAGE)drawCatalog();}).catch(function(){});
+}
+function catPrefetch(){if(filtersOn())return;      // the other tabs' shelves, while the page is idle: switching tabs is then instant
+  ["movie","series","game"].forEach(function(k,i){var key=k+"||";if(CATS[key]||catKept(key))return;
+    setTimeout(function(){api("GET",catUrl(k,"")).then(function(d){if(d&&d.rows&&d.rows.length&&!d.building){CATS[key]=d;catKeep(key,d);(d.rows||[]).slice(0,2).forEach(function(r){r.items.slice(0,8).forEach(function(it){if(it.img){var im=new Image();im.src=rimg(it.img,185);}});});}}).catch(function(){});},1500+i*1200);});
+}
 async function drawCatalog(tries){saveCat();
   var box=$("reqCat");if(!box)return;var kind=reqKind,row=reqRow,key=kind+"|"+row+"|"+filterQuery();
   if(row){clearTimeout(catPoll);drawRow(kind,row);return;}
   if(shelfObs){shelfObs.disconnect();shelfObs=null;}
+  if(!CATS[key]){var kept=catKept(key);if(kept){CATS[key]=kept;catRefresh(kind,key);}}      // shown at once from this device, refreshed quietly
   if(!CATS[key]){
     box.innerHTML="";box.appendChild(el("div","hint","Loading the catalogue…"));
     var d;try{d=await api("GET",catUrl(kind,""));}catch(e){d={rows:[],chips:[],building:false};}
+    if(d.rows&&d.rows.length&&!d.building)catKeep(key,d);
     if(kind!==reqKind||row!==reqRow||!$("reqCat"))return;
     if(d.rows.length)CATS[key]=d;
     else{      // nothing yet: say why, and try again by itself (a restart, a list still being collected)
@@ -2842,6 +2855,7 @@ async function drawCatalog(tries){saveCat();
       if((tries||0)<60)catPoll=setTimeout(function(){drawCatalog((tries||0)+1);},(tries||0)<5?3000:8000);return;
     }
   }
+  if(!catPrefetch.done){catPrefetch.done=1;catPrefetch();}
   var cat=CATS[key],y=window.scrollY;if(!filtersOn())CHIPS[kind]=cat.chips;drawChips(cat.chips);box.innerHTML="";
   var pills=activePills(kind,function(){drawCatalog();});if(pills)box.appendChild(pills);
   if(filtersOn()&&!cat.rows.length)box.appendChild(el("div","hint","Nothing matches these filters yet."));
