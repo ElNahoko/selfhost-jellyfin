@@ -252,11 +252,12 @@ h2.sec{font-size:.8rem;text-transform:uppercase;letter-spacing:.09em;color:var(-
 .tgrid .tile{width:auto}
 .tile:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .pz{position:relative;aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:var(--card2);box-shadow:0 2px 12px rgba(0,0,0,.28);transition:transform .18s,box-shadow .18s}
-.tile:hover .pz{transform:translateY(-4px) scale(1.015);box-shadow:var(--shadow)}
+.pz img{transition:filter .2s}
+@media (hover:hover){.tile:hover .pz{box-shadow:0 0 0 2px rgba(255,255,255,.8),0 2px 12px rgba(0,0,0,.28)}.tile:hover .pz img{filter:brightness(1.07)}}
 .pz img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .pz .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:2.6rem;font-weight:700;color:rgba(255,255,255,.88)}
 .pz::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(transparent,rgba(0,0,0,.55));opacity:0;transition:.18s;pointer-events:none}
-.tile:hover .pz::after{opacity:1}
+.tile:hover .pz::after{opacity:0}
 .add{position:absolute;right:8px;bottom:8px;z-index:3;width:36px;height:36px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);transition:transform .15s}
 .add:hover{transform:scale(1.1)}
 .add svg{width:1.3em;height:1.3em;stroke-width:2.6}
@@ -1051,8 +1052,8 @@ body.guest.hsearch .mtop #filter{flex:1 1 auto;width:auto;max-width:none;min-wid
 body.guest.hsearch .mtop #luckyBtn{flex:none;width:44px;height:42px;padding:0!important}
 body.guest.hsearch .mtop #luckyBtn .lt{display:none}
 body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 1 auto}
-.pmark{grid-column:1/-1;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:6px 0}
-.pmark::before,.pmark::after{content:"";flex:1;height:1px;background:var(--line)}
+.pmark{grid-column:1/-1;display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.28);font-size:.72rem;font-weight:600;margin:2px 0}
+.pmark::before,.pmark::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.06)}
 .pgo{display:inline-flex;align-items:center;gap:8px;margin-left:10px;color:var(--muted);font-size:.9rem;font-weight:600}
 .pgo input{width:74px;height:42px;box-sizing:border-box;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 10px;text-align:center}
 .pgo .btn{height:42px}
@@ -1076,6 +1077,13 @@ body.guest.hsearch .mtop .tools{flex:0 1 520px}
 @media (max-width:600px){.mtop .gacct .signbtn{padding:8px 11px}.mtop .gacct .signbtn span{display:none}}
 /* the logo is a link home */
 .mtop .brandm{cursor:pointer;border-radius:10px}.mtop .brandm:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.pager .pg{min-width:34px;height:34px;padding:0 10px;border-radius:10px;font-size:.88rem;background:transparent;border-color:rgba(255,255,255,.08);color:var(--muted)}
+.pager .pg:hover{color:var(--ink);border-color:rgba(255,255,255,.25)}.pager .pg.on{background:rgba(255,255,255,.1);color:var(--ink);border-color:transparent}
+.pager .pg.nav{font-size:1.1rem}.pager .pgo{font-size:.82rem;font-weight:500}.pager .pgo input{width:60px;height:34px;border-radius:10px}.pager .pgo .btn{height:34px}
+.signin .signwhy{color:var(--muted);margin:2px 0 14px}
+body.guest.hsearch .mtop .tools{flex:0 1 430px}
+body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
+.signin .fmsg:empty{display:none}.signin form{display:flex;flex-direction:column;gap:12px}.signin .acts{margin-top:4px}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1822,7 +1830,7 @@ function signInDialog(why){
   return new Promise(function(res){
     var m=$("modal"),prev=document.activeElement;m.innerHTML="";
     var d=el("div","dlg signin");d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
-    d.appendChild(el("h3","","Sign in"));d.appendChild(el("p","",why||"Keep your favorites on every device. No password: we email you a code."));
+    d.appendChild(el("h3","","Sign in"));d.appendChild(el("p","signwhy",why||"Optional · keeps your favorites on every device."));
     var f=el("form","");var em=el("input");em.type="email";em.placeholder="you@example.com";em.autocomplete="email";em.required=true;f.appendChild(em);
     var code=el("input");code.inputMode="numeric";code.autocomplete="one-time-code";code.placeholder="6-digit code";code.maxLength=6;code.hidden=true;f.appendChild(code);
     var msg=el("p","fmsg");msg.setAttribute("role","alert");f.appendChild(msg);
@@ -2711,7 +2719,7 @@ async function drawRow(kind,row,sort,page){      // one shelf on its own: pages 
   var cols=Math.max(1,getComputedStyle(g).gridTemplateColumns.split(" ").length);
   var PER=Math.min(60,cols*Math.max(2,Math.round(48/cols)));      // whole rows only: no half-empty last line
   function url(p){return catUrl(kind,row)+"&sort="+encodeURIComponent(st.sort)+"&offset="+((p-1)*PER)+"&limit="+PER;}
-  function setTitle(){title.textContent=(row==="__f"?"All titles":st.name||"")+" · "+(st.total||0).toLocaleString()+" titles"+(st.pages>1?" · page "+st.last+" of "+st.pages:"");}
+  function setTitle(){title.textContent=(row==="__f"?"All titles":st.name||"")+" · "+(st.total||0).toLocaleString()+" titles"+"";}
   async function load(p){
     if(st.loading||!active())return;st.loading=true;
     var d=null;for(var a=0;a<3&&!d;a++){try{d=await api("GET",url(p));}catch(e){await sleep(2000);}}
@@ -2723,7 +2731,7 @@ async function drawRow(kind,row,sort,page){      // one shelf on its own: pages 
     st.name=r.name;st.total=d.total||0;st.pages=Math.max(1,Math.ceil(st.total/PER));
     if(p>st.pages&&st.total){drawRow(kind,row,st.sort,st.pages);return;}
     if(row==="__f"&&!st.total){g.replaceWith(el("div","hint",reqF.country&&d.countries_ready===false?"Country lists are still being collected. Try again in a few minutes.":"Nothing matches these filters."));return;}
-    if(p!==st.first){var mk=el("div","pmark","Page "+p);mk.id="page-"+p;g.appendChild(mk);}
+    if(p!==st.first){var mk=el("div","pmark",String(p));mk.id="page-"+p;g.appendChild(mk);}
     var start=st.tiles.length;
     r.items.forEach(function(it){var t=tile(it);st.tiles.push({t:t,it:it});g.appendChild(t);});
     st.last=p;reqPage=p;catUrlSync();setTitle();drawPager();
@@ -3211,7 +3219,7 @@ if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
   if(PUBLICV){var si=el("button","signbtn");si.type="button";si.appendChild(svg("user"));si.appendChild(el("span","","Sign in"));si.title="Optional: only to keep your favorites";
-    si.onclick=function(){signInDialog("Optional: Nahoko works without an account. Signing in only keeps your favorites (and your wishes) on every device. No password: we email you a code.");};acc.appendChild(si);}
+    si.onclick=function(){signInDialog();};acc.appendChild(si);}
   else{if(JELLYFIN_URL){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
     var av=el("button","avatar",(ME||"?").charAt(0).toUpperCase());av.type="button";av.title=ME;av.setAttribute("aria-label","Account");av.setAttribute("aria-expanded","false");
     var am=el("div","amenu");am.hidden=true;var ah=el("div","amhead");ah.appendChild(el("span","avatar big",(ME||"?").charAt(0).toUpperCase()));
