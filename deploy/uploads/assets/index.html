@@ -1084,6 +1084,32 @@ body.guest.hsearch .mtop .tools{flex:0 1 520px}
 body.guest.hsearch .mtop .tools{flex:0 1 430px}
 body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
 .signin .fmsg:empty{display:none}.signin form{display:flex;flex-direction:column;gap:12px}.signin .acts{margin-top:4px}
+.tabs a.mnews{display:none}
+@media (max-width:600px){
+  /* the catalogue tabs become an app-like bar at the bottom: big, labelled, under the thumb */
+  body.guest .mtop .crumbs.incrumbs{position:fixed;left:0;right:0;bottom:0;z-index:60;display:block;background:rgba(16,16,16,.96);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.08);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  body.guest .mtop .incrumbs .tabs{display:flex;width:100%;justify-content:space-around;gap:2px;overflow:visible}
+  body.guest .mtop .incrumbs .tabs button,body.guest .mtop .incrumbs .tabs a.mnews{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:6px 0 4px;border-radius:14px;background:none!important;color:var(--muted)!important;font-size:.7rem;font-weight:700;text-decoration:none;position:relative}
+  body.guest .mtop .incrumbs .tabs .tlab{display:block!important;font-size:.7rem;line-height:1}
+  body.guest .mtop .incrumbs .tabs .ti{width:24px;height:24px;padding:5px 16px;border-radius:99px;box-sizing:content-box;transition:background .15s}
+  body.guest .mtop .incrumbs .tabs button.on{color:#fff!important}
+  body.guest .mtop .incrumbs .tabs button.on span{color:#fff!important}
+  body.guest .mtop .incrumbs .tabs button.on .ti{background:rgba(255,255,255,.14)}
+  body.guest .mtop .incrumbs .tabs .cnt{position:absolute;top:2px;right:calc(50% - 26px);font-size:.62rem;min-width:16px;height:16px;padding:0 4px;line-height:16px;border-radius:99px}
+  body.guest main{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important}
+  body.guest .sfoot{margin-bottom:10px}
+  /* top row: logo and account only; bigger touch targets */
+  body.guest .mtop{padding:12px 0 4px}
+  body.guest .mtop .newsbtn{display:none}
+  body.guest .mtop .gacct .signbtn{width:44px;height:44px;padding:0;justify-content:center}
+  body.guest .mtop .gacct .signbtn svg{width:20px;height:20px}
+  body.guest .mtop .gacct .avatar{width:44px;height:44px}
+  body.guest .mtop .gacct a.watchj{height:44px}
+  #reqChips .chip{padding:9px 14px;font-size:.88rem}
+  .pager .pg{min-width:42px;height:42px}.pager .pgo input,.pager .pgo .btn{height:42px}
+}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1396,8 +1422,11 @@ function go(p){var u=urlFor(p);if(location.pathname+location.search!==u)history.
 window.addEventListener("popstate",function(){
   var tm=location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/);
   if(tm){api("GET","/_meta/title?id="+tm[1]).then(function(t){if(t&&t.n)showTitle(t,{page:true});}).catch(function(){});return;}      // back/forward onto a title page
-  var wasPage=TPAGE;cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();
-  if(wasPage&&TSCROLL)setTimeout(function(){window.scrollTo(0,TSCROLL);},60);      // back to the list where it was
+  if(TPAGE&&location.pathname+location.search===TFROM&&$("content").childNodes.length){      // back to the list: shown again as it was
+    TPAGE=false;closeTitlePage();catFromUrl();document.title=BRAND+" · films and series";
+    [].forEach.call(document.querySelectorAll(".tabs button[data-k]"),function(b){var on=reqTab==="browse"?b.dataset.k===reqKind:b.dataset.k===reqTab;b.classList.toggle("on",on);b.setAttribute("aria-selected",String(on));});
+    var y=TSCROLL;window.scrollTo(0,y);requestAnimationFrame(function(){window.scrollTo(0,y);});return;}
+  cwd=fromHash();catFromUrl();filterText="";$("filter").value="";render();
 });
 
 var openReq=0;
@@ -1866,12 +1895,12 @@ function refreshTiles(){
   document.querySelectorAll(".tile").forEach(function(t){if(t._upd)t._upd();});
   var l=$("reqList");if(l)drawRequests();
 }
-var TPAGE=false,TSCROLL=0;      // a title page is on screen; where the list was scrolled before it
+var TPAGE=false,TSCROLL=0,TFROM="";      // a title page is on screen; where the list was scrolled before it
 function slugOf(n){return String(n||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60)||"title";}
 function titleUrl(it){return "/title/"+it.id+"-"+slugOf(it.n);}
 function openTitle(it){      // a tap on a title: its page (a modal only for titles the catalogue does not know)
   if(!it||!it.id){showTitle(it);return;}
-  if(!TPAGE)TSCROLL=window.scrollY;
+  if(!TPAGE){TSCROLL=window.scrollY;TFROM=location.pathname+location.search;}
   history.pushState({title:it.id},"",titleUrl(it));
   showTitle(it,{page:true});
 }
@@ -2104,11 +2133,11 @@ async function showTitle(it0,opts){
       if(d._yrs&&d._epYears(x)){d._yrs.textContent=d._epYears(x);if(!d._yrs.parentNode&&d._meta)d._meta.insertBefore(d._yrs,d._meta.firstChild);}}});
   }
   if(PAGE){      // the title page takes the place of the list
-    TPAGE=true;var c=$("content");c.innerHTML="";$("hero").hidden=true;
+    TPAGE=true;var c=$("content");c.hidden=true;$("hero").hidden=true;      // the list is only hidden, not thrown away
+    var tp=$("tpage");if(!tp){tp=el("div","");tp.id="tpage";c.parentNode.insertBefore(tp,c.nextSibling);}tp.innerHTML="";tp.hidden=false;
     var tk=isGameIt(it)?"game":isSeries()?"series":"movie";reqKind=tk;reqTab="browse";      // the header tab follows the title on screen
     [].forEach.call(document.querySelectorAll(".tabs button[data-k]"),function(b){var on=b.dataset.k===tk;b.classList.toggle("on",on);b.setAttribute("aria-selected",String(on));});
-    ["reqChips","reqMore","reqFilt"].forEach(function(id){var x=$(id);if(x)x.remove();});
-    paint();c.appendChild(d);window.scrollTo(0,0);
+    paint();tp.appendChild(d);window.scrollTo(0,0);
     if(it.id&&location.pathname.indexOf("/title/"+it.id)!==0)history.replaceState(history.state,"",titleUrl(it));
   }else{paint();m.appendChild(d);m.hidden=false;m.onmousedown=function(e){if(e.target===m)close();};}
   if(window._tkey)document.removeEventListener("keydown",window._tkey,true);window._tkey=key;      // one Escape handler: the title on screen
@@ -2370,7 +2399,8 @@ async function drawFavorites(c){
   if([films.length,series.length,gms.length].filter(Boolean).length>1)head.appendChild(seg);
   box.appendChild(head);box.appendChild(grid);draw();
 }
-function renderRequests(){TPAGE=false;
+function closeTitlePage(){var tp=$("tpage");if(tp){tp.hidden=true;tp.innerHTML="";}$("content").hidden=false;}
+function renderRequests(){TPAGE=false;closeTitlePage();
   var c=$("content");c.innerHTML="";$("hero").hidden=true;clearTimeout(catPoll);if(shelfObs){shelfObs.disconnect();shelfObs=null;}
   // header: three plain tabs where the page title used to be, search on the right
   var hd=$("crumbs");hd.innerHTML="";
@@ -2386,6 +2416,7 @@ function renderRequests(){TPAGE=false;
       if(q0&&reqTab==="browse"){var f2=$("filter");f2.value=q0;f2.dispatchEvent(new Event("input",{bubbles:true}));}};
     tabs.appendChild(b);
   });
+  var mn=el("a","mnews");mn.href="/news";mn.appendChild(tint(svg("news","ti"),"news"));mn.appendChild(el("span","tlab","News"));tabs.appendChild(mn);      // in the phone's bottom bar
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
   if(reqTab==="list"&&PUBLICV)reqTab="browse";
@@ -3250,7 +3281,7 @@ if(GUEST){      // visitors and members: no sidebar, the name on the left of the
 var UPWHAT={movies:"movies",shows:"series",music:"music",audiobooks:"audiobooks"};
 function upWhat(){return UPWHAT[cwd.split("/")[0]]||"";}
 function paintUpload(){var w=upWhat();$("upT").textContent=w?"Upload "+w:"Upload";}
-function render(){
+function render(){closeTitlePage();
   var rq=cwd==="requests"||cwd==="profiles"||cwd==="settings";
   paintUpload();
   ["newFolder","scanBtn","upBtn"].forEach(function(id){$(id).hidden=rq;});
