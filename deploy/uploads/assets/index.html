@@ -1130,6 +1130,8 @@ body.guest.hsearch .mtop .crumbs.incrumbs{flex:0 0 auto}
 .tile:focus-visible{outline:1px solid rgba(255,255,255,.3);outline-offset:3px}
 .tile:active .pz{transform:scale(.985);transition:transform .1s}
 .pz{-webkit-tap-highlight-color:transparent}.tile{-webkit-tap-highlight-color:transparent}
+/* title page: the chart and season heading stay pinned under the header while the episodes scroll */
+.tpage .epsticky{position:sticky!important;top:var(--stick,0px);z-index:5;background:var(--card);box-shadow:0 14px 14px -14px rgba(0,0,0,.8)}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1966,7 +1968,20 @@ function fmtD(iso,day){if(!iso)return "";var d=new Date(iso+"T00:00:00");if(isNa
 function ehc(icon,text,val,cls){var c=el("span","ehc");c.appendChild(svg(icon));c.appendChild(el("span","",text));if(val)c.appendChild(el("b",cls||"",val));return c;}
 var BANDS=[[9.8,"h7","Absolute cinema"],[9.3,"h6","Awesome"],[8.5,"h5","Great"],[7.5,"h4","Good"],[6.5,"h3","Average"],[5,"h2","Bad"],[0,"h1","Garbage"]];
 function heatCls(r){for(var i=0;i<BANDS.length;i++)if(r>=BANDS[i][0])return BANDS[i][1];return "h1";}
+function blocksOf(d){      // one long season (anime like Hunter x Hunter): blocks of 25 episodes, so it gets the same chart as the others
+  var real=d.seasons.filter(function(x){return x.n>0;});
+  if(real.length!==1||real[0].eps.length<=30)return d;
+  var sn=real[0],out=[];
+  for(var i=0;i<sn.eps.length;i+=25){var eps=sn.eps.slice(i,i+25),rs=eps.filter(function(e){return e[1];}).map(function(e){return e[1];}),
+      first=eps[0][0],last=eps[eps.length-1][0],dates=eps.map(function(e){return e[4];}).filter(Boolean);
+    out.push({n:-1,label:"Ep "+first+"–"+last,short:first+"–"+last,eps:eps.map(function(e,j){var x=e.slice();x[0]=j+1;x._num=e[0];return x;}),c:eps.length,
+      avg:rs.length?Math.round(rs.reduce(function(a,b){return a+b;},0)/rs.length*10)/10:null,minutes:eps.reduce(function(a,e){return a+(e[5]||0);},0)||null,
+      first:dates[0]||null,last:dates[dates.length-1]||null,off:i});}
+  return Object.assign({},d,{seasons:out.concat(d.seasons.filter(function(x){return x.n===0;})),blocks:true});
+}
+function snLabel(sn){return sn.label||(sn.n===0?"Specials":"Season "+sn.n);}
 function renderEpisodes(d,host,it){
+  d=blocksOf(d);
   var box=el("section","eps"),top=el("div","epsticky");
   var sub2=el("div","eptags");
   function tag(icon,label,val,cls){var t=el("span","etag"+(cls?" "+cls:""));if(icon)t.appendChild(svg(icon));t.appendChild(el("span","",label));if(val)t.appendChild(el("b","",val));sub2.appendChild(t);}
@@ -1986,28 +2001,28 @@ function renderEpisodes(d,host,it){
       var byS=d.seasons.map(function(sn){var o={};sn.eps.forEach(function(e){o[e[0]]=e;});return o;});
       for(var j=1;j<=maxE;j++){var tr=el("tr");tr.appendChild(el("th","en","E"+pad2(j)));
         d.seasons.forEach(function(sn,si){var e=byS[si][j],td=el("td",e?(e[1]?heatCls(e[1]):"hn"):"hx",e&&e[1]?e[1].toFixed(1):"");
-          if(e){td.title="S"+pad2(sn.n)+"E"+pad2(e[0])+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");td.onclick=function(){show(si);};cells[si].push(td);}
+          if(e){td.title=(sn.n<0?"Episode "+(e._num||e[0]):"S"+pad2(sn.n)+"E"+pad2(e[0]))+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");td.onclick=function(){show(si);};cells[si].push(td);}
           tr.appendChild(td);});
         tb.appendChild(tr);}
     }else{
       for(var i=1;i<=maxE;i++)hr.appendChild(el("th","",String(i)));tb.appendChild(hr);
       d.seasons.forEach(function(sn,si){
-        var tr=el("tr"),th=el("th","s",sn.n===0?"Specials":"Season "+sn.n);tr.appendChild(th);cells[si].push(tr);tr.onclick=function(){show(si);};
+        var tr=el("tr"),th=el("th","s",sn.short||snLabel(sn));tr.appendChild(th);cells[si].push(tr);tr.onclick=function(){show(si);};
         var byN={};sn.eps.forEach(function(e){byN[e[0]]=e;});
         for(var j=1;j<=maxE;j++){var e=byN[j],td=el("td",e?(e[1]?heatCls(e[1]):"hn"):"hx",e&&e[1]?e[1].toFixed(1):"");
-          if(e)td.title="S"+pad2(sn.n)+"E"+pad2(e[0])+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");
+          if(e)td.title=(sn.n<0?"Episode "+(e._num||e[0]):"S"+pad2(sn.n)+"E"+pad2(e[0]))+(e[3]?" · "+e[3]:"")+(e[1]?" · ★ "+e[1].toFixed(1):"")+(e[4]?" · "+fmtD(e[4],true):"");
           tr.appendChild(td);}
         tb.appendChild(tr);
       });
     }
     rowTr=cells;
     var lg=el("div","heatlegend");BANDS.slice().reverse().forEach(function(b){var it=el("span","");it.appendChild(el("i",b[1]));it.appendChild(el("span","",b[2]));lg.appendChild(it);});
-    lg.appendChild(el("span","heathint","Click a season to see its episodes"));
+    lg.appendChild(el("span","heathint",d.blocks?"Click a row to see its episodes":"Click a season to see its episodes"));
     hw.appendChild(tb);
     if(vert){var mapcol=el("div","mapcol");mapcol.appendChild(hw);mapcol.appendChild(lg);}else{top.appendChild(hw);top.appendChild(lg);}
   }else if(d.seasons.length>1){
     var pills=el("div","spills");
-    d.seasons.forEach(function(sn,i){var b=el("button","spill");b.type="button";b.appendChild(el("span","",sn.n===0?"Specials":"Season "+sn.n));if(sn.avg)b.appendChild(el("span","rp "+rcls(sn.avg),"★ "+sn.avg.toFixed(1)));b.onclick=function(){show(i);};pills.appendChild(b);btns.push(b);});
+    d.seasons.forEach(function(sn,i){var b=el("button","spill");b.type="button";b.appendChild(el("span","",snLabel(sn)));if(sn.avg)b.appendChild(el("span","rp "+rcls(sn.avg),"★ "+sn.avg.toFixed(1)));b.onclick=function(){show(i);};pills.appendChild(b);btns.push(b);});
     top.appendChild(pills);
   }
   var shead=el("div","shead2"),stitle=el("b",""),sbadge=el("span","rbadge2"),sinfo=el("span","sinfo",""),reqb=el("button","btn sm sreq");reqb.type="button";reqb.hidden=true;
@@ -2029,14 +2044,14 @@ function renderEpisodes(d,host,it){
     var sn=d.seasons[i],bits=[plural(sn.c,"episode")];
     if(sn.minutes)bits.push(fmtMins(sn.minutes));
     if(sn.first){var f1=fmtD(sn.first),l1=sn.last?fmtD(sn.last):"";bits.push(l1&&l1!==f1?(sn.first.slice(0,4)===sn.last.slice(0,4)?f1.split(" ")[0]+" – "+l1:f1+" – "+l1):f1);}
-    stitle.textContent=d.season_count?(sn.n===0?"Specials":"Season "+sn.n):"All episodes";
+    stitle.textContent=(d.season_count||d.blocks)?snLabel(sn):"All episodes";
     sbadge.hidden=!sn.avg;if(sn.avg){sbadge.className="rbadge2 "+rcls(sn.avg);sbadge.textContent="★ "+sn.avg.toFixed(1);}
     sinfo.textContent=bits.join("  ·  ");updReq(sn);
     list.classList.remove("in");
     setTimeout(function(){
       if(cur!==i)return;list.innerHTML="";var today=new Date().toISOString().slice(0,10);
       sn.eps.forEach(function(e){
-        var row=el("div","eprow"+(e[4]&&e[4]>today?" soon":""));row.appendChild(el("span","en",e[0]?pad2(e[0]):"–"));
+        var row=el("div","eprow"+(e[4]&&e[4]>today?" soon":""));row.appendChild(el("span","en",(e._num||e[0])?pad2(e._num||e[0]):"–"));
         var tt=el("span","et");tt.appendChild(el("span","",e[3]||("Episode "+e[0])));if(e[4])tt.appendChild(el("small","",fmtD(e[4],true)+(e[4]>today?" · upcoming":"")));row.appendChild(tt);
         var rt=el("span","rp "+(e[1]?rcls(e[1]):"none"),e[1]?"★ "+e[1].toFixed(1):"");if(e[2])rt.title=fmtVotes(e[2])+" votes";row.appendChild(rt);
         list.appendChild(row);
@@ -2045,7 +2060,7 @@ function renderEpisodes(d,host,it){
     },delay);
   }
   var start=d.seasons.findIndex(function(x){return x.n>0;});show(start<0?0:start);
-  var dlg=host.closest(".dlg");if(dlg&&window.innerWidth>860&&window.innerHeight>=820)dlg.classList.add("fixedeps");   // a short window scrolls as a whole instead
+  var dlg=host.closest(".dlg");if(dlg&&!dlg.classList.contains("tpage")&&window.innerWidth>860&&window.innerHeight>=820)dlg.classList.add("fixedeps");   // a short window scrolls as a whole instead
 }
 var BDROP={};      // wide background pictures already looked up (series)
 function prefetchCover(it){      // finger or mouse on a poster: its page's wide picture starts loading now
@@ -2166,6 +2181,8 @@ async function showTitle(it0,opts){
       if(d._yrs&&d._epYears(x)){d._yrs.textContent=d._epYears(x);if(!d._yrs.parentNode&&d._meta)d._meta.insertBefore(d._yrs,d._meta.firstChild);}}});
   }
   if(PAGE){      // the title page takes the place of the list
+    var stk=document.body.classList.contains("hsearch")?document.querySelector(".mtop"):document.querySelector(".top");
+    document.documentElement.style.setProperty("--stick",(stk&&getComputedStyle(stk).position==="sticky"?stk.offsetHeight:0)+"px");
     TPAGE=true;var c=$("content");c.hidden=true;$("hero").hidden=true;      // the list is only hidden, not thrown away
     var tp=$("tpage");if(!tp){tp=el("div","");tp.id="tpage";c.parentNode.insertBefore(tp,c.nextSibling);}tp.innerHTML="";tp.hidden=false;
     var tk=isGameIt(it)?"game":isSeries()?"series":"movie";reqKind=tk;reqTab="browse";
