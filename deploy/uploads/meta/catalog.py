@@ -12,7 +12,7 @@ CAT = os.path.join(DBDIR, "catalog.json")
 TITLES_DB = os.path.join(DBDIR, "titles.db")
 BASE = "https://datasets.imdbws.com/"
 MAXAGE = 7 * 86400
-SCHEMA = 15      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
+SCHEMA = 16      # bump to make the next start rebuild the catalogue in the background (the old one keeps being served meanwhile)
 HOME_N = 16
 _state = {"building": False, "error": ""}
 _lock = threading.Lock()
@@ -297,10 +297,10 @@ GROUPS = [("FR", "French cinema", {"langs": ["Q150"], "countries": ["Q142"]}),
           ("IN", "Indian cinema", {"langs": ["Q1568", "Q5885", "Q8097", "Q36236", "Q33673", "Q9610"], "countries": ["Q668"]}),
           ("BE", "Belgian cinema", {"langs": [], "countries": ["Q31"]}),
           ("BR", "Brazilian cinema", {"langs": [], "countries": ["Q155"]}),
-          ("SE", "Scandinavian cinema", {"langs": [], "countries": ["Q34", "Q35", "Q20", "Q33"]}),
-          ("CN", "Chinese cinema", {"langs": [], "countries": ["Q148", "Q8646", "Q865"]}),
-          ("IR", "Iranian cinema", {"langs": [], "countries": ["Q794"]}),
-          ("TR", "Turkish cinema", {"langs": [], "countries": ["Q43"]})]
+          ("SE", "Scandinavian cinema", {"langs": ["Q9027", "Q9035", "Q9043", "Q1412", "Q294"], "countries": ["Q34", "Q35", "Q20", "Q33"]}),
+          ("CN", "Chinese cinema", {"langs": ["Q7850", "Q9192", "Q9186"], "countries": ["Q148", "Q8646", "Q865"]}),
+          ("IR", "Iranian cinema", {"langs": ["Q9168"], "countries": ["Q794"]}),
+          ("TR", "Turkish cinema", {"langs": ["Q256"], "countries": ["Q43"]})]
 COUNTRIES_F = os.path.join(DBDIR, "countries.json")
 _cty = {"t": 0, "d": None, "building": False, "fail": 0}
 
@@ -357,7 +357,10 @@ def _build_countries():
             ok += 1
             continue
         try:
-            pair = _wikidata_pair(spec)
+            try: pair = _wikidata_pair(spec)
+            except Exception:      # too slow for Wikidata (504): by language alone, which is quick
+                if not spec["langs"]: raise
+                time.sleep(62); pair = _wikidata_pair(dict(spec, countries=[]))
             out[code] = {k: sorted(set(v)) for k, v in pair.items()}
             ok += 1
         except Exception:
@@ -829,7 +832,8 @@ def _per_country():
     for code, label, _ in GROUPS:
         ids = cd.get(code) or {}
         out.append({"code": code, "name": label, "movie": sum(1 for i in ids.get("movie", ()) if i in cat["items"]),
-                    "series": sum(1 for i in ids.get("series", ()) if i in cat["items"])})
+                    "series": sum(1 for i in ids.get("series", ()) if i in cat["items"]),
+                    "known": len(ids.get("movie", ())) + len(ids.get("series", ()))})
     return out
 
 def _titles():
@@ -1008,6 +1012,7 @@ def view_scoped(kind, f, row=None, sort=None, offset=0, limit=40):
     cat, pool = _filter_pool(kind, f)
     if cat is None: return {"building": True, "rows": [], "chips": []}
     rules = _scoped_rules(kind)
+    if f.get("country") and f["country"] != "JP": rules.pop("anime", None)      # anime is Japanese; elsewhere the Animation genre shelf shows cartoons
     chips = [{"id": r["id"], "name": r["name"], "home": r["home"]} for r in rules.values()]
     gnames = _genre_rows(pool)
     chips += [{"id": "gx-" + g.lower(), "name": g, "home": True} for g in gnames if "g-" + g.lower() not in rules]

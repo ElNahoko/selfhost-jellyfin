@@ -979,6 +979,7 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .vburst i{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:#60a5fa;box-shadow:0 0 6px #3b82f6;animation:vspark .65s ease-out forwards}
 .vburst i:nth-child(3n){background:#bfdbfe;width:4px;height:4px}
 @keyframes vspark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
+.dcr small{color:var(--muted);font-size:.78rem;margin-left:6px}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -2009,8 +2010,11 @@ async function renderSettings(){
     tbl.innerHTML="";var n=st.counts||{},gm=st.games||{};
     ov.innerHTML="";[["film","Films",n.movies],["tv","Series",n.series],["grid","Games",gm.with_cover],["sparkles","Anime",n.anime],["star","With a poster",n.posters!=null&&n.titles?Math.round(n.posters*100/n.titles)+"%":null]].forEach(function(x){
       var b=el("div","dbox");b.appendChild(svg(x[0]));b.appendChild(el("b","",x[2]!=null?(typeof x[2]==="number"?x[2].toLocaleString():x[2]):"–"));b.appendChild(el("span","",x[1]));ov.appendChild(b);});
-    ct.innerHTML="";if((st.per_country||[]).length){ct.appendChild(el("h3","dsub","By country"));var tg=el("div","dctg");
-      st.per_country.forEach(function(c){var r=el("div","dcr");r.appendChild(el("span","",c.name.replace(" cinema","")));r.appendChild(el("b","",c.movie.toLocaleString()+" films · "+c.series.toLocaleString()+" series"));tg.appendChild(r);});ct.appendChild(tg);}
+    ct.innerHTML="";if((st.per_country||[]).length){ct.appendChild(el("h3","dsub","By country · in the catalogue"));var tg=el("div","dctg");
+      st.per_country.forEach(function(c){var r=el("div","dcr"),l=el("span","");l.appendChild(el("span","",c.name.replace(" cinema","")));
+        l.appendChild(el("small","",c.known?" of "+c.known.toLocaleString()+" known":" still being collected…"));r.appendChild(l);
+        r.appendChild(el("b","",c.movie.toLocaleString()+" films · "+c.series.toLocaleString()+" series"));tg.appendChild(r);});ct.appendChild(tg);
+      ct.appendChild(el("p","hint left","“Known” is everything Wikidata lists for that country; the catalogue keeps the titles with enough ratings to show a score."));}
     var rows=[["catalog","Catalogue","IMDb titles, ratings, shelves (weekly)",n.titles?(n.movies||0).toLocaleString()+" films · "+(n.series||0).toLocaleString()+" series":"",st.catalog.building,st.catalog.built],
       ["posters","Posters and plots","TMDb through Jellyfin, a few at a time",n.posters!=null?n.posters.toLocaleString()+" of "+n.titles.toLocaleString():"",st.posters.running,null],
       ["episodes","Episode ratings","IMDb, per season and episode",n.episodes_series!=null?n.episodes_series.toLocaleString()+" series":"",st.episodes.building,st.episodes.built],
