@@ -2568,9 +2568,11 @@ async function drawCatalog(tries){saveCat();
     var d;try{d=await api("GET",catUrl(kind,""));}catch(e){d={rows:[],chips:[],building:false};}
     if(kind!==reqKind||row!==reqRow||!$("reqCat"))return;
     if(d.rows.length)CATS[key]=d;
-    else{
-      box.innerHTML="";box.appendChild(el("div","hint",d.building?"Building the catalogue for the first time. This takes a minute or two…":"The catalogue isn’t available right now. You can still search above."));
-      if(d.building&&(tries||0)<40)catPoll=setTimeout(function(){drawCatalog((tries||0)+1);},5000);return;
+    else{      // nothing yet: say why, and try again by itself (a restart, a list still being collected)
+      box.innerHTML="";var h=el("div","hint",d.building?"Building the catalogue. This takes a minute or two…":filtersOn()?"Nothing matches these filters yet. ":"Loading the catalogue…");
+      if(!d.building&&filtersOn()){var cf=el("button","btn sm","Clear filters");cf.type="button";cf.onclick=function(){clearFilters();reqRow="";drawFilters();drawCatalog();};h.appendChild(cf);}
+      box.appendChild(h);
+      if((tries||0)<60)catPoll=setTimeout(function(){drawCatalog((tries||0)+1);},(tries||0)<5?3000:8000);return;
     }
   }
   var cat=CATS[key],y=window.scrollY;if(!filtersOn())CHIPS[kind]=cat.chips;drawChips(cat.chips);box.innerHTML="";
