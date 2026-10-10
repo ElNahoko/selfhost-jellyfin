@@ -581,7 +581,9 @@ class H(BaseHTTPRequestHandler):
                 src = (qs.get("u") or [""])[0]; pu = urlparse(src)
                 if pu.scheme != "https" or pu.hostname not in ("image.tmdb.org", "static.tvmaze.com", "upload.wikimedia.org", "thumb.wikimedia.org"): return self.send(400, b"{}")
                 w = (qs.get("w") or ["342"])[0]; w = w if w in ("185", "342", "500") else "342"
-                with open(fetch_poster(src, w), "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
+                try: fp = fetch_poster(src, w)
+                except Exception: return self.send(404, b"{}", cache="public, max-age=3600")      # not asked again on every redraw
+                with open(fp, "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
         except Exception:
             return self.send(404, b"{}")
         self.send(404, b"{}")

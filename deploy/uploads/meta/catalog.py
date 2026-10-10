@@ -256,7 +256,7 @@ def _build():
     try:
         with open(COUNTRIES_F) as f: cj = json.load(f)
         for c, v in cj.items():
-            if c not in ("built", "complete"): natl.update(v.get("movie", ())); natl.update(v.get("series", ()))
+            if c not in META_KEYS: natl.update(v.get("movie", ())); natl.update(v.get("series", ()))
     except (OSError, ValueError):
         pass
     items = {}
@@ -302,6 +302,7 @@ GROUPS = [("FR", "French cinema", {"langs": ["Q150"], "countries": ["Q142"]}),
           ("IR", "Iranian cinema", {"langs": ["Q9168"], "countries": ["Q794"]}),
           ("TR", "Turkish cinema", {"langs": ["Q256"], "countries": ["Q43"]})]
 COUNTRIES_F = os.path.join(DBDIR, "countries.json")
+META_KEYS = ("built", "complete", "done")
 _cty = {"t": 0, "d": None, "building": False, "fail": 0}
 
 FILM_CLS = ("Q11424", "Q202866", "Q93204", "Q506240", "Q24869", "Q24862")          # film, animated, documentary, TV film, feature, short
@@ -341,36 +342,37 @@ def _wikidata_pair(spec):
     raise last
 
 def _build_countries():
+    """Collects every country list again. The previous lists stay in use until each new one arrives (a country page is
+    never empty during a rebuild); "done" remembers which ones this run has finished, so a restart carries on."""
     cat = _mem["cat"] or _read()
     if not cat: return
-    out = {"built": int(time.time()), "complete": False}
-    ok = 0
-    try:      # carry on from a run that was interrupted a short while ago (restart, rate limit)
+    out = {"built": int(time.time()), "complete": False, "done": []}
+    try:
         with open(COUNTRIES_F) as f: prev = json.load(f)
-        if not prev.get("complete") and time.time() - prev.get("built", 0) < 3600:
-            out["built"] = prev["built"]
-            out.update({c: v for c, v in prev.items() if c not in ("built", "complete") and (v.get("movie") or v.get("series"))})
+        out.update({c: v for c, v in prev.items() if c not in META_KEYS and (v.get("movie") or v.get("series"))})
+        if not prev.get("complete") and time.time() - prev.get("built", 0) < 6 * 3600:      # an interrupted run: carry on
+            out["built"] = prev.get("built", out["built"])
+            out["done"] = list(prev["done"]) if "done" in prev else [c for c in prev if c not in META_KEYS and (prev[c].get("movie") or prev[c].get("series"))]
     except Exception:
         pass
-    for n, (code, label, spec) in enumerate(GROUPS):
-        if code in out:
-            ok += 1
-            continue
+    for code, label, spec in GROUPS:
+        if code in out["done"]: continue
         try:
             try: pair = _wikidata_pair(spec)
             except Exception:      # too slow for Wikidata (504): by language alone, which is quick
                 if not spec["langs"]: raise
                 time.sleep(62); pair = _wikidata_pair(dict(spec, countries=[]))
-            out[code] = {k: sorted(set(v)) for k, v in pair.items()}
-            ok += 1
+            if pair.get("movie") or pair.get("series"):
+                out[code] = {k: sorted(set(v)) for k, v in pair.items()}
+                out["done"].append(code)
         except Exception:
-            out[code] = {"movie": [], "series": []}
-        out["complete"] = (n == len(GROUPS) - 1) and ok == len(GROUPS)
-        tmp = COUNTRIES_F + ".tmp"      # saved after every country, so the first ones (French, Spanish) show up early
+            pass      # keeps the previous list for this country
+        out["complete"] = len(out["done"]) == len(GROUPS)
+        tmp = COUNTRIES_F + ".tmp"      # saved after every country, so new lists show up as they come
         with open(tmp, "w") as f: json.dump(out, f, separators=(",", ":"))
         os.replace(tmp, COUNTRIES_F); _cty["t"] = 0
         time.sleep(62)
-    if not out["complete"]: _cty["fail"] = time.time()      # try again in 15 minutes
+    if not out["complete"]: _cty["fail"] = time.time()      # try the missing ones again in 15 minutes
 
 def _countries_job():
     try:
@@ -386,7 +388,7 @@ def countries():
         _cty["t"] = time.time()
         try:
             with open(COUNTRIES_F) as f: raw = json.load(f)
-            _cty["d"] = {c: {k: set(v) for k, v in raw[c].items()} for c in raw if c not in ("built", "complete")}
+            _cty["d"] = {c: {k: set(v) for k, v in raw[c].items()} for c in raw if c not in META_KEYS}
             old = time.time() - raw.get("built", 0) > MAXAGE or not raw.get("complete", True)
         except Exception:
             _cty["d"] = None; old = True
