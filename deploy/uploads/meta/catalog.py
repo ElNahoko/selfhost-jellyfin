@@ -1555,20 +1555,18 @@ _plat = {"t": 0, "d": {}, "rev": {}, "building": False, "fail": 0}
 def _wikidata_platform(qid):
     # its own titles only: the original broadcaster of a series, or the ONLY distributor of a film (Netflix also "distributes"
     # The Shawshank Redemption in some countries; that is not where it comes from). Wikidata returns the pairs, we count here.
-    q = ("SELECT ?imdb ?o ?b WHERE { { ?f wdt:P449 wd:%s. BIND(1 AS ?b) } UNION { ?f wdt:P750 wd:%s; wdt:P750 ?o. } ?f wdt:P345 ?imdb. }" % (qid, qid))
+    q = ("SELECT ?imdb ?b (COUNT(DISTINCT ?o) AS ?n) WHERE { { ?f wdt:P449 wd:%s; wdt:P449 ?o. BIND(1 AS ?b) } UNION { ?f wdt:P750 wd:%s; wdt:P750 ?o. } "
+         "?f wdt:P345 ?imdb. } GROUP BY ?imdb ?b" % (qid, qid))      # (Sherlock was BBC, later also on Netflix: not a Netflix title)      # one line per title: small enough for Wikidata's minute
     url = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(q)
     last = None
     for attempt in range(6):
         req = urllib.request.Request(url, headers={"User-Agent": "NahokoCatalogue/1.2 (https://github.com/ElNahoko/selfhost-jellyfin; self-hosted media catalogue)", "Accept": "application/sparql-results+json"})
         try:
             with urllib.request.urlopen(req, timeout=170) as r: d = json.load(r)
-            own, dist = set(), {}
+            own = set()
             for x in d["results"]["bindings"]:
                 i = x["imdb"]["value"]
-                if not i.startswith("tt"): continue
-                if "b" in x: own.add(i)
-                elif "o" in x: dist.setdefault(i, set()).add(x["o"]["value"].rsplit("/", 1)[-1])
-            own |= {i for i, ds in dist.items() if ds == {qid}}
+                if i.startswith("tt") and x.get("n", {}).get("value") == "1": own.add(i)      # its only broadcaster, or its only distributor
             return sorted(own)
         except urllib.error.HTTPError as e:
             last = e
