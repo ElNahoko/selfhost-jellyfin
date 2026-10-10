@@ -414,6 +414,7 @@ def _epdb(path=EPS_DB):
     c.execute("CREATE TABLE IF NOT EXISTS info(k TEXT PRIMARY KEY, v TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS epx(series TEXT, season INTEGER, ep INTEGER, airdate TEXT, runtime INTEGER, title TEXT, PRIMARY KEY(series, season, ep))")
     c.execute("CREATE TABLE IF NOT EXISTS epx_info(series TEXT PRIMARY KEY, fetched INTEGER, tvmaze INTEGER, status TEXT, premiered TEXT, ended TEXT, runtime INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS epimg(series TEXT, season INTEGER, ep INTEGER, img TEXT, PRIMARY KEY(series, season, ep))")      # a still per episode
     return c
 
 def _build_episodes(series_ids):
@@ -457,6 +458,8 @@ def _build_episodes(series_ids):
     try:                                                  # keep the air dates and runtimes already fetched
         c.execute("ATTACH DATABASE ? AS old", (EPS_DB,))
         c.execute("INSERT OR IGNORE INTO epx SELECT * FROM old.epx"); c.execute("INSERT OR IGNORE INTO epx_info SELECT * FROM old.epx_info")
+        try: c.execute("INSERT OR IGNORE INTO epimg SELECT * FROM old.epimg")
+        except sqlite3.Error: pass
         c.commit(); c.execute("DETACH DATABASE old")
     except sqlite3.Error:
         pass
@@ -500,7 +503,8 @@ def fetch_tvmaze(sid):
     """Air dates, runtimes and titles per episode from TVmaze (free, no key), by IMDb id. Kept in episodes.db; retried daily if missing."""
     c = _epdb()
     row = c.execute("SELECT fetched, tvmaze FROM epx_info WHERE series=?", (sid,)).fetchone()
-    if row and time.time() - row[0] < (MAXAGE if row[1] else 86400): c.close(); return
+    stills = c.execute("SELECT 1 FROM epimg WHERE series=? LIMIT 1", (sid,)).fetchone()      # fetched before the stills were kept: once more
+    if row and time.time() - row[0] < (MAXAGE if row[1] else 86400) and (stills or not row[1] or time.time() - row[0] < 3600): c.close(); return
     show, eps = None, []
     try:
         show = _tvmaze(TVMAZE + "/lookup/shows?imdb=" + sid)
@@ -514,6 +518,9 @@ def fetch_tvmaze(sid):
         c.executemany("INSERT OR REPLACE INTO epx VALUES(?,?,?,?,?,?)",
                       [(sid, e.get("season") or 0, e.get("number") or 0, e.get("airdate") or None, e.get("runtime"), (e.get("name") or "")[:120])
                        for e in eps if e.get("number")])
+        c.execute("DELETE FROM epimg WHERE series=?", (sid,))
+        c.executemany("INSERT OR REPLACE INTO epimg VALUES(?,?,?,?)", [(sid, e.get("season") or 0, e.get("number"), (e.get("image") or {}).get("medium") or "")
+                                                                       for e in eps if e.get("number") and (e.get("image") or {}).get("medium")] or [(sid, -1, -1, "")])
     else:
         c.execute("INSERT OR REPLACE INTO epx_info VALUES(?,?,?,?,?,?,?)", (sid, int(time.time()), None, None, None, None, None))
     c.commit(); c.close()
@@ -526,6 +533,7 @@ def episodes_for(sid):
         rows = c.execute("SELECT season, ep, rating, votes, title FROM ep WHERE series=? ORDER BY season, ep", (sid,)).fetchall()
         x = {(s, e): (a, r, t) for s, e, a, r, t in c.execute("SELECT season, ep, airdate, runtime, title FROM epx WHERE series=?", (sid,))}
         info = c.execute("SELECT status, premiered, ended, runtime FROM epx_info WHERE series=? AND tvmaze IS NOT NULL", (sid,)).fetchone()
+        stills = {(s, e): u.replace("https://static.tvmaze.com/uploads/images/", "") for s, e, u in c.execute("SELECT season, ep, img FROM epimg WHERE series=? AND img != ''", (sid,))}      # short: the page adds the start
         c.close()
     except Exception:
         return None
@@ -544,7 +552,7 @@ def episodes_for(sid):
         a, r, t = x.get((s, e), (None, None, ""))
         if not rec[3] and t: rec[3] = t
         if a and a > today: rec[3] = rec[3] or t           # future episodes keep their title
-        seasons.setdefault(s, []).append(rec + [a, ep_rt(r)])
+        seasons.setdefault(s, []).append(rec + [a, ep_rt(r), stills.get((s, e), "")])
     out, best, nxt = [], None, None
     for sn in sorted(seasons, key=lambda n: (n == 0, n)):
         eps = seasons[sn]; rated = [e[1] for e in eps if e[1]]

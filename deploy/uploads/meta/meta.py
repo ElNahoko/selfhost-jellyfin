@@ -943,9 +943,21 @@ class H(BaseHTTPRequestHandler):
                     if loc.get("n") and loc["n"] != it["n"]: it["ln"] = loc["n"]
                     if loc.get("o"): it.update(o=loc["o"], osrc=loc.get("src"), owiki=loc.get("wiki", ""))
                 return self.js(it or {}, 200 if it else 404)
-            if path == "/_meta/requests":
+            if path == "/_meta/requests":      # the staff wishlist: what members saved to their favorites (and the old requests)
+                if not staff(s): return self.js([])
                 with db() as c:
                     rows = [dict(r) for r in c.execute("SELECT r.*, (SELECT count(*) FROM request_votes v WHERE v.req_id=r.id) AS votes, (SELECT group_concat(who, ', ') FROM request_votes v WHERE v.req_id=r.id) AS voters FROM requests r ORDER BY (r.status='open') DESC, votes DESC, r.id DESC LIMIT 300")]
+                    c.execute("CREATE TABLE IF NOT EXISTS want_done(tid TEXT PRIMARY KEY, t INTEGER)")
+                    done = {r[0] for r in c.execute("SELECT tid FROM want_done")}
+                have = {r.get("tid") for r in rows if r.get("tid")}
+                for tid, n, who, first in auth.favorite_counts():
+                    if tid in have: continue
+                    it = games.item(tid) if tid.startswith("wg") else catalog.item(tid)
+                    if not it: continue
+                    rows.append({"id": "f-" + tid, "kind": "game" if tid.startswith("wg") else ("series" if it.get("k") == "series" else "movie"), "title": it["n"],
+                                 "year": it.get("y"), "poster": it.get("img") or "", "tid": tid, "status": "done" if tid in done else "open",
+                                 "votes": n, "voters": who, "who": (who or "").split(", ")[0], "created": first, "fav": 1})
+                rows.sort(key=lambda r: (r["status"] != "open", -(r.get("votes") or 1), -(r.get("created") or 0)))
                 return self.js(rows)
             m = re.fullmatch(r"/_meta/img/([0-9a-f]{32})", path)
             if m:
@@ -1064,6 +1076,13 @@ class H(BaseHTTPRequestHandler):
                     had = c.execute("DELETE FROM request_votes WHERE req_id=? AND who=?", (int(m.group(1)), who)).rowcount
                     if not had: c.execute("INSERT OR IGNORE INTO request_votes VALUES(?,?)", (int(m.group(1)), who))
                 return self.js({"ok": True, "voted": not had})
+            m = re.fullmatch(r"/_meta/requests/f-((?:tt|wg)\d{1,10})", path)
+            if m and staff(s):      # a title members saved: added (or back to waiting)
+                with db() as c:
+                    c.execute("CREATE TABLE IF NOT EXISTS want_done(tid TEXT PRIMARY KEY, t INTEGER)")
+                    if b.get("status") == "done": c.execute("INSERT OR REPLACE INTO want_done VALUES(?,?)", (m.group(1), int(time.time())))
+                    else: c.execute("DELETE FROM want_done WHERE tid=?", (m.group(1),))
+                return self.js({"ok": True})
             m = re.fullmatch(r"/_meta/requests/(\d+)", path)
             if m and staff(s):      # admin and uploaders can say a wish has been uploaded
                 st = "done" if b.get("status") == "done" else "open"

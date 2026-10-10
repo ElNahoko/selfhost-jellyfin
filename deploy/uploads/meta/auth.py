@@ -281,3 +281,8 @@ def set_favorites(email, add=(), remove=()):
     with db() as c:
         c.executemany("INSERT OR IGNORE INTO favorites VALUES(?,?,?)", [(email, t, now) for t in add])
         c.executemany("DELETE FROM favorites WHERE email=? AND tid=?", [(email, t) for t in remove])
+
+def favorite_counts(limit=500):
+    """What members saved, most saved first: (title id, how many, who, first saved). The staff wishlist is made of this."""
+    with db() as c:
+        return [tuple(r) for r in c.execute("SELECT tid, count(*), group_concat(email, ', '), min(added) FROM favorites GROUP BY tid ORDER BY count(*) DESC, min(added) DESC LIMIT ?", (limit,))]

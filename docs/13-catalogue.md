@@ -181,11 +181,20 @@ background, the 3,000 best-known people and the 600 best-known titles in every l
 pages open at once. Nothing on a page is loaded from another site (pictures go through `/_meta/rimg` and are stored on
 disk); the only exception is the trailer player.
 
-## Wishlist and uploaders
+## Favorites are the wishes
 
-Visitors and members vote with the blue thumb; the admin and uploaders get a round green check instead ("uploaded",
-moves the wish to Added) and see how many want it. Uploaders can delete leftover files (`.txt`, `.nfo`, `.url`, `.html`,
-pictures) but never a video or a folder (enforced in `/auth/check`).
+The public site offers nothing to watch and has no link to Jellyfin: no Watch button, no "I want it". Visitors keep favorites
+(the heart); the admin and uploaders see the Wishlist tab, made of what members saved (most saved first, with who saved it)
+plus any old requests. A round green check moves a title to Added (`want_done` in the request database).
+Uploaders can delete leftover files (`.txt`, `.nfo`, `.url`, `.html`, pictures) but never a video or a folder (enforced in
+`/auth/check`).
+
+## Episodes
+
+The rating chart scrolls with the page; a slim strip stays pinned under the title bar: one chip per season (or block of 25
+episodes) with its average, and the season's numbers. Picking a season keeps the page height steady and brings its first
+episode under the strip. Each episode shows its still (TVmaze, kept in `episodes.db` table `epimg`; the picture itself is
+stored on disk on first view).
 
 The About, How it works, Privacy and Contact pages exist in every language (`assets/pages/<lang>/`), built from the
 English ones by `assets/pages/i18n_pages.py`.
