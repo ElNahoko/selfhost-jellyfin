@@ -2488,7 +2488,7 @@ async function feelingLucky(){
     var small=window.innerWidth<=860;
     tl.from(card,small?{y:24,opacity:0,scale:.94,duration:.5,ease:"back.out(1.4)"}:{rotateY:-85,x:-70,opacity:0,transformPerspective:900,duration:.9,ease:"back.out(1.35)"},quiet?0:.1)
       .from(rights,{y:20,opacity:0,stagger:.07,duration:.55},.25)
-      .from(roll,{y:22,opacity:0,scale:.94,duration:.6,ease:"back.out(2.2)"},.55);
+      .from(roll,small?{opacity:0,duration:.4,clearProps:"transform"}:{y:22,opacity:0,scale:.94,duration:.6,ease:"back.out(2.2)",clearProps:"transform"},.55);
     var fg=d.querySelector(".ringg circle:last-child"),num=d.querySelector(".lrate b");
     if(fg&&it.r){var C=2*Math.PI*15.5,o={v:0};g.fromTo(fg,{attr:{"stroke-dasharray":"0 "+C}},{attr:{"stroke-dasharray":(C*it.r/10)+" "+C},duration:1.2,delay:.45,ease:"power3.out"});
       g.to(o,{v:it.r,duration:1.2,delay:.45,ease:"power3.out",onUpdate:function(){num.textContent=o.v.toFixed(1);}});}
