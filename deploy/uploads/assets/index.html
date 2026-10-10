@@ -1064,6 +1064,18 @@ body.guest.hsearch .mtop #luckyBtn{width:auto;padding:0 14px!important;gap:6px}
 body.guest.hsearch .mtop #luckyBtn .lt{display:inline!important;font-size:.9rem;white-space:nowrap}
 body.guest.hsearch .mtop .tools{flex:0 1 520px}
 .gacct .btn,.gacct a{white-space:nowrap;flex:none}
+/* a soft shimmer while a picture loads */
+.pz .ph,.card .ph,.dpst .ph,.lucky .lpst .ph,.rpz .ph{font-size:0!important;color:transparent!important;
+  background:linear-gradient(100deg,#1d1d1d 30%,#2a2a2a 50%,#1d1d1d 70%)!important;background-size:220% 100%!important;animation:shim 1.3s ease-in-out infinite}
+.pz .ph.still,.card .ph.still,.dpst .ph.still,.lucky .lpst .ph.still,.rpz .ph.still{animation:none;background:linear-gradient(160deg,#242424,#1a1a1a)!important}
+@keyframes shim{0%{background-position:120% 0}100%{background-position:-120% 0}}
+@media (prefers-reduced-motion:reduce){.pz .ph,.card .ph,.dpst .ph,.rpz .ph{animation:none}}
+/* sign in: light, optional */
+.signbtn,.mtop .gacct .signbtn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;flex-direction:row;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:.92rem;white-space:nowrap}
+.signbtn:hover,.mtop .gacct .signbtn:hover{border-color:#666;background:var(--card2);color:var(--ink)}.signbtn svg{width:17px;height:17px}
+@media (max-width:600px){.mtop .gacct .signbtn{padding:8px 11px}.mtop .gacct .signbtn span{display:none}}
+/* the logo is a link home */
+.mtop .brandm{cursor:pointer;border-radius:10px}.mtop .brandm:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -1170,6 +1182,7 @@ var queue=[], running=false;
 var META={}, SIZES={}, metaT=0, metaBusy=false, listing=[], filterText="", LIBSET={};
 
 var ICONS={
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   news:'<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>',
   list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
@@ -1509,7 +1522,12 @@ function folderTile(x){
   return t;
 }
 function byName(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true});}
-function cover(box,u){if(!u)return;var im=el("img");im.loading="lazy";im.decoding="async";im.alt="";im.src=u;im.onerror=function(){if(!im._r){im._r=1;setTimeout(function(){im.src=u+(u.indexOf("?")>0?"&":"?")+"r=1";},1500);}else im.remove();};box.appendChild(im);}
+function cover(box,u){
+  var ph=box.querySelector(".ph");
+  if(!u){if(ph)ph.classList.add("still");return;}      // no picture at all: a calm tile, not an endless shimmer
+  var im=el("img");im.loading="lazy";im.decoding="async";im.alt="";im.src=u;
+  im.onload=function(){if(ph)ph.classList.add("still");};
+  im.onerror=function(){if(!im._r){im._r=1;setTimeout(function(){im.src=u+(u.indexOf("?")>0?"&":"?")+"r=1";},1500);}else{im.remove();if(ph)ph.classList.add("still");}};box.appendChild(im);}
 var GP={},GPQ=[],GPN=0;
 try{GP=JSON.parse(localStorage.getItem("gp")||"{}");}catch(e){GP={};}
 function guessPoster(kind,title,year,box){      // asks the server (TMDb through Jellyfin) for a poster by name, remembered in this browser
@@ -2352,7 +2370,7 @@ function renderRequests(){TPAGE=false;
   [["movie","Movies","","film"],["series","Series","","tv"],["game","Games","","grid"],["fav","Favorites","","heart"]].concat(!PUBLICV?[["list","Wishlist","amber","list"]]:[]).forEach(function(k){
     var on=k[0]==="list"?reqTab==="list":k[0]==="fav"?reqTab==="fav":(reqTab==="browse"&&reqKind===k[0]);
     var b=el("button",(on?"on ":"")+k[2]);b.type="button";b.dataset.k=k[0];b.setAttribute("role","tab");b.setAttribute("aria-selected",String(on));
-    b.appendChild(svg(k[3],"ti"));b.appendChild(el("span","tlab",k[1]));b.title=k[1];
+    b.appendChild(tint(svg(k[3],"ti"),k[3]));b.appendChild(el("span","tlab",k[1]));b.title=k[1];
     if(k[0]==="list"&&openReq)b.appendChild(el("span","cnt",String(openReq)));
     if(k[0]==="fav"&&FAV.length)b.appendChild(el("span","cnt",String(FAV.length)));
     b.onclick=function(){var q0=$("filter").value.trim();      // the search follows you to the other tab
@@ -2446,7 +2464,10 @@ var FLAGS={
   TR:'<rect width="24" height="16" fill="#E30A17"/><circle cx="9" cy="8" r="4.2" fill="#fff"/><circle cx="10.2" cy="8" r="3.4" fill="#E30A17"/><polygon points="'+starPts(13.6,8,2)+'" fill="#fff"/>'
 };
 function flagEl(code){var NS="http://www.w3.org/2000/svg",f=document.createElementNS(NS,"svg");f.setAttribute("viewBox","0 0 24 16");f.setAttribute("class","flag");f.setAttribute("aria-hidden","true");f.innerHTML=FLAGS[code]||'<rect width="24" height="16" fill="#555"/>';return f;}
-function iconEl(name){return typeof name==="string"&&name.indexOf("flag:")===0?flagEl(name.slice(5)):svg(name);}
+var ICOLOR={star:"#f5c518",flame:"#fb923c",cal:"#f472b6",az:"#60a5fa",award:"#fbbf24",globe:"#38bdf8",tag:"#a3e635",tv:"#60a5fa",
+  heart:"#ff4d6d",film:"#ff5a5f",grid:"#34d399",list:"#f5a524",news:"#a78bfa",user:"#e5e7eb"};
+function tint(e,name){if(ICOLOR[name])e.style.color=ICOLOR[name];return e;}      // each kind of icon keeps its colour
+function iconEl(name){return typeof name==="string"&&name.indexOf("flag:")===0?flagEl(name.slice(5)):tint(svg(name),name);}
 function makeDD(label,opts,cur,onPick,plain){      // a small dropdown whose entries carry icons; opts: [[value,text,icon],...]
   var wrap=el("div","dd"+(plain?" full":"")),btn=el("button","ddb");btn.type="button";btn.setAttribute("aria-haspopup","listbox");
   var menu=el("div","ddm");menu.hidden=true;menu.setAttribute("role","listbox");
@@ -3189,7 +3210,8 @@ $("settingsBtn").onclick=$("settingsBtn2").onclick=function(){go("settings");};
 if(GUEST){$("settingsBtn").hidden=true;$("settingsBtn2").hidden=true;}
 if(GUEST){      // visitors and members: no sidebar, the name on the left of the header, the account on the right
   var mt=document.querySelector(".mtop"),acc=el("div","gacct");
-  if(PUBLICV){var si=el("button","btn primary","Sign in");si.type="button";si.onclick=function(){signInDialog();};acc.appendChild(si);}
+  if(PUBLICV){var si=el("button","signbtn");si.type="button";si.appendChild(svg("user"));si.appendChild(el("span","","Sign in"));si.title="Optional: only to keep your favorites";
+    si.onclick=function(){signInDialog("Optional: Nahoko works without an account. Signing in only keeps your favorites (and your wishes) on every device. No password: we email you a code.");};acc.appendChild(si);}
   else{if(JELLYFIN_URL){var wj=el("a","btn sm watchj");wj.href=JELLYFIN_URL;wj.target="_blank";wj.rel="noopener";wj.appendChild(svg("play"));wj.appendChild(el("span","","Watch"));wj.title="Open Jellyfin to watch";acc.appendChild(wj);}
     var av=el("button","avatar",(ME||"?").charAt(0).toUpperCase());av.type="button";av.title=ME;av.setAttribute("aria-label","Account");av.setAttribute("aria-expanded","false");
     var am=el("div","amenu");am.hidden=true;var ah=el("div","amhead");ah.appendChild(el("span","avatar big",(ME||"?").charAt(0).toUpperCase()));
@@ -3205,8 +3227,11 @@ if(GUEST){      // visitors and members: no sidebar, the name on the left of the
     document.addEventListener("click",function(e){if(!am.hidden&&!am.contains(e.target)){am.hidden=true;av.setAttribute("aria-expanded","false");}});
     var aw=el("div","awrap");aw.appendChild(av);aw.appendChild(am);acc.appendChild(aw);}
   if(mt){[].forEach.call(mt.querySelectorAll("button"),function(b){b.hidden=true;});
+    var bm=mt.querySelector(".brandm");if(bm){bm.setAttribute("role","link");bm.tabIndex=0;bm.title="Home";      // the logo: back to the start page
+      var home=function(){reqTab="browse";reqKind="movie";reqRow="";reqPage=1;clearFilters();$("filter").value="";TPAGE=false;go("requests");window.scrollTo(0,0);};
+      bm.onclick=home;bm.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();home();}};}
     var cr=$("crumbs");if(cr){cr.classList.add("incrumbs");mt.insertBefore(cr,mt.children[1]||null);}      // the catalogue tabs live in the logo row
-    var nw=el("a","newsbtn");nw.href="/news";nw.title="News";nw.setAttribute("aria-label","News");nw.appendChild(svg("news"));nw.appendChild(el("span","","News"));acc.insertBefore(nw,acc.firstChild);
+    var nw=el("a","newsbtn");nw.href="/news";nw.title="News";nw.setAttribute("aria-label","News");nw.appendChild(tint(svg("news"),"news"));nw.appendChild(el("span","","News"));acc.insertBefore(nw,acc.firstChild);
     mt.appendChild(acc);
     var tl=$("tools"),topRow=document.querySelector(".top"),wide=matchMedia("(min-width:900px)");
     var place=function(){if(!tl)return;if(wide.matches){if(tl.parentNode!==mt){mt.insertBefore(tl,acc);document.body.classList.add("hsearch");}}
