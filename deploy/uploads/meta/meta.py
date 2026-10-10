@@ -17,7 +17,7 @@ Writes need a JSON body and a same-site Origin, so another website cannot trigge
 """
 import hashlib, json, os, re, shutil, sqlite3, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
-import auth, catalog, extras, games, mail
+import auth, catalog, extras, games, mail, news
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote, unquote
 
@@ -369,9 +369,21 @@ class H(BaseHTTPRequestHandler):
             if path in ("/about", "/privacy", "/contact"):          # plain pages, the same for everyone
                 with open(os.path.join(ASSETS, "pages", path[1:] + ".html"), "rb") as f: data = f.read()
                 return self.send(200, data, "text/html; charset=utf-8", "public, max-age=300")
-            if path == "/news":                          # the news page, with the posts written in
-                with open(os.path.join(ASSETS, "pages", "news.html"), encoding="utf-8") as f: tpl = f.read()
-                return self.send(200, tpl.replace("<!--POSTS-->", extras.news_html()).encode(), "text/html; charset=utf-8", "no-cache")
+            m = re.fullmatch(r"/news(?:/(movies|series|anime|games|nahoko))?/?", path)
+            if m:                                        # the news section: all stories, or one section
+                try: pg = max(1, min(int((qs.get("page") or ["1"])[0]), 500))
+                except ValueError: pg = 1
+                return self.send(200, news.hub(m.group(1) or "", pg).encode(), "text/html; charset=utf-8", "public, max-age=120")
+            m = re.fullmatch(r"/news/a/([0-9a-f]{12})(?:-[a-z0-9-]*)?", path)
+            if m:                                        # one story: summary, link to the publisher, related stories
+                page = news.article(m.group(1))
+                if not page: return self.redirect("/news")
+                return self.send(200, page.encode(), "text/html; charset=utf-8", "public, max-age=300")
+            m = re.fullmatch(r"/news/p/(\d{1,6})(?:-[a-z0-9-]*)?", path)
+            if m:                                        # one of our own posts
+                page = news.post(int(m.group(1)))
+                if not page: return self.redirect("/news/nahoko")
+                return self.send(200, page.encode(), "text/html; charset=utf-8", "public, max-age=120")
             if path in ("/", "/index.html", "/profiles", "/settings") or path.startswith(("/catalogue", "/title/")) or path.endswith("/"):
                 return self.send(200, app_page(self.sess() or PUBLIC), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
@@ -393,6 +405,12 @@ class H(BaseHTTPRequestHandler):
                 hit = rc_get(self.path)
                 if hit is not None: return self.send(200, hit, cache="public, max-age=60")
                 self._rc_key = (self.path, CACHED[path])
+            m = re.fullmatch(r"/_meta/nimg/([0-9a-f]{12})", path)
+            if m:                                        # a news picture, stored on first use
+                try: fp = news.image_file(m.group(1))
+                except Exception: fp = None
+                if not fp: return self.send(404, b"{}", cache="public, max-age=3600")
+                with open(fp, "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
             if path == "/_meta/news": return self.send(200, json.dumps(extras.news()).encode(), cache="no-cache")
             if path == "/_meta/messages": return self.js(extras.messages())
             if path == "/_meta/related":
@@ -509,6 +527,8 @@ class H(BaseHTTPRequestHandler):
                 st = catalog.status()
                 try: st["games"] = games.status()
                 except Exception as e: st["games"] = {"error": str(e)[:120]}
+                try: st["news"] = news.status()
+                except Exception as e: st["news"] = {"error": str(e)[:120]}
                 return self.js(st)
             if path == "/_meta/filters" and (qs.get("type") or [""])[0] == "game":
                 return self.send(200, json.dumps(games.filters_info()).encode(), cache="private, max-age=60")

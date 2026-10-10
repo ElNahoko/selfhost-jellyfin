@@ -1005,6 +1005,9 @@ body.guest .sfoot{display:flex}.sfoot a{color:var(--muted);text-decoration:none}
 .msgs{display:grid;gap:10px}.msg{background:var(--card2);border-radius:14px;padding:14px 16px}
 .mhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.mhead span{color:var(--muted);font-size:.84rem}
 .mbody{white-space:pre-wrap;margin:8px 0 10px;color:var(--ink)}.macts{display:flex;gap:8px}
+.tabs a.newstab{display:inline-flex;align-items:center;padding:10px 2px 13px;font-size:1.08rem;font-weight:650;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.top .crumbs .tabs a.newstab{padding:6px 2px 10px;font-size:1.25rem}.tabs a.newstab:hover{color:var(--ink)}
+@media (max-width:860px){.top .crumbs .tabs a.newstab{font-size:1.02rem;flex:none}}
 #boot{display:none}
 #boot.on{display:flex;position:fixed;inset:0;z-index:9999;background:#141414;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s}
 #boot.out{opacity:0;pointer-events:none}
@@ -2271,6 +2274,7 @@ function renderRequests(){
       if(q0&&reqTab==="browse"){var f2=$("filter");f2.value=q0;f2.dispatchEvent(new Event("input",{bubbles:true}));}};
     tabs.appendChild(b);
   });
+  var nws=el("a","newstab","News");nws.href="/news";tabs.appendChild(nws);      // the news section, its own pages
   hd.appendChild(tabs);
   var f=$("filter");f.value="";
   if(reqTab==="list"&&PUBLICV)reqTab="browse";
@@ -3123,7 +3127,10 @@ function render(){
   tg.onclick=function(){var n=app.classList.toggle("narrow");try{localStorage.setItem("lumio_side",n?"narrow":"wide");}catch(e){}tg.title=n?"Expand the sidebar":"Collapse the sidebar";};})();
 (function(){var m=$("modal");if(!m||!window.MutationObserver)return;      // lock the page while a dialog is open
   new MutationObserver(function(){document.documentElement.classList.toggle("noscroll",!m.hidden);}).observe(m,{attributes:true,attributeFilter:["hidden"]});})();
+var deepTitle=(location.pathname.match(/^\/title\/((?:tt|wg)\d{1,10})/)||[])[1];      // a shared link to one title
+if(deepTitle){reqTab="browse";if(/^wg/.test(deepTitle))reqKind="game";history.replaceState(null,"","/catalogue/"+(reqKind==="game"?"games":reqKind==="series"?"series":"movies"));}
 cwd=fromHash();catFromUrl();if(location.pathname+location.search!==urlFor(cwd))history.replaceState(null,"",urlFor(cwd));render();loadRequests();
+if(deepTitle)api("GET","/_meta/title?id="+deepTitle).then(function(t){if(t&&t.n)showTitle(t);}).catch(function(){});
 if(ADMIN){loadSpace();setInterval(loadSpace,60000);loadStats();setInterval(function(){if(!document.hidden)loadStats();},4000);}
 favSync();paintWho();if(STAFF)showResume();
 })();

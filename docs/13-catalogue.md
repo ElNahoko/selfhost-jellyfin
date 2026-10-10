@@ -12,6 +12,7 @@ It is a small Python server (no framework, no database server) plus one web page
 | `deploy/uploads/meta/games.py` | games: list, covers, scores, shelves, filters, search |
 | `deploy/uploads/meta/auth.py` | staff accounts, members (email codes), sessions, favorites |
 | `deploy/uploads/meta/mail.py` | sends the sign-in code (SMTP, Resend) |
+| `deploy/uploads/meta/news.py`, `news.html` | the News section: stories from publishers' feeds, sections, story pages, related stories |
 | `deploy/uploads/meta/extras.py` | News posts (`data/news.json`) and Contact messages (`data/messages.db`) |
 | `deploy/uploads/assets/index.html` | the whole web app (HTML, CSS and JavaScript in one file) |
 | `deploy/uploads/assets/pages/` | About, Privacy, Contact, and the News page template (posts are written in by meta) |
@@ -104,7 +105,14 @@ rebuild the catalogue in the background (the old one keeps being served meanwhil
 
 ## News and Contact
 
-`/news` lists the posts (written in Settings → News). `/contact` sends a message to Settings → Messages; set `CONTACT_TO`
+`/news` is a news section like the big film sites have: Movies, Series, Anime, Games, and Nahoko (our own updates).
+Stories come from the publishers' own RSS feeds (Variety, /Film, Screen Rant, IndieWire, TVLine, Anime News Network,
+Anime Corner, IGN, GameSpot, Polygon, Eurogamer), read every 30 minutes and kept 45 days. Only the headline, the short
+summary the feed carries and the picture are kept; every card and story page names the source and links to the full article.
+A story page adds "In the catalogue" (titles quoted in the headline that Nahoko has, linked to `/title/<id>`) and related
+stories. Pictures come from the feed or the article's preview picture (`og:image`), stored once and served by `/_meta/nimg/<id>`.
+
+Our own posts are written in Settings → News. `/contact` sends a message to Settings → Messages; set `CONTACT_TO`
 in `uploads-meta.env` to also receive each message by email. Every page carries the IMDb credit
 ("Information courtesy of IMDb (imdb.com). Used with permission."), as the IMDb datasets licence asks.
 

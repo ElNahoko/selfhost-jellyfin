@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141414">
+<title>{{TITLE}} · Nahoko</title>
+<meta name="description" content="{{DESC}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESC}}">
+<link rel="canonical" href="{{CANON}}">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png">
+<link rel="icon" href="/pwa/icon-192.png">
+<style>
+:root{color-scheme:dark;--bg:#141414;--card:#1c1c1c;--card2:#242424;--ink:#f3f3f3;--muted:#a3a3a3;--line:#2e2e2e;--red:#e50914}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+a{color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 56px}
+/* header */
+.top{position:sticky;top:0;z-index:10;background:rgba(20,20,20,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:900;letter-spacing:.14em;font-size:1.15rem}
+.brand svg{width:30px;height:30px}
+.bar .sp{flex:1}
+.bar .lnk{text-decoration:none;color:var(--muted);font-weight:600;font-size:.95rem;padding:7px 12px;border-radius:99px}
+.bar .lnk:hover{color:#fff;background:var(--card2)}
+.bar .lnk.cat{color:#fff;background:var(--red)}
+.tabs{max-width:1240px;margin:0 auto;padding:0 20px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{flex:none;text-decoration:none;color:var(--muted);font-weight:700;padding:10px 14px 12px;border-bottom:3px solid transparent}
+.tabs a:hover{color:#fff}.tabs a.on{color:#fff;border-bottom-color:var(--red)}
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:32px;margin-top:26px}
+h1{font-size:2rem;letter-spacing:-.02em;margin:0 0 18px;line-height:1.15}
+.lead{color:var(--muted);margin:-8px 0 20px}
+.empty{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+/* cards */
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-decoration:none;transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-3px);border-color:#444}
+.ci{aspect-ratio:16/9;background:var(--card2);overflow:hidden}
+.ci img,.ci .noimg{width:100%;height:100%;object-fit:cover;display:block}
+.noimg{display:grid;place-items:center;background:linear-gradient(135deg,#2a2a2a,#1a1a1a);color:#666;font-weight:800;letter-spacing:.06em}
+.noimg.brand span{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#ff3b3b,#c10f1d);color:#fff;font-size:1.6rem}
+.cb{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px}
+.cb h3{margin:0;font-size:1.02rem;line-height:1.35}
+.cb p{margin:0;color:var(--muted);font-size:.9rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.8rem}
+.sec{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:99px;text-decoration:none}
+.sec-movies{background:rgba(229,9,20,.16);color:#ff6b74}.sec-series{background:rgba(59,130,246,.16);color:#7fb0ff}
+.sec-anime{background:rgba(236,72,153,.16);color:#f58fc6}.sec-games{background:rgba(34,197,94,.16);color:#6ee7a0}.sec-nahoko{background:rgba(245,165,36,.16);color:#f5c26b}
+.topstory{margin-bottom:22px}
+.card.big{display:grid;grid-template-columns:1.35fr 1fr}
+.card.big .ci{aspect-ratio:auto;min-height:280px}
+.card.big .cb{padding:24px;justify-content:center}.card.big h3{font-size:1.55rem;line-height:1.2}.card.big p{-webkit-line-clamp:5;font-size:1rem}
+/* side column */
+aside{display:flex;flex-direction:column;gap:18px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.box h4{margin:0 0 10px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.box ol{list-style:none;margin:0;padding:0;counter-reset:n}
+.box li{counter-increment:n;display:grid;grid-template-columns:22px 1fr;column-gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.box li:first-child{border-top:0}
+.box li::before{content:counter(n);color:var(--red);font-weight:800;grid-row:span 2}
+.box li a{text-decoration:none;font-weight:600}.box li a:hover{text-decoration:underline}
+.box li span{color:var(--muted);font-size:.8rem}
+.box .more{display:inline-block;margin-top:8px;color:var(--muted);font-size:.85rem}
+.box.note p{margin:0;color:var(--muted);font-size:.85rem}
+/* story page */
+.story h1{font-size:2.1rem;margin:12px 0 18px}
+.story figure{margin:0 0 18px;border-radius:16px;overflow:hidden;background:var(--card2)}
+.story .hero{width:100%;max-height:520px;object-fit:cover;display:block}
+.lede{font-size:1.15rem;line-height:1.6;color:#dcdcdc;margin:0 0 22px}
+.postbody p{font-size:1.06rem;color:#dcdcdc}
+.readon{display:inline-block;background:var(--red);color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:12px}
+.readon:hover{filter:brightness(1.1)}
+.credit{color:var(--muted);font-size:.82rem;margin:14px 0 0}
+.incat,.rel{margin-top:34px}
+.incat h2,.rel h2{font-size:1.15rem;margin:0 0 14px}
+.minis{display:flex;gap:14px;flex-wrap:wrap}
+.mini{display:flex;flex-direction:column;width:130px;text-decoration:none;gap:4px}
+.mini img,.mini i{width:130px;aspect-ratio:2/3;object-fit:cover;border-radius:12px;background:var(--card2);display:block}
+.mini b{font-size:.9rem;line-height:1.25}.mini span{color:var(--muted);font-size:.8rem}
+/* pages */
+.pager{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:30px 0 0}
+.pg{min-width:42px;height:42px;padding:0 12px;display:inline-grid;place-items:center;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:700;text-decoration:none}
+.pg:hover{border-color:#666}.pg.on{background:#fff;color:#111;border-color:#fff}.pg.off{opacity:.3;pointer-events:none}.dots{align-self:center;color:var(--muted)}
+footer{max-width:1240px;margin:40px auto 0;padding:22px 20px 40px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:16px;font-size:.88rem}
+footer a{color:var(--muted);text-decoration:none}footer a:hover{color:#fff}
+footer .credit{flex-basis:100%;margin:0}footer .credit a{text-decoration:underline}
+@media (max-width:960px){.layout{grid-template-columns:1fr}aside{order:2}.card.big{grid-template-columns:1fr}.card.big .ci{min-height:0;aspect-ratio:16/9}}
+@media (max-width:600px){.wrap{padding:0 14px 40px}.bar{padding:10px 14px}.tabs{padding:0 8px}h1{font-size:1.6rem}.story h1{font-size:1.6rem}
+  .grid{grid-template-columns:1fr}.card{flex-direction:row}.card .ci{width:118px;flex:none;aspect-ratio:auto}.card .cb{padding:12px}.card .cb p{display:none}
+  .card.big{flex-direction:column}.card.big .ci{width:auto}.card.big .cb p{display:-webkit-box}.bar .lnk:not(.cat){display:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <a class="brand" href="/"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#c10f1d"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#g)"/><path d="M20 47V17h6.6l11.6 18.6V17H44v30h-6.4L25.8 28.3V47z" fill="#fff"/></svg><span>AHOKO</span></a>
+    <span class="sp"></span>
+    <a class="lnk" href="/about">About</a><a class="lnk" href="/contact">Contact</a><a class="lnk cat" href="/catalogue/movies">Catalogue</a>
+  </div>
+  <nav class="tabs" aria-label="News sections">{{TABS}}</nav>
+</header>
+<div class="wrap">
+{{BODY}}
+</div>
+<footer><a href="/catalogue/movies">Catalogue</a><a href="/news">News</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a>
+<p class="credit">Information courtesy of IMDb (<a href="https://www.imdb.com" rel="noopener">imdb.com</a>). Used with permission. News stories belong to their publishers; Nahoko shows their headlines and links to them.</p></footer>
+</body>
+</html>
