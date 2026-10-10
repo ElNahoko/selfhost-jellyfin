@@ -364,6 +364,34 @@ def home_data():
     _home.update(t=time.time(), d=d)
     return d
 
+def home_html(d, lang="en"):
+    """The start page drawn on the server, with the same classes as the app: it shows (pictures loading) before any code
+    runs, and search engines read real content. The app redraws it the same way when its code arrives."""
+    import html as H
+    e = lambda x: H.escape(str(x), quote=True)
+    T = i18n(lang) if lang != "en" else {}
+    tr = lambda x: T.get(x, x)
+    pre = "/" + lang if lang != "en" else ""
+    img = lambda u, w: "/_meta/rimg?w=%s&amp;u=%s" % (w, quote(u, safe="")) if u else ""
+    def tile(x, eager):
+        pic = ('<img src="%s" alt="" width="185" height="278" loading="%s" decoding="async">' % (img(x["img"], 185), "eager" if eager else "lazy")) if x.get("img") else ""
+        rate = ('<span class="rate">★ %.1f</span>' % x["r"]) if x.get("r") else ""
+        return ('<div class="tile"><div class="pz"><div class="ph still"></div>%s%s</div><a class="tt" translate="no" href="%s%s">%s</a><div class="ty">%s</div></div>'
+                % (pic, rate, pre, title_path(x["id"], lang, x), e(x["n"]), x.get("y") or ""))
+    hero = d.get("hero") or {}
+    out = ['<div class="home ssr"><section class="hhero"><div class="hhbg">%s</div><div class="hhin"><h1>%s</h1><p>%s</p>'
+           '<label class="hsrch"><input type="search" placeholder="%s" aria-label="Search"></label><div class="hquick">%s</div></div></section>' % (
+        ('<img src="%s" alt="" fetchpriority="high" decoding="async">' % img(hero["bd"], 500)) if hero.get("bd") else "",
+        e(tr("Films, series, anime and games worth your time")), e(tr("Ratings, cast, every episode, trailers and where each title comes from. Free, no account needed.")),
+        e(tr("Search films, series, people…")),
+        "".join('<a class="chip" href="%s/%s">%s</a>' % (pre, path, e(tr(name))) for path, name in
+                ((SEC[lang]["movie"], "Movies"), (SEC[lang]["series"], "Series"), (SEC[lang]["series"] + "/anime", "Anime"), (SEC[lang]["game"], "Games"))))]
+    for n, sec in enumerate(d.get("sections") or []):
+        out.append('<section class="hsec"><div class="hsh"><h2>%s</h2><a class="hmore" href="%s/%s">%s</a></div><div class="hgrid">%s</div></section>' % (
+            e(tr(sec["name"])), pre, SEC[lang][sec["kind"]], e(tr("See all")), "".join(tile(x, n == 0 and i < 6) for i, x in enumerate(sec["items"]))))
+    out.append("</div>")
+    return "".join(out)
+
 def boot_script(name, data):
     """Data the page needs first, sent inside the page: no extra round trip before the first pictures."""
     return '<script>window.%s=%s;</script>' % (name, json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
@@ -463,7 +491,7 @@ def i18n_file(lang):
     _page.setdefault("files", {})[name] = (data, "js")
     return name
 
-def app_page(s, head="", body="", lang="en"):
+def app_page(s, head="", body="", lang="en", content=""):
     """The app, told who is looking (public, member, uploader, admin). `head` adds page-specific tags (SEO)."""
     p = os.path.join(ASSETS, "index.html")
     m = os.path.getmtime(p)
@@ -485,6 +513,7 @@ def app_page(s, head="", body="", lang="en"):
         inj += '<script>window.__LANG=%s;</script><script src="/_app/%s"></script>' % (json.dumps(lang), i18n_file(lang))
     html = _page["html"].replace('<html lang="en">', '<html lang="%s"%s>' % (lang, ' dir="rtl"' if lang == "ar" else ""), 1)
     if "<title>" in head: html = re.sub(r"<title>[^<]*</title>", "", html, count=1)      # one title per page: the page's own
+    if content: html = html.replace('<div id="content"></div>', '<div id="content">' + content + '</div>', 1)      # drawn on the server
     return html.replace("<head>", "<head>" + inj + head, 1).replace("<body>", "<body>" + body, 1).encode()
 
 def staff(s): return s["role"] in ("admin", "uploader")
@@ -595,6 +624,24 @@ def _warm_people():
                     try: catalog.title_i18n(it["id"], lg)
                     except Exception: pass
                     time.sleep(1.5)
+        except Exception:
+            pass
+        time.sleep(24 * 3600)
+
+def _warm_cast():
+    """In the background, one title at a time: the cast portraits of the 4,000 best-known titles are looked up and kept,
+    so a title page shows its cast with faces the first time anyone opens it."""
+    time.sleep(180)
+    while True:
+        try:
+            cat = catalog.load() or {"items": {}}
+            for it in sorted(cat["items"].values(), key=lambda i: -i["v"])[:4000]:
+                cd = catalog.cast_for(it["id"]) or {}
+                if cd.get("pending"):
+                    for _ in range(40):      # wait for this title's portraits before the next one
+                        if not catalog._photo_busy: break
+                        time.sleep(1)
+                    time.sleep(1)
         except Exception:
             pass
         time.sleep(24 * 3600)
@@ -821,6 +868,7 @@ class H(BaseHTTPRequestHandler):
                         hd += ('<title>%s · %s</title><meta name="description" content="%s"><link rel="canonical" href="%s">' % (
                             mail.BRAND, T.get("Films, series, anime and games", "Films, series, anime and games"), desc, lang_url(lang, "/")))
                         hd += boot_script("__HOME", hdat) + preload([(hero.get("bd"), "500")] + [(x.get("img"), "185") for x in (hdat["sections"][0]["items"][:6] if hdat["sections"] else [])])
+                        return self.send(200, app_page(self.sess() or PUBLIC, hd, "", lang, home_html(hdat, lang)), "text/html; charset=utf-8", "no-store" if self.sess() else "public, max-age=60")
                     except Exception: pass
                 return self.send(200, app_page(self.sess() or PUBLIC, hd, "", lang), "text/html; charset=utf-8")
             if path == "/auth/check":                       # Caddy asks this before serving the admin site or the guest page
@@ -1267,4 +1315,5 @@ if __name__ == "__main__":
     threading.Thread(target=_warm_covers, daemon=True).start()
     threading.Thread(target=_warm_people, daemon=True).start()
     threading.Thread(target=_warm_home, daemon=True).start()
+    threading.Thread(target=_warm_cast, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", 8000), H).serve_forever()

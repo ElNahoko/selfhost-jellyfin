@@ -102,6 +102,7 @@ Read [`docs/`](docs) in order. Each page explains *why* before *how*:
 | 11 | [Upload page, catalogue and guest profiles](docs/11-upload-page.md) | Optional: uploads from a browser, a browsable catalogue with requests, guest profiles |
 | 12 | [Theme](docs/12-theme.md) | Optional: nicer look, colourful library tiles |
 | 13 | [The catalogue](docs/13-catalogue.md) | How the films, series and games catalogue works: data sources, shelves, API, speed |
+| 14 | [Cloudflare](docs/14-cloudflare.md) | Free Cloudflare in front of the catalogue: settings, cache rules, checks |
 
 ## Install flow
 
