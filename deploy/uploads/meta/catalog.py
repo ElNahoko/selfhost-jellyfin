@@ -1239,3 +1239,29 @@ def related(tid, n=14):
     except Exception:
         pass
     return out
+
+# ---------- wide background picture for a series' page (TVmaze "background"), looked up once and kept ----------
+def backdrop(tid):
+    """-> url of a wide picture for the title page, '' when there is none (films have none in our free sources)."""
+    try:
+        with _titles() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS backdrops(id TEXT PRIMARY KEY, url TEXT, t INTEGER)")
+            r = c.execute("SELECT url FROM backdrops WHERE id=?", (tid,)).fetchone()
+        if r is not None: return r[0]
+    except Exception:
+        return ""
+    url = ""
+    try:
+        e = _epdb(); r = e.execute("SELECT tvmaze FROM epx_info WHERE series=? AND tvmaze IS NOT NULL", (tid,)).fetchone(); e.close()
+        if r:
+            imgs = _tvmaze(TVMAZE + "/shows/%d/images" % r[0]) or []
+            bg = [x for x in imgs if x.get("type") == "background"]
+            bg.sort(key=lambda x: (not x.get("main"), abs(((x.get("resolutions") or {}).get("original") or {}).get("width", 0) - 1920)))
+            if bg: url = bg[0]["resolutions"]["original"]["url"]
+    except Exception:
+        return ""
+    try:
+        with _titles() as c: c.execute("INSERT OR REPLACE INTO backdrops VALUES(?,?,?)", (tid, url, int(time.time())))
+    except Exception:
+        pass
+    return url

@@ -460,6 +460,10 @@ class H(BaseHTTPRequestHandler):
                 with open(fp, "rb") as f: return self.send(200, f.read(), "image/jpeg", "public, max-age=31536000, immutable")
             if path == "/_meta/news": return self.send(200, json.dumps(extras.news()).encode(), cache="no-cache")
             if path == "/_meta/messages": return self.js(extras.messages())
+            if path == "/_meta/backdrop":
+                bid = (qs.get("id") or [""])[0]
+                u = catalog.backdrop(bid) if re.fullmatch(r"tt\d{6,10}", bid) else ""
+                return self.send(200, json.dumps({"u": u}).encode(), cache="private, max-age=86400")
             if path == "/_meta/related":
                 rid = (qs.get("id") or [""])[0]
                 d = games.related(rid) if re.fullmatch(r"wg\d{1,10}", rid) else catalog.related(rid) if re.fullmatch(r"tt\d{6,10}", rid) else None
